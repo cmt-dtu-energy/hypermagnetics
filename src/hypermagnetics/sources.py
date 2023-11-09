@@ -19,6 +19,7 @@ class Sources:
         self.m, self.r0 = jnp.split(
             jr.normal(key=subkey, shape=(self.N, self.M, 4)), 2, axis=-1
         )
+        self.m_r = jnp.concatenate([self.m, self.r0], axis=-1)
 
         range = jnp.linspace(-self.lim, self.lim, self.res)
         self.x, self.y = jnp.meshgrid(range, range)
@@ -26,6 +27,11 @@ class Sources:
 
         self.potential = self._total(self._potential, self.m, self.r0, self.grid)
         self.field = self._total(self._field, self.m, self.r0, self.grid)
+
+    def sample_grid(self, key, n=None):
+        if n is None:
+            n = self.res * self.res
+        return jr.uniform(minval=-self.lim, maxval=self.lim, shape=(n, 2), key=key)
 
     def _potential(self, m, r0, r):
         core = 1.0
@@ -47,5 +53,6 @@ class Sources:
         return jnp.sum(components, axis=0)
 
 
-sources = Sources(N=10, M=1, key=jr.PRNGKey(40), lim=3, res=32)
-print(sources.potential.shape, sources.field.shape)
+if __name__ == "__main__":
+    sources = Sources(N=10, M=1, key=jr.PRNGKey(40), lim=3, res=32)
+    print(sources.potential.shape, sources.field.shape)

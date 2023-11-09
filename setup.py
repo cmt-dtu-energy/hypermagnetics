@@ -10,15 +10,13 @@ setup(
     packages=find_packages(where="src"),
     install_requires=[
         "numpy",
-        "wheel",
-        "ml-dtypes==0.2.0",
-        "jax-metal==0.0.4",
         "optax",
         "equinox",
         "wandb",
     ],
     extras_require={
         "dev": ["pytest", "matplotlib", "ipython", "ipykernel"],
+        "metal": ["ml-dtypes==0.2.0", "jax-metal==0.0.4"],
     },
     python_requires=">=3.9",
 )
