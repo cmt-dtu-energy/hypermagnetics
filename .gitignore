@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Weights and biases
+wandb/
+
 # Distribution / packaging
 .Python
 build/

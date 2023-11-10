@@ -5,9 +5,8 @@ import jax.random as jr
 import optax
 
 import hypermagnetics.sources as sources
+import wandb
 from hypermagnetics.models import HyperMLP
-
-optim = optax.adam(learning_rate=0.001)
 
 
 def loss(model, sources, grid, target):
@@ -32,17 +31,30 @@ def accuracy(model, data):
 
 
 if __name__ == "__main__":
-    train_config = {"N": 500, "M": 1, "key": jr.PRNGKey(40), "lim": 3, "res": 100}
-    test_config = {"N": 500, "M": 1, "key": jr.PRNGKey(41), "lim": 3, "res": 100}
-    train = sources.configure(**train_config)
-    test = sources.configure(**test_config)
+    source_config = {"N": 500, "M": 1, "key": jr.PRNGKey(40), "lim": 3, "res": 32}
+    val_config = {"N": 500, "M": 1, "key": jr.PRNGKey(41), "lim": 3, "res": 32}
+    train = sources.configure(**source_config)
+    val = sources.configure(**val_config)
 
-    epochs = 100
-    logger = {"train_loss": [], "train_acc": [], "val_acc": []}
-    model = HyperMLP(16, 3, *jr.split(jr.PRNGKey(42), 2))
+    hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
+    model_config = {"width": 16, "depth": 3, "hyperkey": hyperkey, "mainkey": mainkey}
+    model = HyperMLP(**model_config)
+
+    trainer_config = {"learning_rate": 0.001, "epochs": 1000}
+    optim = optax.adam(trainer_config["learning_rate"])
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
-    for epoch in range(epochs):
+    run = wandb.init(
+        project="hypermagnetics",
+        config={
+            "trainer_config": trainer_config,
+            "model_config": model_config,
+            "source_config": source_config,
+            "val_config": val_config,
+        },
+    )
+
+    for epoch in range(trainer_config["epochs"]):
         model, opt_state, train_loss = step(
             model,
             opt_state,
@@ -50,15 +62,14 @@ if __name__ == "__main__":
             train["grid"],
             train["potential"],
         )
+        train_acc = accuracy(model, train)
+        val_acc = accuracy(model, val)
 
-        if (epoch % (epochs / 100)) == 0:
-            logger["train_loss"].append(train_loss)
-            logger["train_acc"].append(accuracy(model, train))
-            logger["val_acc"].append(accuracy(model, test))
-
-        if (epoch % (epochs / 100)) == 0:
-            print(
-                f"{epoch=}, train_loss={train_loss:.4f}, ",
-                f"accuracy={logger['train_acc'][-1]:.4f}",
-                f"val_accuracy={logger['val_acc'][-1]:.4f}",
-            )
+        # if (epoch % (trainer_config["epochs"] / 100)) == 0:
+        wandb.log(
+            {
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_acc": val_acc,
+            }
+        )
