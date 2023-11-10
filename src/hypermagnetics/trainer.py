@@ -4,10 +4,10 @@ import jax.numpy as jnp
 import jax.random as jr
 import optax
 
-from hypermagnetics.hypermlp import HyperMLP
-from hypermagnetics.sources import Sources
+import hypermagnetics.sources as sources
+from hypermagnetics.models import HyperMLP
 
-optim = optax.adam(learning_rate=0.01)
+optim = optax.adam(learning_rate=0.001)
 
 
 def loss(model, sources, grid, target):
@@ -25,32 +25,40 @@ def step(model, opt_state, sources, grid, target):
 
 @eqx.filter_jit
 def accuracy(model, data):
-    sources, grid, target = data.m_r, data.grid, data.potential
+    sources, grid, target = data["sources"], data["grid"], data["potential"]
     pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
     diff = jnp.linalg.norm(target - pred)
     return jnp.median(diff / jnp.linalg.norm(target) * 100)
 
 
 if __name__ == "__main__":
-    train_sources = Sources(N=100, M=2, key=jr.PRNGKey(40), lim=3, res=32)
-    test_sources = Sources(N=100, M=2, key=jr.PRNGKey(41), lim=3, res=32)
+    train_config = {"N": 500, "M": 1, "key": jr.PRNGKey(40), "lim": 3, "res": 100}
+    test_config = {"N": 500, "M": 1, "key": jr.PRNGKey(41), "lim": 3, "res": 100}
+    train = sources.configure(**train_config)
+    test = sources.configure(**test_config)
 
-    steps = 10_000
+    epochs = 100
     logger = {"train_loss": [], "train_acc": [], "val_acc": []}
     model = HyperMLP(16, 3, *jr.split(jr.PRNGKey(42), 2))
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
-    for step in range(steps):
-        model, opt_state, train_loss = step(model, opt_state)
+    for epoch in range(epochs):
+        model, opt_state, train_loss = step(
+            model,
+            opt_state,
+            train["sources"],
+            train["grid"],
+            train["potential"],
+        )
 
-        if (step % (steps / 100)) == 0:
+        if (epoch % (epochs / 100)) == 0:
             logger["train_loss"].append(train_loss)
-            logger["train_acc"].append(accuracy(model, train_sources))
-            logger["val_acc"].append(accuracy(model, test_sources))
+            logger["train_acc"].append(accuracy(model, train))
+            logger["val_acc"].append(accuracy(model, test))
 
-        if (step % (steps / 100)) == 0:
+        if (epoch % (epochs / 100)) == 0:
             print(
-                f"{step=}, train_loss={train_loss:.4f}, ",
+                f"{epoch=}, train_loss={train_loss:.4f}, ",
                 f"accuracy={logger['train_acc'][-1]:.4f}",
                 f"val_accuracy={logger['val_acc'][-1]:.4f}",
             )
