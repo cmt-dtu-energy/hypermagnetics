@@ -31,14 +31,17 @@ def accuracy(model, data):
 
 
 if __name__ == "__main__":
-    source_config = {"N": 500, "M": 1, "key": jr.PRNGKey(40), "lim": 3, "res": 32}
-    val_config = {"N": 500, "M": 1, "key": jr.PRNGKey(41), "lim": 3, "res": 32}
-    train = sources.configure(**source_config)
-    val = sources.configure(**val_config)
+    source_config = {"N": 500, "M": 3, "lim": 3, "res": 32}
+    train = sources.configure(**source_config, key=jr.PRNGKey(40))
+    val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
-    model_config = {"width": 16, "depth": 3, "hyperkey": hyperkey, "mainkey": mainkey}
-    model = HyperMLP(**model_config)
+    model_config = {
+        "width": 32,
+        "depth": 3,
+        "hdepth": 2,
+    }
+    model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {"learning_rate": 0.001, "epochs": 1000}
     optim = optax.adam(trainer_config["learning_rate"])
@@ -50,7 +53,6 @@ if __name__ == "__main__":
             "trainer_config": trainer_config,
             "model_config": model_config,
             "source_config": source_config,
-            "val_config": val_config,
         },
     )
 

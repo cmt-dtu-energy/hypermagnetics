@@ -28,16 +28,16 @@ def _total(fun, m, r0, r):
     return jnp.sum(components, axis=0)
 
 
-def configure(N, M, key, lim=3, res=32):
+def configure(N, M, lim=3, res=32, key=jr.PRNGKey(0)):
     """
     Configures samples of sources.
 
     Args:
         N (int): Number of samples to generate.
         M (int): Number of sources in each sample.
-        key (jr.PRNGKey): Random number generator key.
         lim (int, optional): Domain range, in units of source radius. Defaults to 3.
         res (int, optional): Resolution of the field grid. Defaults to 32.
+        key (jr.PRNGKey): Random number generator key.
     """
 
     key, subkey = jr.split(key, 2)
