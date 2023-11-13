@@ -48,8 +48,9 @@ def main():
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = wandb.config.trainer
-    learning_rate = jax.numpy.asarray(trainer_config["learning_rate"]).item()
-    optim = optax.adam(learning_rate=learning_rate)
+    optim = optax.adam(learning_rate=trainer_config["learning_rate"])
+    # learning_rate = jax.numpy.asarray(trainer_config["learning_rate"]).item()
+    # optim = optax.inject_hyperparams(optax.adam)(learning_rate=learning_rate)
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
     for epoch in range(trainer_config["epochs"]):
