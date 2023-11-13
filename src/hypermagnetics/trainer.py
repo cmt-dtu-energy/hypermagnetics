@@ -3,23 +3,14 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 import optax
+import yaml
 
 import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics.models import HyperMLP
 
-sweep_configuration = {
-    "method": "bayes",
-    "name": "sweep",
-    "metric": {"name": "val_acc", "goal": "minimize"},
-    "parameters": {
-        "width": {"values": [4, 8, 16]},
-        "depth": {"values": [2, 3]},
-        "hdepth": {"values": [2]},
-        "res": {"values": [16, 32, 64]},
-        "learning_rate": {"max": 0.01, "min": 0.00001},
-    },
-}
+with open("config/sweep-configuration.yaml", "r") as f:
+    sweep_configuration = yaml.safe_load(f)
 
 sweep_id = wandb.sweep(sweep=sweep_configuration, project="hypermagnetics")
 
