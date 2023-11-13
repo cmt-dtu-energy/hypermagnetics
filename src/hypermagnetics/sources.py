@@ -28,20 +28,22 @@ def _total(fun, m, r0, r):
     return jnp.sum(components, axis=0)
 
 
-def configure(N, M, lim=3, res=32, key=jr.PRNGKey(0)):
+def configure(n_samples, n_sources, lim=3, res=32, key=jr.PRNGKey(0)):
     """
     Configures samples of sources.
 
     Args:
-        N (int): Number of samples to generate.
-        M (int): Number of sources in each sample.
+        n_samples (int): Number of samples to generate.
+        n_sources (int): Number of sources in each sample.
         lim (int, optional): Domain range, in units of source radius. Defaults to 3.
         res (int, optional): Resolution of the field grid. Defaults to 32.
         key (jr.PRNGKey): Random number generator key.
     """
 
     key, subkey = jr.split(key, 2)
-    m, r0 = jnp.split(jr.normal(key=subkey, shape=(N, M, 4)), 2, axis=-1)
+    m, r0 = jnp.split(
+        jr.normal(key=subkey, shape=(n_samples, n_sources, 4)), 2, axis=-1
+    )
 
     range = jnp.linspace(-lim, lim, res)
     x, y = jnp.meshgrid(range, range)
@@ -61,6 +63,12 @@ def sample_grid(key, lim, res, n=None):
 
 
 if __name__ == "__main__":
-    config = {"N": 10, "M": 1, "key": jr.PRNGKey(40), "lim": 3, "res": 32}
+    config = {
+        "n_samples": 10,
+        "n_sources": 1,
+        "key": jr.PRNGKey(40),
+        "lim": 3,
+        "res": 32,
+    }
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)

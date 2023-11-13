@@ -37,26 +37,17 @@ def accuracy(model, data):
 
 
 def main():
-    run = wandb.init()
-    width = wandb.config.width
-    depth = wandb.config.depth
-    hdepth = wandb.config.hdepth
-    res = wandb.config.res
-    learning_rate = wandb.config.learning_rate
+    wandb.init()
 
-    source_config = {"N": 500, "M": 2, "lim": 3, "res": res}
+    source_config = wandb.config.source
     train = sources.configure(**source_config, key=jr.PRNGKey(40))
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
-    model_config = {
-        "width": width,
-        "depth": depth,
-        "hdepth": hdepth,
-    }
+    model_config = wandb.config.model
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
-    trainer_config = {"learning_rate": learning_rate, "epochs": 2000}
+    trainer_config = wandb.config.trainer
     optim = optax.adam(trainer_config["learning_rate"])
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
