@@ -18,17 +18,17 @@ parameters:
     parameters:
       width:
         min: 8
-        max: 32
+        max: 48
       depth:
         min: 2
         max: 4
       hdepth:
-        min: 2
+        min: 1
         max: 4
   trainer:
     parameters:
       learning_rate:
-        value: 0.001
+        value: 0.0005
       epochs:
-        value: 2000
-run_cap: 100
+        value: 3000
+run_cap: 500

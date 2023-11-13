@@ -4,7 +4,7 @@
 #SBATCH --partition qgpu
 #SBATCH --nodes 1
 #SBATCH --ntasks-per-node 128
-#SBATCH --time 12:00:00
+#SBATCH --time 18:00:00
 #SBATCH --gpus 1
 
 conda activate hypermagnetics
