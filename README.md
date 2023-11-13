@@ -12,15 +12,15 @@ for a model that evaluates the potential/field at specified locations.
 - jax, equinox, optax
 - [for training] wandb, matplotlib, ipython, ipykernel
 - [for Apple Silicon] ml-dtypes==0.2.0, jax-metal==0.0.4
-- [for Linux with NVIDIA GPU] jax[cuda12_pip]
+- [for Linux with NVIDIA GPU] the JAX wheel should be install from URL as shown below
 
 Install via a pyenv or conda environment:
 
 ```zsh
 conda create -n hypermagnetics python=3.9
-pip install -e . # CPU-only
+# pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html # For Linux with NVIDIA GPU
+pip install -e .
 # For Apple Silicon: pip install -e ".[metal]"
-# For Linux with NVIDIA GPU: pip install -e ".[cuda]"
 ```
 
 ## Functionality

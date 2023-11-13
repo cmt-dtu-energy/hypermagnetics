@@ -13,11 +13,11 @@ setup(
         "optax",
         "equinox",
         "wandb",
+        # "jax" is intentionally left out here
     ],
     extras_require={
         "dev": ["pytest", "matplotlib", "ipython", "ipykernel"],
         "metal": ["ml-dtypes==0.2.0", "jax-metal==0.0.4"],
-        "cuda": ["jax[cuda12_pip]"],
     },
     python_requires=">=3.9",
 )
