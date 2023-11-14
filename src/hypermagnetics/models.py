@@ -23,12 +23,13 @@ def get_biases(model):
 
 
 @jax.jit
-def reshape_params(old_params, params):
+def reshape_params(old_params, flat_params):
     """Reshape a flat parameter vector into a list of weight and bias matrices."""
-    new_params = []
+    new_params = ()
+    idx = 0
     for w in old_params:
-        new_params.append(jnp.reshape(params[: w.size], w.shape))
-        params = params[w.size :]
+        new_params += (jnp.reshape(flat_params[idx : idx + w.size], w.shape),)
+        idx += w.size
     return new_params
 
 
