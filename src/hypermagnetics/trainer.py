@@ -7,7 +7,7 @@ from hypermagnetics.measures import accuracy, loss
 from hypermagnetics.models import HyperMLP
 
 
-def fit(trainer_config, optim, model, train, val, logger=print):
+def fit(trainer_config, optim, model, train, val, log=print):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
     @eqx.filter_jit
@@ -21,13 +21,14 @@ def fit(trainer_config, optim, model, train, val, logger=print):
         model, opt_state, train_loss = step(model, opt_state, train)
         train_acc = accuracy(model, train)
         val_acc = accuracy(model, val)
-        logging = {
-            "epoch": epoch,
-            "train_loss": train_loss,
-            "train_acc": train_acc,
-            "val_acc": val_acc,
-        }
-        logger(logging)
+        log(
+            {
+                "epoch": epoch,
+                "train_loss": train_loss,
+                "train_acc": train_acc,
+                "val_acc": val_acc,
+            }
+        )
 
 
 if __name__ == "__main__":
@@ -44,9 +45,13 @@ if __name__ == "__main__":
     model = HyperMLP(16, 3, 2, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {
-        "learning_rate": 1e-3,
-        "momentum": 0.9,
+        "learning_rate": 5e-2,
+        "momentum": 0.999,
         "epochs": 1000,
     }
-    optim = optax.adam(learning_rate=trainer_config["learning_rate"])
+    optim = optax.sgd(
+        learning_rate=trainer_config["learning_rate"],
+        momentum=trainer_config["momentum"],
+        nesterov=True,
+    )
     fit(trainer_config, optim, model, train, val)
