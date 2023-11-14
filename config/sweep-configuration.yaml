@@ -7,13 +7,13 @@ parameters:
   source:
     parameters:
       n_samples:
-        value: 1000
+        value: 100
       n_sources:
         value: 2
       lim:
         value: 3
       res:
-        value: 64
+        value: 32
   model:
     parameters:
       width:
@@ -21,12 +21,12 @@ parameters:
       depth:
         value: 3
       hdepth:
-        value: 3
+        value: 2
   trainer:
     parameters:
       learning_rate:
-        min: 0.00001
-        max: 0.01
+        min: 0.0001
+        max: 0.1
       epochs:
-        value: 3000
+        value: 1000
 run_cap: 10
