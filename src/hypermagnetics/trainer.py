@@ -21,14 +21,6 @@ def loss(model, sources, grid, target):
 
 
 @eqx.filter_jit
-def step(model, optim, opt_state, sources, grid, target):
-    loss_value, grads = eqx.filter_value_and_grad(loss)(model, sources, grid, target)
-    updates, opt_state = optim.update(grads, opt_state, model)
-    model = eqx.apply_updates(model, updates)
-    return model, optim, opt_state, loss_value
-
-
-@eqx.filter_jit
 def accuracy(model, data):
     sources, grid, target = data["sources"], data["grid"], data["potential"]
     pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
@@ -48,13 +40,21 @@ def main():
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = wandb.config.trainer
-    optim = optax.adam(learning_rate=trainer_config["learning_rate"])
+    optim = optax.sgd(learning_rate=trainer_config["learning_rate"], momentum=0.9)
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
+    @eqx.filter_jit
+    def step(model, opt_state, sources, grid, target):
+        loss_value, grads = eqx.filter_value_and_grad(loss)(
+            model, sources, grid, target
+        )
+        updates, opt_state = optim.update(grads, opt_state, model)
+        model = eqx.apply_updates(model, updates)
+        return model, opt_state, loss_value
+
     for epoch in range(trainer_config["epochs"]):
-        model, optim, opt_state, train_loss = step(
+        model, opt_state, train_loss = step(
             model,
-            optim,
             opt_state,
             train["sources"],
             train["grid"],
@@ -71,8 +71,6 @@ def main():
                 "val_acc": val_acc,
             }
         )
-
-    wandb.finish()
 
 
 # Start sweep job.
