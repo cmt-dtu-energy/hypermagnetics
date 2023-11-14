@@ -3,6 +3,8 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 
+from hypermagnetics.sources import configure
+
 
 def is_linear(x):
     """Identify the linear layer component of the model,
@@ -22,7 +24,6 @@ def get_biases(model):
     return [x.bias for x in leaves if is_linear(x)]
 
 
-@jax.jit
 def reshape_params(old_params, flat_params):
     """Reshape a flat parameter vector into a list of weight and bias matrices."""
     new_params = ()
@@ -51,8 +52,8 @@ class HyperMLP(eqx.Module):
         nparams = self.nweights + self.nbiases
         self.rho = eqx.nn.MLP(4, nparams, nparams, hdepth, jax.nn.gelu, key=hyperkey)
 
-    def prepare_weights(self, m_r):
-        wb = jnp.sum(jax.vmap(self.rho)(m_r), axis=0)
+    def prepare_weights(self, sources):
+        wb = jnp.sum(jax.vmap(self.rho)(sources), axis=0)
         weights, biases = wb[: self.nweights], wb[self.nweights :]
         return weights, biases
 
@@ -65,15 +66,25 @@ class HyperMLP(eqx.Module):
         )
         return model
 
-    def __call__(self, m_r, r, field=False):
-        """Evaluate the hypernetwork given sources (m_r) and field evaluation points (r).
+    def __call__(self, sources, r, field=False):
+        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
         Returns the potential by default, or the magnetic field if field=True."""
-        weights, biases = self.prepare_weights(m_r)
+        weights, biases = self.prepare_weights(sources)
         model = self.prepare_model(weights, biases)
         return jax.vmap(model)(r) if not field else -jax.vmap(jax.grad(model))(r)
 
 
 if __name__ == "__main__":
+    config = {
+        "n_samples": 10,
+        "n_sources": 1,
+        "key": jr.PRNGKey(40),
+        "lim": 3,
+        "res": 32,
+    }
+    train_data = configure(**config)
     key, hyperkey, mainkey = jr.split(jr.PRNGKey(41), 3)
-    model = HyperMLP(16, 3, 2, hyperkey, mainkey)
-    print(model)
+    model = HyperMLP(4, 3, 2, hyperkey, mainkey)
+
+    # Show output from evaluating model on source configuration
+    print(jax.vmap(model, in_axes=(0, None))(train_data["sources"], train_data["grid"]))
