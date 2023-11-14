@@ -15,27 +15,6 @@ with open("config/sweep-configuration.yaml", "r") as f:
 sweep_id = wandb.sweep(sweep=sweep_configuration, project="hypermagnetics")
 
 
-def loss(model, sources, grid, target):
-    pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
-    return jnp.mean(optax.huber_loss(pred, target))
-
-
-@eqx.filter_jit
-def step(model, optim, opt_state, sources, grid, target):
-    loss_value, grads = eqx.filter_value_and_grad(loss)(model, sources, grid, target)
-    updates, opt_state = optim.update(grads, opt_state, model)
-    model = eqx.apply_updates(model, updates)
-    return model, optim, opt_state, loss_value
-
-
-@eqx.filter_jit
-def accuracy(model, data):
-    sources, grid, target = data["sources"], data["grid"], data["potential"]
-    pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
-    diff = jnp.linalg.norm(target - pred)
-    return jnp.median(diff / jnp.linalg.norm(target) * 100)
-
-
 def main():
     wandb.init()
 
@@ -52,6 +31,26 @@ def main():
     # learning_rate = jax.numpy.asarray(trainer_config["learning_rate"]).item()
     # optim = optax.inject_hyperparams(optax.adam)(learning_rate=learning_rate)
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
+
+    def loss(model, sources, grid, target):
+        pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
+        return jnp.mean(optax.huber_loss(pred, target))
+
+    @eqx.filter_jit
+    def step(model, optim, opt_state, sources, grid, target):
+        loss_value, grads = eqx.filter_value_and_grad(loss)(
+            model, sources, grid, target
+        )
+        updates, opt_state = optim.update(grads, opt_state, model)
+        model = eqx.apply_updates(model, updates)
+        return model, optim, opt_state, loss_value
+
+    @eqx.filter_jit
+    def accuracy(model, data):
+        sources, grid, target = data["sources"], data["grid"], data["potential"]
+        pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
+        diff = jnp.linalg.norm(target - pred)
+        return jnp.median(diff / jnp.linalg.norm(target) * 100)
 
     for epoch in range(trainer_config["epochs"]):
         model, optim, opt_state, train_loss = step(
