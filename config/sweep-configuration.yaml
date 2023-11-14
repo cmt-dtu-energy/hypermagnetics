@@ -17,18 +17,16 @@ parameters:
   model:
     parameters:
       width:
-        min: 8
-        max: 48
+        value: 20
       depth:
-        min: 2
-        max: 4
+        value: 3
       hdepth:
-        min: 1
-        max: 4
+        value: 3
   trainer:
     parameters:
       learning_rate:
-        value: 0.0005
+        min: 0.00001
+        max: 0.01
       epochs:
         value: 3000
-run_cap: 500
+run_cap: 10

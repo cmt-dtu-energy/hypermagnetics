@@ -49,8 +49,6 @@ def main():
 
     trainer_config = wandb.config.trainer
     optim = optax.adam(learning_rate=trainer_config["learning_rate"])
-    # learning_rate = jax.numpy.asarray(trainer_config["learning_rate"]).item()
-    # optim = optax.inject_hyperparams(optax.adam)(learning_rate=learning_rate)
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
     for epoch in range(trainer_config["epochs"]):
@@ -73,6 +71,8 @@ def main():
                 "val_acc": val_acc,
             }
         )
+
+    wandb.finish()
 
 
 # Start sweep job.
