@@ -1,4 +1,4 @@
-import equinox as eqx
+import flax.linen as nn
 import jax
 import jax.numpy as jnp
 import jax.random as jr
@@ -32,14 +32,33 @@ def reshape_params(old_params, params):
     return new_params
 
 
-class HyperMLP(eqx.Module):
+class MLP(nn.Module):
+    """A scalar output flax MLP model with a given width and depth."""
+
+    width: int
+    depth: int
+    n_out: int = 1
+
+    @nn.compact
+    def __call__(self, x):
+        for _ in range(self.depth):
+            x = nn.Dense(self.width)(x)
+            x = nn.gelu(x)
+        return nn.Dense(self.n_out)(x)
+
+
+class HyperMLP(nn.Module):
     """A hypernetwork that generates weights and biases for a given MLP architecture,
     applies them to a template MLP model, and evaluates the resulting model on a given input."""
 
-    rho: eqx.nn.MLP
-    nbiases: int
-    nweights: int
-    model: eqx.nn.MLP = eqx.field(static=True)
+    width: int
+    depth: int
+    hdepth: int
+    hyperkey: jr.PRNGKey
+    mainkey: jr.PRNGKey
+
+    def setup(self):
+        self.inference = MLP(width=self.width, depth=self.depth)
 
     def __init__(self, width, depth, hdepth, hyperkey, mainkey):
         self.model = eqx.nn.MLP(

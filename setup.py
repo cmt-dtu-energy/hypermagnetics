@@ -9,9 +9,8 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=[
-        "numpy",
         "optax",
-        "equinox",
+        "flax",
         "wandb",
         # "jax" is intentionally left out here
     ],
