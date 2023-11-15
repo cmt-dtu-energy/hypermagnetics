@@ -9,4 +9,4 @@
 
 conda activate hypermagnetics
 wandb login
-python src/hypermagnetics/trainer.py
+python src/hypermagnetics/sweeper.py
