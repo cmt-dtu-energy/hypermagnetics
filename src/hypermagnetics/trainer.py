@@ -45,8 +45,8 @@ if __name__ == "__main__":
     model = HyperMLP(16, 3, 2, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {
-        "learning_rate": 5e-2,
-        "momentum": 0.999,
+        "learning_rate": 1e-2,
+        "momentum": 0.99,
         "epochs": 1000,
     }
     optim = optax.sgd(
