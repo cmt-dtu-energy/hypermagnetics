@@ -18,9 +18,11 @@ parameters:
   model:
     parameters:
       width:
-        value: 30 
+        value: 16
       depth:
-        values: [2, 3, 4]
+        value: 3
+      hwidth: # Factor by which to multiply nparams
+        values: [1, 2, 3]
       hdepth:
         value: 2
   trainer:

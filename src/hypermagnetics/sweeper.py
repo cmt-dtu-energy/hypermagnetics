@@ -25,6 +25,7 @@ def main():
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
     model_config = wandb.config.model
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
+    wandb.config.model.n_params = model.nweights + model.nbiases
 
     trainer_config = wandb.config.trainer
     optim = optax.adam(
@@ -35,7 +36,7 @@ def main():
     #    learning_rate=trainer_config["learning_rate"],
     #    momentum=trainer_config["momentum"],
     #    nesterov=True,
-    #)
+    # )
     fit(trainer_config, optim, model, train, val, log=wandb.log)
 
 

@@ -43,14 +43,16 @@ class HyperMLP(eqx.Module):
     nweights: int
     model: eqx.nn.MLP = eqx.field(static=True)
 
-    def __init__(self, width, depth, hdepth, hyperkey, mainkey):
+    def __init__(self, width, depth, hwidth, hdepth, hyperkey, mainkey):
         self.model = eqx.nn.MLP(
             2, "scalar", width, depth, jax.nn.gelu, use_bias=True, key=mainkey
         )
         self.nweights = sum(w.size for w in get_weights(self.model))
         self.nbiases = sum(b.size for b in get_biases(self.model))
         nparams = self.nweights + self.nbiases
-        self.rho = eqx.nn.MLP(4, nparams, nparams, hdepth, jax.nn.gelu, key=hyperkey)
+        self.rho = eqx.nn.MLP(
+            4, nparams, hwidth * nparams, hdepth, jax.nn.gelu, key=hyperkey
+        )
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.rho)(sources), axis=0)

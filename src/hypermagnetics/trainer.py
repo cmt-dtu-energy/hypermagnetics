@@ -42,7 +42,7 @@ if __name__ == "__main__":
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
-    model = HyperMLP(16, 3, 2, hyperkey=hyperkey, mainkey=mainkey)
+    model = HyperMLP(16, 3, 1, 2, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {
         "learning_rate": 1e-2,
