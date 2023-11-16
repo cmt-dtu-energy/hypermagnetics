@@ -22,9 +22,9 @@ parameters:
       depth:
         value: 3
       hwidth: # Factor by which to multiply nparams
-        values: [1, 2, 3]
+        values: [1, 2]
       hdepth:
-        value: 2
+        values: [2, 3]
   trainer:
     parameters:
       learning_rate:
