@@ -8,9 +8,9 @@ parameters:
   source:
     parameters:
       n_samples:
-        value: 10000
+        value: 5000
       n_sources:
-        value: 2
+        values: [2, 4, 6, 8, 10]
       lim:
         value: 3
       res:
@@ -18,13 +18,13 @@ parameters:
   model:
     parameters:
       width:
-        value: 16
+        value: 20
       depth:
         value: 3
       hwidth: # Factor by which to multiply nparams
-        values: [1, 2]
+        value: 2
       hdepth:
-        values: [2, 3]
+        value: 2
   trainer:
     parameters:
       learning_rate:
