@@ -10,7 +10,9 @@ from hypermagnetics.trainer import fit
 with open("config/sweep-configuration.yaml", "r") as f:
     sweep_configuration = yaml.safe_load(f)
 
-sweep_id = wandb.sweep(sweep=sweep_configuration, project="hypermagnetics")
+sweep_id = wandb.sweep(
+    sweep=sweep_configuration, entity="dl4mag", project="hypermagnetics"
+)
 
 
 def main():
