@@ -25,11 +25,15 @@ def main():
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = wandb.config.trainer
-    optim = optax.sgd(
+    optim = optax.adam(
         learning_rate=trainer_config["learning_rate"],
-        momentum=trainer_config["momentum"],
-        nesterov=True,
+        b1=0.95,
     )
+    # optim = optax.sgd(
+    #    learning_rate=trainer_config["learning_rate"],
+    #    momentum=trainer_config["momentum"],
+    #    nesterov=True,
+    #)
     fit(trainer_config, optim, model, train, val, log=wandb.log)
 
 

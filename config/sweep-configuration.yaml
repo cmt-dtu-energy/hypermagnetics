@@ -1,5 +1,6 @@
-program: trainer.py
-method: bayes
+program: sweeper.py
+method: grid
+name: varying-width-adam
 metric:
   name: val_acc
   goal: minimize
@@ -7,29 +8,27 @@ parameters:
   source:
     parameters:
       n_samples:
-        value: 2000
+        value: 10000
       n_sources:
         value: 2
       lim:
         value: 3
       res:
-        value: 50
+        value: 32
   model:
     parameters:
       width:
-        value: 20
+        value: 30 
       depth:
-        value: 3
+        values: [2, 3, 4]
       hdepth:
         value: 2
   trainer:
     parameters:
       learning_rate:
-        min: 1e-2
-        max: 3e-2
+        value: 1e-5
       momentum:
-        min: 0.99
-        max: 0.99999
+        value: 0.998
       epochs:
-        value: 10000
-run_cap: 100
+        value: 5000
+run_cap: 25
