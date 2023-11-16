@@ -16,6 +16,8 @@ sweep_id = wandb.sweep(
 
 
 def main():
+    wandb.init()
+
     source_config = wandb.config.source
     train = sources.configure(**source_config, key=jr.PRNGKey(40))
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
@@ -24,6 +26,7 @@ def main():
     model_config = wandb.config.model
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
     wandb.config.model["n_params"] = model.nweights + model.nbiases
+    wandb.log({"config": wandb.config})
 
     trainer_config = wandb.config.trainer
     optim = optax.adam(
@@ -35,9 +38,8 @@ def main():
     #    momentum=trainer_config["momentum"],
     #    nesterov=True,
     # )
-
-    wandb.init()
     fit(trainer_config, optim, model, train, val, log=wandb.log)
+    wandb.finish()
 
 
 # Start sweep job.
