@@ -10,7 +10,6 @@ from hypermagnetics.models import HyperMLP
 def fit(trainer_config, optim, model, train, val, log=print):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
-    @eqx.filter_jit
     def step(model, opt_state, data):
         loss_value, grads = eqx.filter_value_and_grad(loss)(model, data)
         updates, opt_state = optim.update(grads, opt_state, model)
@@ -29,8 +28,6 @@ def fit(trainer_config, optim, model, train, val, log=print):
                 "val_acc": val_acc,
             }
         )
-
-    step._clear_cache()
 
 
 if __name__ == "__main__":

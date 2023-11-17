@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import optax
 
 
+@eqx.filter_jit
 def loss(model, data):
     sources, grid, target = data["sources"], data["grid"], data["potential"]
     pred = jax.vmap(model, in_axes=(0, None))(sources, grid)
