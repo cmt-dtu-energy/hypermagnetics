@@ -28,15 +28,7 @@ def main():
     wandb.log({"nparams": model.nparams})
 
     trainer_config = wandb.config.trainer
-    optim = optax.adam(
-        learning_rate=trainer_config["learning_rate"],
-        b1=0.95,
-    )
-    # optim = optax.sgd(
-    #    learning_rate=trainer_config["learning_rate"],
-    #    momentum=trainer_config["momentum"],
-    #    nesterov=True,
-    # )
+    optim = optax.adam(learning_rate=trainer_config["learning_rate"])
     fit(trainer_config, optim, model, train, val, log=wandb.log)
     wandb.finish()
 
