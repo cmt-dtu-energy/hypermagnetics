@@ -45,13 +45,13 @@ if __name__ == "__main__":
     model = HyperMLP(16, 3, 1, 2, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {
-        "learning_rate": 1e-2,
+        "learning_rate": 1e-5,
         "momentum": 0.99,
         "epochs": 1000,
     }
-    optim = optax.sgd(
+    optim = optax.adam(
         learning_rate=trainer_config["learning_rate"],
-        momentum=trainer_config["momentum"],
-        nesterov=True,
+        # momentum=trainer_config["momentum"],
+        # nesterov=True,
     )
     fit(trainer_config, optim, model, train, val)

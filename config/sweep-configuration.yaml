@@ -10,7 +10,7 @@ parameters:
       n_samples:
         value: 5000
       n_sources:
-        values: [2, 4, 6, 8, 10]
+        values: 2
       lim:
         value: 3
       res:
@@ -18,7 +18,7 @@ parameters:
   model:
     parameters:
       width:
-        value: 20
+        value: [20, 30]
       depth:
         value: 3
       hwidth: # Factor by which to multiply nparams
