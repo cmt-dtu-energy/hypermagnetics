@@ -50,7 +50,5 @@ if __name__ == "__main__":
     }
     optim = optax.adam(
         learning_rate=trainer_config["learning_rate"],
-        # momentum=trainer_config["momentum"],
-        # nesterov=True,
     )
     fit(trainer_config, optim, model, train, val)
