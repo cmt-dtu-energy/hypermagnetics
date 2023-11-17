@@ -7,15 +7,16 @@ from hypermagnetics.measures import accuracy, loss
 from hypermagnetics.models import HyperMLP
 
 
+@eqx.filter_jit
+def step(model, opt_state, data):
+    loss_value, grads = eqx.filter_value_and_grad(loss)(model, data)
+    updates, opt_state = optim.update(grads, opt_state, model)
+    model = eqx.apply_updates(model, updates)
+    return model, opt_state, loss_value
+
+
 def fit(trainer_config, optim, model, train, val, log=print):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
-
-    @eqx.filter_jit
-    def step(model, opt_state, data):
-        loss_value, grads = eqx.filter_value_and_grad(loss)(model, data)
-        updates, opt_state = optim.update(grads, opt_state, model)
-        model = eqx.apply_updates(model, updates)
-        return model, opt_state, loss_value
 
     for epoch in range(trainer_config["epochs"]):
         model, opt_state, train_loss = step(model, opt_state, train)
