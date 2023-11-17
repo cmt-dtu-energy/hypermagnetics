@@ -8,9 +8,9 @@ parameters:
   source:
     parameters:
       n_samples:
-        value: 5000
+        value: 1000
       n_sources:
-        values: 2
+        value: 2
       lim:
         value: 3
       res:
@@ -18,7 +18,7 @@ parameters:
   model:
     parameters:
       width:
-        value: [20, 30]
+        value: 20
       depth:
         value: 3
       hwidth: # Factor by which to multiply nparams
@@ -28,9 +28,9 @@ parameters:
   trainer:
     parameters:
       learning_rate:
-        value: 1e-5
+        values: [1e-4, 1e-5]
       momentum:
         value: 0.998
       epochs:
-        value: 5000
+        value: 500
 run_cap: 25
