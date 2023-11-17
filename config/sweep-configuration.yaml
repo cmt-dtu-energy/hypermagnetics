@@ -27,9 +27,9 @@ parameters:
         value: 2
   trainer:
     parameters:
-      learning_rate:
-        min: 1e-6
-        max: 1e-3
+      log_learning_rate:
+        min: -6.0
+        max: -4.0
       epochs:
         value: 5000
 run_cap: 25
