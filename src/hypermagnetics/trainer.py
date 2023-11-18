@@ -33,6 +33,14 @@ def fit(trainer_config, optim, model, train, val, log=print):
     return model
 
 
+def save(model, run_id):
+    model_path = f"models/{run_id}.eqx"
+    eqx.tree_serialise_leaves(model_path, model)
+    artifact = wandb.Artifact("model", type="model")
+    artifact.add_file(model_path)
+    wandb.log_artifact(artifact)
+
+
 if __name__ == "__main__":
     source_config = {
         "n_samples": 10,
@@ -68,12 +76,5 @@ if __name__ == "__main__":
         },
     )
     model = fit(trainer_config, optim, model, train, val, log=wandb.log)
-
-    model_path = f"models/{wandb.run.id}.eqx"
-    eqx.tree_serialise_leaves(model_path, model)
-
-    artifact = wandb.Artifact("model", type="model")
-    artifact.add_file(model_path)
-    wandb.log_artifact(artifact)
-
+    save(model, wandb.run.id)
     wandb.finish()
