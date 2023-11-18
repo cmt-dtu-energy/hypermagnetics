@@ -8,6 +8,7 @@ __pycache__/
 
 # Weights and biases
 wandb/
+models/
 
 # Distribution / packaging
 .Python

@@ -3,6 +3,7 @@ import jax.random as jr
 import optax
 
 import hypermagnetics.sources as sources
+import wandb
 from hypermagnetics.measures import accuracy, loss
 from hypermagnetics.models import HyperMLP
 
@@ -29,10 +30,12 @@ def fit(trainer_config, optim, model, train, val, log=print):
             }
         )
 
+    return model
+
 
 if __name__ == "__main__":
     source_config = {
-        "n_samples": 5000,
+        "n_samples": 10,
         "n_sources": 2,
         "lim": 3,
         "res": 32,
@@ -41,11 +44,36 @@ if __name__ == "__main__":
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
-    model = HyperMLP(30, 3, 2, 2, hyperkey=hyperkey, mainkey=mainkey)
+    model_config = {
+        "width": 30,
+        "depth": 3,
+        "hwidth": 2,
+        "hdepth": 2,
+    }
+    model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {
         "learning_rate": 1e-5,
-        "epochs": 1e6,
+        "epochs": 1000,
     }
-    optim = optax.adam(learning_rate=trainer_config["learning_rate"],b1=0.95)
-    fit(trainer_config, optim, model, train, val)
+    optim = optax.adam(learning_rate=trainer_config["learning_rate"], b1=0.95)
+
+    wandb.init(
+        entity="dl4mag",
+        project="hypermagnetics",
+        config={
+            "source": source_config,
+            "model": model_config,
+            "trainer": trainer_config,
+        },
+    )
+    model = fit(trainer_config, optim, model, train, val, log=wandb.log)
+
+    model_path = f"models/{wandb.run.id}.eqx"
+    eqx.tree_serialise_leaves(model_path, model)
+
+    artifact = wandb.Artifact("model", type="model")
+    artifact.add_file(model_path)
+    wandb.log_artifact(artifact)
+
+    wandb.finish()
