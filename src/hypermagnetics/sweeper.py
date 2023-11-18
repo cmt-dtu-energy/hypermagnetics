@@ -30,7 +30,7 @@ def main():
     learning_rate = 10 ** trainer_config["log_learning_rate"]
 
     wandb.log({"nparams": model.nparams, "learning_rate": learning_rate})
-    optim = optax.adam(learning_rate=learning_rate)
+    optim = optax.adam(learning_rate=learning_rate, b1=0.99)
     fit(trainer_config, optim, model, train, val, log=wandb.log)
     wandb.finish()
 

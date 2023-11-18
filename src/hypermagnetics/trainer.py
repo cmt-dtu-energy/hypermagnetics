@@ -32,7 +32,7 @@ def fit(trainer_config, optim, model, train, val, log=print):
 
 if __name__ == "__main__":
     source_config = {
-        "n_samples": 10,
+        "n_samples": 5000,
         "n_sources": 2,
         "lim": 3,
         "res": 32,
@@ -41,14 +41,11 @@ if __name__ == "__main__":
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
-    model = HyperMLP(16, 3, 1, 2, hyperkey=hyperkey, mainkey=mainkey)
+    model = HyperMLP(30, 3, 2, 2, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = {
         "learning_rate": 1e-5,
-        "momentum": 0.99,
-        "epochs": 1000,
+        "epochs": 1e6,
     }
-    optim = optax.adam(
-        learning_rate=trainer_config["learning_rate"],
-    )
+    optim = optax.adam(learning_rate=trainer_config["learning_rate"],b1=0.95)
     fit(trainer_config, optim, model, train, val)
