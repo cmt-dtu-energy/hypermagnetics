@@ -5,7 +5,7 @@ import yaml
 import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics.models import HyperMLP
-from hypermagnetics.trainer import fit
+from hypermagnetics.runner import fit
 
 with open("config/sweep-configuration.yaml", "r") as f:
     sweep_configuration = yaml.safe_load(f)

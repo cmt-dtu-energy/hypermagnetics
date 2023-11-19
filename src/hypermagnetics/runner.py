@@ -1,6 +1,7 @@
 import equinox as eqx
 import jax.random as jr
 import optax
+import yaml
 
 import hypermagnetics.sources as sources
 import wandb
@@ -42,39 +43,27 @@ def save(model, run_id):
 
 
 if __name__ == "__main__":
-    source_config = {
-        "n_samples": 10,
-        "n_sources": 2,
-        "lim": 3,
-        "res": 32,
-    }
+    with open("config/run-configuration.yaml", "r") as f:
+        run_configuration = yaml.safe_load(f)
+
+    source_config = run_configuration["source"]
     train = sources.configure(**source_config, key=jr.PRNGKey(40))
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
-    model_config = {
-        "width": 30,
-        "depth": 3,
-        "hwidth": 2,
-        "hdepth": 2,
-    }
+    model_config = run_configuration["model"]
     model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
-    trainer_config = {
-        "learning_rate": 1e-5,
-        "epochs": 1000,
-    }
-    optim = optax.adam(learning_rate=trainer_config["learning_rate"], b1=0.95)
+    trainer_config = run_configuration["trainer"]
+    learning_rate = 10 ** trainer_config["log_learning_rate"]
+    optim = optax.adam(learning_rate, b1=0.95)
 
     wandb.init(
         entity="dl4mag",
         project="hypermagnetics",
-        config={
-            "source": source_config,
-            "model": model_config,
-            "trainer": trainer_config,
-        },
+        config=run_configuration,
     )
+    wandb.log({"nparams": model.nparams, "learning_rate": learning_rate})
     model = fit(trainer_config, optim, model, train, val, log=wandb.log)
     save(model, wandb.run.id)
     wandb.finish()

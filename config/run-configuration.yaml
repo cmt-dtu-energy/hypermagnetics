@@ -1,0 +1,13 @@
+source:
+  n_samples: 10
+  n_sources: 2
+  lim: 3
+  res: 32
+model:
+  width: 30
+  depth: 3
+  hwidth: 2
+  hdepth: 2
+trainer:
+  log_learning_rate: -5.0
+  epochs: 500
