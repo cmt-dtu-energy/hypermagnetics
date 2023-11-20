@@ -55,12 +55,12 @@ class FourierModel(eqx.Module):
         return bias + summed_product
 
     def prepare_weights(self, sources):
-        w, b = jax.vmap(jax.vmap(self.hypermodel))(sources)
-        return jnp.sum(w, axis=1), jnp.sum(b, axis=1)
+        w, b = jax.vmap(self.hypermodel)(sources)
+        return jnp.sum(w, axis=0), jnp.sum(b, axis=0)
 
     def __call__(self, sources, r):
         w, b = self.prepare_weights(sources)
-        return jax.vmap(self.fourier_expansion, in_axes=(0, 0, None))(w, b, r)
+        return self.fourier_expansion(w, b, r)
 
 
 if __name__ == "__main__":
@@ -77,6 +77,6 @@ if __name__ == "__main__":
     # Show output from evaluating FourierModel model on source configuration
     wkey, bkey = jr.split(jr.PRNGKey(41), 2)
     model = FourierModel(4, wkey, bkey)
-    output = model(sources, r)
+    output = jax.vmap(model, in_axes=(0, None))(sources, r)
     print(output.shape)
-    print(model(sources, r))
+    print(output)
