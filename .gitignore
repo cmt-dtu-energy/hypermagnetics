@@ -8,7 +8,7 @@ __pycache__/
 
 # Weights and biases
 wandb/
-models/
+models/*.eqx
 
 # Distribution / packaging
 .Python
