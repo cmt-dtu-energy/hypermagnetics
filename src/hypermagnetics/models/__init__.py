@@ -1,2 +1,7 @@
-from hypermagnetics.models.hyper_fourier import FourierModel  # noqa: F401
-from hypermagnetics.models.hyper_mlp import HyperMLP  # noqa: F401
+from .hyper_fourier import FourierModel
+from .hyper_mlp import HyperMLP
+
+model_classes = {
+    "FourierModel": FourierModel,
+    "HyperMLP": HyperMLP,
+}
