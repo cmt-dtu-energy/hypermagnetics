@@ -6,7 +6,7 @@ import yaml
 import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics.measures import accuracy, loss
-from hypermagnetics.models import HyperMLP
+from hypermagnetics.models import AdditiveMLP
 
 
 def fit(trainer_config, optim, model, train, val, log=print):
@@ -52,7 +52,8 @@ if __name__ == "__main__":
 
     hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
     model_config = run_configuration["model"]
-    model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
+    # model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
+    model = AdditiveMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
 
     trainer_config = run_configuration["trainer"]
     learning_rate = 10 ** trainer_config["log_learning_rate"]
@@ -65,5 +66,5 @@ if __name__ == "__main__":
     )
     wandb.log({"nparams": model.nparams, "learning_rate": learning_rate})
     model = fit(trainer_config, optim, model, train, val, log=wandb.log)
-    save(model, wandb.run.id)
+    # save(model, wandb.run.id)
     wandb.finish()

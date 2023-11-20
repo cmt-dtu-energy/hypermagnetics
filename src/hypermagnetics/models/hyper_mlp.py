@@ -34,6 +34,66 @@ def reshape_params(old_params, flat_params):
     return new_params
 
 
+def count_mlp_params(in_features, out_features, width, depth):
+    return (
+        (in_features + 1) * width
+        + (width + 1) * width * (depth - 1)
+        + (width + 1) * out_features
+    )
+
+
+class AdditiveMLP(eqx.Module):
+    hypermodel: eqx.nn.MLP
+    nparams: int
+    model: eqx.nn.MLP
+    final_layer: eqx.nn.Linear = eqx.field(static=True)
+
+    def __init__(self, width, depth, hwidth, hdepth, hyperkey, mainkey):
+        modelkey, finalkey = jr.split(mainkey, 2)
+        self.model = eqx.nn.MLP(
+            2,
+            width,
+            width,
+            depth,
+            activation=jax.nn.gelu,
+            final_activation=jax.nn.gelu,
+            use_bias=True,
+            key=modelkey,
+        )
+        self.final_layer = eqx.nn.MLP(width, "scalar", width, 0, key=finalkey)
+
+        p = width + 1
+        self.hypermodel = eqx.nn.MLP(
+            4, p, hwidth * p, hdepth, jax.nn.gelu, key=hyperkey
+        )
+        self.nparams = count_mlp_params(4, p, hwidth * p, hdepth) + count_mlp_params(
+            2, width, width, depth
+        )
+
+    def prepare_weights(self, sources):
+        wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
+        weights, bias = wb[:-1], wb[-1:]
+        return weights, bias
+
+    def prepare_final_layer(self, weights, bias):
+        final_layer = eqx.tree_at(
+            get_weights,
+            self.final_layer,
+            reshape_params(get_weights(self.final_layer), weights),
+        )
+        final_layer = eqx.tree_at(
+            get_biases, final_layer, reshape_params(get_biases(final_layer), bias)
+        )
+        return final_layer
+
+    def __call__(self, sources, r, field=False):
+        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
+        Returns the potential by default, or the magnetic field if field=True."""
+        weights, bias = self.prepare_weights(sources)
+        final_layer = self.prepare_final_layer(weights, bias)
+        return jax.vmap(lambda r: final_layer(self.model(r)))(r)
+
+
 class HyperMLP(eqx.Module):
     """A hypernetwork that generates weights and biases for a given MLP architecture,
     applies them to a template MLP model, and evaluates the resulting model on a given input."""
@@ -98,3 +158,6 @@ if __name__ == "__main__":
     hyperkey, mainkey = jr.split(jr.PRNGKey(41), 2)
     model = HyperMLP(4, 3, 2, 2, hyperkey, mainkey)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
+
+    additive_model = AdditiveMLP(4, 3, 1, 2, hyperkey, mainkey)
+    print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
