@@ -98,7 +98,7 @@ class HyperMLP(eqx.Module):
     """A hypernetwork that generates weights and biases for a given MLP architecture,
     applies them to a template MLP model, and evaluates the resulting model on a given input."""
 
-    rho: eqx.nn.MLP
+    hypermodel: eqx.nn.MLP
     nbiases: int
     nweights: int
     nparams: int
@@ -111,18 +111,13 @@ class HyperMLP(eqx.Module):
         self.nweights = sum(w.size for w in get_weights(self.model))
         self.nbiases = sum(b.size for b in get_biases(self.model))
         p = self.nweights + self.nbiases
-        self.rho = eqx.nn.MLP(4, p, (hwidth * p), hdepth, jax.nn.gelu, key=hyperkey)
-
-        total_weights = (
-            4 * (hwidth * p)
-            + (hwidth * p) * (hwidth * p) * (hdepth - 1)
-            + (hwidth * p) * p
+        self.hypermodel = eqx.nn.MLP(
+            4, p, (hwidth * p), hdepth, jax.nn.gelu, key=hyperkey
         )
-        total_biases = hdepth * (hwidth * p) + p
-        self.nparams = total_weights + total_biases
+        self.nparams = count_mlp_params(4, p, hwidth * p, hdepth)
 
     def prepare_weights(self, sources):
-        wb = jnp.sum(jax.vmap(self.rho)(sources), axis=0)
+        wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
         weights, biases = wb[: self.nweights], wb[self.nweights :]
         return weights, biases
 
