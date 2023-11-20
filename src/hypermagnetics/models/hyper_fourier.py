@@ -6,10 +6,21 @@ import jax.random as jr
 from hypermagnetics.sources import configure
 
 
-def basis_term(fun1, fun2, omega, r):
+@jax.jit
+def basis_terms(omega, r):
     """Compute basis terms for the Fourier series expansion."""
-    return fun1(omega[:, None, None] * r[None, :, 0]) * fun2(
-        omega[None, :, None] * r[None, :, 1]
+    return jnp.stack(
+        [
+            jnp.cos(omega[:, None, None] * r[None, :, 0])
+            * jnp.cos(omega[None, :, None] * r[None, :, 1]),
+            jnp.sin(omega[:, None, None] * r[None, :, 0])
+            * jnp.sin(omega[None, :, None] * r[None, :, 1]),
+            jnp.cos(omega[:, None, None] * r[None, :, 0])
+            * jnp.sin(omega[None, :, None] * r[None, :, 1]),
+            jnp.sin(omega[:, None, None] * r[None, :, 0])
+            * jnp.cos(omega[None, :, None] * r[None, :, 1]),
+        ],
+        axis=0,
     )
 
 
@@ -28,41 +39,34 @@ class FourierHyperModel(eqx.Module):
 class FourierModel(eqx.Module):
     hypermodel: FourierHyperModel
     order: int
-    omega: jnp.ndarray = eqx.field(static=True)
-    basis_terms: jnp.ndarray = eqx.field(static=True)
 
-    def __init__(self, order, r, wkey, bkey):
+    def __init__(self, order, wkey, bkey):
         self.order = order
         self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, wkey, bkey)
-        self.omega = 2 * jnp.pi * jnp.arange(1, order + 1) / 10
-        self.basis_terms = jnp.stack(
-            [
-                basis_term(jnp.cos, jnp.cos, self.omega, r),
-                basis_term(jnp.sin, jnp.sin, self.omega, r),
-                basis_term(jnp.cos, jnp.sin, self.omega, r),
-                basis_term(jnp.sin, jnp.cos, self.omega, r),
-            ],
-            axis=0,
-        )
 
-    def fourier_expansion(self, weights, bias):
+    def compute_basis_terms(self, r):
+        omega = 2 * jnp.pi * jnp.arange(1, self.order + 1) / 10
+        return basis_terms(omega, r)
+
+    def fourier_expansion(self, weights, bias, r):
         weights = jnp.reshape(weights, (4, self.order, self.order))
-        elementwise_product = weights[..., None] * self.basis_terms
+        elementwise_product = weights[..., None] * self.compute_basis_terms(r)
         summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
         return bias + summed_product
 
     def prepare_weights(self, sources):
-        w, b = jax.vmap(self.hypermodel)(sources)
-        return jnp.sum(w, axis=0), jnp.sum(b, axis=0)
+        w, b = jax.vmap(jax.vmap(self.hypermodel))(sources)
+        return jnp.sum(w, axis=1), jnp.sum(b, axis=1)
 
-    def __call__(self, sources):
-        return self.fourier_expansion(*self.prepare_weights(sources))
+    def __call__(self, sources, r):
+        w, b = self.prepare_weights(sources)
+        return jax.vmap(self.fourier_expansion, in_axes=(0, 0, None))(w, b, r)
 
 
 if __name__ == "__main__":
     config = {
         "n_samples": 10,
-        "n_sources": 2,
+        "n_sources": 5,
         "key": jr.PRNGKey(40),
         "lim": 3,
         "res": 32,
@@ -72,5 +76,7 @@ if __name__ == "__main__":
 
     # Show output from evaluating FourierModel model on source configuration
     wkey, bkey = jr.split(jr.PRNGKey(41), 2)
-    model = FourierModel(4, r, wkey, bkey)
-    print(jax.vmap(model)(sources))
+    model = FourierModel(4, wkey, bkey)
+    output = model(sources, r)
+    print(output.shape)
+    print(model(sources, r))
