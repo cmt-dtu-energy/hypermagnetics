@@ -6,7 +6,7 @@ import yaml
 import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics.measures import accuracy, loss
-from hypermagnetics.models import AdditiveMLP
+from hypermagnetics.models import AdditiveMLP, HyperMLP, save  # noqa: F401
 
 
 def fit(trainer_config, optim, model, train, val, log=print):
@@ -32,14 +32,6 @@ def fit(trainer_config, optim, model, train, val, log=print):
         )
 
     return model
-
-
-def save(model, run_id):
-    model_path = f"models/{run_id}.eqx"
-    eqx.tree_serialise_leaves(model_path, model)
-    artifact = wandb.Artifact("model", type="model")
-    artifact.add_file(model_path)
-    wandb.log_artifact(artifact)
 
 
 if __name__ == "__main__":
