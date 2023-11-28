@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 
+from hypermagnetics import plots
 from hypermagnetics.sources import configure
 
 
@@ -46,7 +47,7 @@ class AdditiveMLP(eqx.Module):
     hypermodel: eqx.nn.MLP
     nparams: int
     model: eqx.nn.MLP
-    final_layer: eqx.nn.Linear = eqx.field(static=True)
+    final_layer: eqx.nn.MLP = eqx.field(static=True)
 
     def __init__(self, width, depth, hwidth, hdepth, hyperkey, mainkey):
         modelkey, finalkey = jr.split(mainkey, 2)
@@ -156,3 +157,5 @@ if __name__ == "__main__":
 
     additive_model = AdditiveMLP(4, 3, 1, 2, hyperkey, mainkey)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
+
+    plots(train_data, idx=0, model=model, show_field=False)

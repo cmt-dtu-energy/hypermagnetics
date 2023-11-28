@@ -1,3 +1,4 @@
+import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,8 +15,13 @@ def plots(sources, idx=0, model=None, show_field=False):
 
     x_grid = np.array(grid[:, 0].reshape((res, res)))
     y_grid = np.array(grid[:, 1].reshape((res, res)))
-    potential = sources["potential"].reshape((N, res, res))
-    field = sources["field"].reshape((N, res, res, 2))
+
+    if model is None:
+        potential = sources["potential"].reshape((N, res, res))
+        field = sources["field"].reshape((N, res, res, 2))
+    else:
+        potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape((N, res, res))
+        # field = jax.vmap(model, in_axes=(0, None, None))(mr, grid, field=True)
 
     _, axes = plt.subplots(1, 2, figsize=(12, 6))
 
