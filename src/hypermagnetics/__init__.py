@@ -21,8 +21,9 @@ def plots(sources, idx=0, model=None, show_field=False):
         field = sources["field"].reshape((N, res, res, 2))
     else:
         potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape((N, res, res))
-        # field = jax.vmap(model, in_axes=(0, None, None))(mr, grid, field=True)
-
+        field = jax.vmap(model.field, in_axes=(0, None))(mr, grid).reshape(
+            (N, res, res, 2)
+        )
     _, axes = plt.subplots(1, 2, figsize=(12, 6))
 
     # Subplot 1: Magnetic Scalar Potential

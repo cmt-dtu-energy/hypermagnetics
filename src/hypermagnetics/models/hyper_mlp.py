@@ -131,12 +131,19 @@ class HyperMLP(eqx.Module):
         )
         return model
 
-    def __call__(self, sources, r, field=False):
+    def field(self, sources, r):
         """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
         Returns the potential by default, or the magnetic field if field=True."""
         weights, biases = self.prepare_weights(sources)
         model = self.prepare_model(weights, biases)
-        return jax.vmap(model)(r) if not field else -jax.vmap(jax.grad(model))(r)
+        return -jax.vmap(jax.grad(model))(r)
+
+    def __call__(self, sources, r):
+        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
+        Returns the potential by default, or the magnetic field if field=True."""
+        weights, biases = self.prepare_weights(sources)
+        model = self.prepare_model(weights, biases)
+        return jax.vmap(model)(r)
 
 
 if __name__ == "__main__":
@@ -158,4 +165,4 @@ if __name__ == "__main__":
     additive_model = AdditiveMLP(4, 3, 1, 2, hyperkey, mainkey)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
 
-    plots(train_data, idx=0, model=model, show_field=False)
+    plots(train_data, idx=0, model=model, show_field=True)
