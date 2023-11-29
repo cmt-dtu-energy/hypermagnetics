@@ -74,4 +74,4 @@ if __name__ == "__main__":
     }
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)
-    plots(train_data, idx=0, show_field=True)
+    plots(train_data, model=None, idx=0)

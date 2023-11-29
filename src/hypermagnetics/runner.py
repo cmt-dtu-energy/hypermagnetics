@@ -1,10 +1,10 @@
 import equinox as eqx
 import jax.random as jr
 import optax
-import wandb
 import yaml
 
 import hypermagnetics.sources as sources
+import wandb
 from hypermagnetics import plots
 from hypermagnetics.measures import accuracy, loss
 from hypermagnetics.models import AdditiveMLP, HyperMLP, save  # noqa: F401
@@ -60,5 +60,5 @@ if __name__ == "__main__":
     wandb.log({"nparams": model.nparams, "learning_rate": learning_rate})
     model = fit(trainer_config, optim, model, train, val, log=wandb.log)
     # save(model, wandb.run.id)
-    plots(train, idx=0, model=model, show_field=True, output="wandb")
+    plots(train, model, idx=0, output="wandb")
     wandb.finish()

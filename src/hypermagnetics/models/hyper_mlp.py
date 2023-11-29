@@ -188,4 +188,4 @@ if __name__ == "__main__":
     additive_model = AdditiveMLP(4, 3, 1, 2, hyperkey, mainkey)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
 
-    plots(train_data, idx=0, model=model, show_field=True)
+    plots(train_data, model, idx=0)
