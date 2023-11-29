@@ -71,6 +71,14 @@ class AdditiveMLP(eqx.Module):
             2, width, width, depth
         )
 
+    def get_hyperparameters(self):
+        return {
+            "width": self.model.width_size,
+            "depth": self.model.depth,
+            "hwidth": self.hypermodel.width_size,
+            "hdepth": self.hypermodel.depth,
+        }
+
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
         weights, bias = wb[:-1], wb[-1:]
@@ -123,6 +131,14 @@ class HyperMLP(eqx.Module):
             4, p, (hwidth * p), hdepth, jax.nn.gelu, key=hyperkey
         )
         self.nparams = count_mlp_params(4, p, hwidth * p, hdepth)
+
+    def get_hyperparameters(self):
+        return {
+            "width": self.model.width_size,
+            "depth": self.model.depth,
+            "hwidth": self.hypermodel.width_size,
+            "hdepth": self.hypermodel.depth,
+        }
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
