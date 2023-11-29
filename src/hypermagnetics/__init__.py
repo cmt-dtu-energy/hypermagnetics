@@ -3,11 +3,13 @@ import jax.numpy as jnp
 import matplotlib.pyplot as plt
 import numpy as np
 
+import wandb
 
-def plots(sources, idx=0, model=None, show_field=False):
+
+def plots(sources, idx=0, model=None, show_field=False, output="show"):
     """Plots the sources and field/potential of a single sample."""
     mr = sources["sources"]
-    m, r0 = mr[:, :, 0:1], mr[:, :, 2:3]
+    m, r0 = jnp.split(mr, 2, axis=-1)
     grid = sources["grid"]
 
     res = int(jnp.sqrt(len(grid)))
@@ -72,4 +74,7 @@ def plots(sources, idx=0, model=None, show_field=False):
         axes[1].set_ylabel("y")
 
     plt.tight_layout()
-    plt.show()
+    if output == "show":
+        plt.show()
+    elif output == "wandb":
+        wandb.log({"chart": wandb.Image(plt)})
