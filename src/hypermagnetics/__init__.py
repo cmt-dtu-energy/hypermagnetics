@@ -1,9 +1,14 @@
 import jax
 import jax.numpy as jnp
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import scienceplots  # noqa
 
 import wandb
+
+matplotlib.rcParams["text.usetex"] = True
+plt.style.use(["science", "ieee"])
 
 
 def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
