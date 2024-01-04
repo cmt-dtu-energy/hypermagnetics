@@ -15,7 +15,7 @@ setup(
         # "jax" is intentionally left out here
     ],
     extras_require={
-        "dev": ["pytest", "matplotlib", "ipython", "ipykernel"],
+        "dev": ["pytest", "matplotlib", "ipython", "ipykernel", "scienceplots"],
         "metal": ["ml-dtypes==0.2.0", "jax-metal==0.0.4"],
     },
     python_requires=">=3.9",
