@@ -32,7 +32,7 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
         field[idx, :, :, 0],
         field[idx, :, :, 1],
         density=1.5,
-        linewidth=1,
+        linewidth=0.5,
         arrowsize=1.5,
         arrowstyle="->",
     )
