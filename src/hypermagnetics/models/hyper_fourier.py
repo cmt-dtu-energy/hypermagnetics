@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
+from hypermagnetics.models import HyperModel
 from hypermagnetics.sources import configure
 
 
@@ -37,22 +38,19 @@ class FourierHyperModel(eqx.Module):
         return self.w(sources), self.b(sources)
 
 
-class FourierModel(eqx.Module):
+class FourierModel(HyperModel):
     hypermodel: FourierHyperModel
     order: int
     omega: jnp.ndarray = eqx.field(static=True)
-    # basis_terms: jnp.ndarray = eqx.field(static=True)
 
     def __init__(self, order, r, wkey, bkey):
         self.order = order
         self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, wkey, bkey)
         self.omega = 2 * jnp.pi * jnp.arange(1, order + 1) / 10
-        # self.basis_terms = jax.vmap(lambda r: evaluate_basis(self.omega, r))(r)
 
     def fourier_expansion(self, weights, bias, r=None):
         weights = jnp.reshape(weights, (4, self.order, self.order))
         basis_terms = evaluate_basis(self.omega, r)
-        # basis_terms = self.basis_terms if r is None else evaluate_basis(self.omega, r)
         elementwise_product = weights * basis_terms
         summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
         return bias + summed_product
@@ -63,18 +61,6 @@ class FourierModel(eqx.Module):
 
     def prepare_model(self, weights, bias):
         return lambda r: self.fourier_expansion(weights, bias, r)
-
-    def field(self, sources, r):
-        """Evaluate the field given sources (sources) and evaluation points (r)."""
-        weights, bias = self.prepare_weights(sources)
-        model = self.prepare_model(weights, bias)
-        return -jax.vmap(jax.grad(model))(r)
-
-    def __call__(self, sources, r):
-        """Evaluate the potential given sources (sources) and evaluation points (r)."""
-        weights, bias = self.prepare_weights(sources)
-        model = self.prepare_model(weights, bias)
-        return jax.vmap(model)(r)
 
 
 if __name__ == "__main__":
