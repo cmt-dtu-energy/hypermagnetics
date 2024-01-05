@@ -10,7 +10,7 @@ from hypermagnetics.measures import accuracy, loss
 from hypermagnetics.models import AdditiveMLP, HyperMLP, save  # noqa: F401
 
 
-def fit(trainer_config, optim, model, train, val, log=print):
+def fit(trainer_config, optim, model, train, val, log=print, every=1):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
     def step(model, opt_state, data):
@@ -30,7 +30,7 @@ def fit(trainer_config, optim, model, train, val, log=print):
                 "train_acc": train_acc,
                 "val_acc": val_acc,
             }
-        )
+        ) if epoch % every == 0 else None
 
     return model
 
