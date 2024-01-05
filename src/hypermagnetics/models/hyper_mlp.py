@@ -102,7 +102,7 @@ class AdditiveMLP(eqx.Module):
         final_layer = self.prepare_final_layer(weights, bias)
         return -jax.vmap(jax.grad(lambda r: final_layer(self.model(r))))(r)
 
-    def __call__(self, sources, r, field=False):
+    def __call__(self, sources, r):
         """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
         Returns the potential by default, or the magnetic field if field=True."""
         weights, bias = self.prepare_weights(sources)

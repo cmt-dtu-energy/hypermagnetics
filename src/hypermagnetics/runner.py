@@ -21,14 +21,14 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
 
     for epoch in range(trainer_config["epochs"]):
         model, opt_state, train_loss = step(model, opt_state, train)
-        train_acc = accuracy(model, train)
-        val_acc = accuracy(model, val)
+        train_err = accuracy(model, train)
+        val_err = accuracy(model, val)
         log(
             {
                 "epoch": epoch,
                 "train_loss": train_loss,
-                "train_acc": train_acc,
-                "val_acc": val_acc,
+                "train_err": train_err,
+                "val_err": val_err,
             }
         ) if epoch % every == 0 else None
 
