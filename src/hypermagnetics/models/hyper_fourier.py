@@ -42,16 +42,26 @@ class FourierModel(HyperModel):
     hypermodel: FourierHyperModel
     order: int
     omega: jnp.ndarray = eqx.field(static=True)
+    basis_terms: jnp.ndarray = eqx.field(static=True)
 
     def __init__(self, order, r, wkey, bkey):
         self.order = order
         self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, wkey, bkey)
-        self.omega = 2 * jnp.pi * jnp.arange(1, order + 1) / 10
+        self.omega = 2 * jnp.pi * jnp.arange(1, order + 1) / (4 * 3)
+        self.basis_terms = jax.vmap(evaluate_basis, in_axes=(None, 0))(
+            self.omega, r
+        ).transpose(1, 2, 3, 0)
 
     def fourier_expansion(self, weights, bias, r=None):
         weights = jnp.reshape(weights, (4, self.order, self.order))
         basis_terms = evaluate_basis(self.omega, r)
         elementwise_product = weights * basis_terms
+        summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
+        return bias + summed_product
+
+    def cached_expansion(self, weights, bias):
+        weights = jnp.reshape(weights, (4, self.order, self.order))
+        elementwise_product = weights[..., None] * self.basis_terms
         summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
         return bias + summed_product
 
@@ -61,6 +71,10 @@ class FourierModel(HyperModel):
 
     def prepare_model(self, weights, bias):
         return lambda r: self.fourier_expansion(weights, bias, r)
+
+    def __call__(self, sources, r):
+        weights, biases = self.prepare_weights(sources)
+        return self.cached_expansion(weights, biases)
 
 
 if __name__ == "__main__":
