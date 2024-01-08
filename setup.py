@@ -16,7 +16,7 @@ setup(
     ],
     extras_require={
         "dev": ["pytest", "matplotlib", "ipython", "ipykernel", "scienceplots"],
-        "metal": ["ml-dtypes==0.2.0", "jax-metal==0.0.4"],
+        "metal": ["ml-dtypes==0.2.0", "jax-metal==0.0.5"],
     },
     python_requires=">=3.9",
 )
