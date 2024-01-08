@@ -10,13 +10,14 @@ setup(
     packages=find_packages(where="src"),
     install_requires=[
         "optax",
-        "equinox",
+        "equinox>=0.11.2",
         "wandb",
+        "jaxtyping>=0.2.23",
         # "jax" is intentionally left out here
     ],
     extras_require={
         "dev": ["pytest", "matplotlib", "ipython", "ipykernel", "scienceplots"],
-        "metal": ["ml-dtypes==0.2.0", "jax-metal==0.0.5"],
+        "metal": ["jax-metal==0.0.5"],
     },
     python_requires=">=3.9",
 )
