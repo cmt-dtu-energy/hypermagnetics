@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 
+import hypermagnetics.measures as measures
 from hypermagnetics import plots
 from hypermagnetics.sources import configure
 
@@ -109,6 +110,9 @@ class AdditiveMLP(eqx.Module):
         final_layer = self.prepare_final_layer(weights, bias)
         return jax.vmap(lambda r: final_layer(self.model(r)))(r)
 
+    def loss(self, model, data):
+        return measures.loss(model, data)
+
 
 class HyperMLP(eqx.Module):
     """A hypernetwork that generates weights and biases for a given MLP architecture,
@@ -167,6 +171,9 @@ class HyperMLP(eqx.Module):
         weights, biases = self.prepare_weights(sources)
         model = self.prepare_model(weights, biases)
         return jax.vmap(model)(r)
+
+    def loss(self, model, data):
+        return measures.loss(model, data)
 
 
 if __name__ == "__main__":

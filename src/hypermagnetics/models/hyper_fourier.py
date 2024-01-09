@@ -3,6 +3,7 @@ import jax
 import jax.numpy as jnp
 import jax.random as jr
 
+import hypermagnetics.measures as measures
 from hypermagnetics import plots
 from hypermagnetics.models import HyperModel
 from hypermagnetics.sources import configure
@@ -42,11 +43,22 @@ class FourierModel(HyperModel):
     hypermodel: FourierHyperModel
     order: int
     omega_scale: jax.Array
+    basis_terms: jax.Array = eqx.field(static=True)
 
     def __init__(self, order, r, wkey, bkey):
         self.order = order
         self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, wkey, bkey)
         self.omega_scale = jnp.ones(1) * 12
+        omega = 2 * jnp.pi * jnp.arange(1, self.order + 1) / self.omega_scale
+        self.basis_terms = jax.vmap(evaluate_basis, in_axes=(None, 0))(
+            omega, r
+        ).transpose(1, 2, 3, 0)
+
+    def cached_evaluation(self, weights, bias):
+        weights = jnp.reshape(weights, (4, self.order, self.order))
+        elementwise_product = weights[..., None] * self.basis_terms
+        summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
+        return bias + summed_product
 
     def fourier_expansion(self, weights, bias, r=None):
         weights = jnp.reshape(weights, (4, self.order, self.order))
@@ -62,6 +74,9 @@ class FourierModel(HyperModel):
 
     def prepare_model(self, weights, bias):
         return lambda r: self.fourier_expansion(weights, bias, r)
+
+    def loss(self, model, data):
+        return measures.cached_loss(model, data)
 
 
 if __name__ == "__main__":
@@ -79,5 +94,7 @@ if __name__ == "__main__":
     wkey, bkey = jr.split(jr.PRNGKey(41), 2)
     model = FourierModel(4, r, wkey, bkey)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
+    print(jax.vmap(model.cached_evaluation)(*jax.vmap(model.prepare_weights)(sources)))
+    print(model.loss(model, train_data))
 
     plots(train_data, model, idx=0)
