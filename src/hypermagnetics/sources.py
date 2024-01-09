@@ -42,10 +42,9 @@ def configure(n_samples, n_sources, lim=3, res=32, key=jr.PRNGKey(0)):
         key (jr.PRNGKey): Random number generator key.
     """
 
-    key, subkey = jr.split(key, 2)
-    m, r0 = jnp.split(
-        jr.normal(key=subkey, shape=(n_samples, n_sources, 4)), 2, axis=-1
-    )
+    rkey, mkey = jr.split(key, 2)
+    r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, 2), key=rkey)
+    m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2))
 
     range = jnp.linspace(-lim, lim, res)
     x, y = jnp.meshgrid(range, range)
