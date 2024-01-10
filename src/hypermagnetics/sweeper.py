@@ -22,9 +22,9 @@ def main():
     train = sources.configure(**source_config, key=jr.PRNGKey(40))
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
-    hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
+    key = jr.PRNGKey(42)
     model_config = wandb.config.model
-    model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
+    model = HyperMLP(**model_config, key=key)
 
     trainer_config = wandb.config.trainer
     learning_rate = 10 ** trainer_config["log_learning_rate"]

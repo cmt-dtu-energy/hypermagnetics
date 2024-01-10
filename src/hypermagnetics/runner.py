@@ -50,10 +50,10 @@ if __name__ == "__main__":
     train = sources.configure(**source_config, key=jr.PRNGKey(40))
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
-    hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
+    key = jr.PRNGKey(42)
     model_config = run_configuration["model"]
-    # model = HyperMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
-    model = AdditiveMLP(**model_config, hyperkey=hyperkey, mainkey=mainkey)
+    # model = HyperMLP(**model_config, key=key)
+    model = AdditiveMLP(**model_config, key=key)
 
     trainer_config = run_configuration["trainer"]
     learning_rate = 10 ** trainer_config["log_learning_rate"]
