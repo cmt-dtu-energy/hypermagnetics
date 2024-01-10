@@ -47,7 +47,7 @@ class FourierModel(HyperModel):
     def __init__(self, order, key):
         self.order = order
         self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, key)
-        self.omega_scale = jnp.ones(1) * 12
+        self.omega_scale = jnp.ones(1) * 50
 
     @eqx.filter_jit
     def fourier_expansion(self, weights, bias, r):
