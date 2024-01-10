@@ -49,8 +49,8 @@ class AdditiveMLP(eqx.Module):
     model: eqx.nn.MLP
     final_layer: eqx.nn.MLP = eqx.field(static=True)
 
-    def __init__(self, width, depth, hwidth, hdepth, hyperkey, mainkey):
-        modelkey, finalkey = jr.split(mainkey, 2)
+    def __init__(self, width, depth, hwidth, hdepth, key):
+        hyperkey, modelkey, finalkey = jr.split(key, 3)
         self.model = eqx.nn.MLP(
             2,
             width,
@@ -120,7 +120,8 @@ class HyperMLP(eqx.Module):
     nparams: int
     model: eqx.nn.MLP = eqx.field(static=True)
 
-    def __init__(self, width, depth, hwidth, hdepth, hyperkey, mainkey):
+    def __init__(self, width, depth, hwidth, hdepth, key):
+        hyperkey, mainkey = jr.split(key, 2)
         self.model = eqx.nn.MLP(
             2, "scalar", width, depth, jax.nn.gelu, use_bias=True, key=mainkey
         )
@@ -181,11 +182,11 @@ if __name__ == "__main__":
     sources, r = train_data["sources"], train_data["grid"]
 
     # Show output from evaluating HyperMLP model on source configuration
-    hyperkey, mainkey = jr.split(jr.PRNGKey(41), 2)
-    model = HyperMLP(4, 3, 2, 2, hyperkey, mainkey)
+    key = jr.PRNGKey(39)
+    model = HyperMLP(4, 3, 2, 2, key)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
 
-    additive_model = AdditiveMLP(4, 3, 1, 2, hyperkey, mainkey)
+    additive_model = AdditiveMLP(4, 3, 1, 2, key)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
 
     plots(train_data, model, idx=0)

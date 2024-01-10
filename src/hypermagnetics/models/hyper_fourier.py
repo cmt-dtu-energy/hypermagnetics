@@ -30,7 +30,8 @@ class FourierHyperModel(eqx.Module):
     w: eqx.nn.MLP
     b: eqx.nn.Linear
 
-    def __init__(self, out, width, depth, weightkey, biaskey):
+    def __init__(self, out, width, depth, key):
+        weightkey, biaskey = jr.split(key, 2)
         self.w = eqx.nn.MLP(4, out, width, depth, jax.nn.gelu, key=weightkey)
         self.b = eqx.nn.Linear(4, "scalar", key=biaskey)
 
@@ -43,9 +44,9 @@ class FourierModel(HyperModel):
     order: int
     omega_scale: jax.Array
 
-    def __init__(self, order, r, wkey, bkey):
+    def __init__(self, order, key):
         self.order = order
-        self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, wkey, bkey)
+        self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, key)
         self.omega_scale = jnp.ones(1) * 12
 
     @eqx.filter_jit
@@ -77,8 +78,7 @@ if __name__ == "__main__":
     sources, r = train_data["sources"], train_data["grid"]
 
     # Show output from evaluating FourierModel model on source configuration
-    wkey, bkey = jr.split(jr.PRNGKey(41), 2)
-    model = FourierModel(4, r, wkey, bkey)
+    model = FourierModel(4, key=jr.PRNGKey(41))
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
 
     plots(train_data, model, idx=0)
