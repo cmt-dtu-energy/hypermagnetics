@@ -1,5 +1,4 @@
 import equinox as eqx
-import jax
 import jax.random as jr
 import optax
 import yaml
@@ -19,9 +18,9 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
         updates, opt_state = optim.update(grads, opt_state, model)
 
         # Manually scale learning rate for scalar parameter
-        updates = jax.tree_util.tree_map(
-            lambda x: x * 1e4 if eqx.is_array(x) and len(x) == 1 else x, updates
-        )
+        # updates = jax.tree_util.tree_map(
+        #     lambda x: x * 1e4 if eqx.is_array(x) and len(x) == 1 else x, updates
+        # )
 
         model = eqx.apply_updates(model, updates)
         return model, opt_state, loss_value
@@ -33,9 +32,9 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
         log(
             {
                 "epoch": epoch,
-                "train_loss": train_loss,
-                "train_err": train_err,
-                "val_err": val_err,
+                "train_loss": train_loss.item(),
+                "train_err": train_err.item(),
+                "val_err": val_err.item(),
             }
         ) if epoch % every == 0 else None
 

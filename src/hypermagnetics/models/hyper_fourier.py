@@ -41,19 +41,20 @@ class FourierHyperModel(eqx.Module):
 
 class FourierModel(HyperModel):
     hypermodel: FourierHyperModel
+    omega: jax.Array = eqx.field(static=True)
     order: int
-    omega_scale: jax.Array
 
-    def __init__(self, order, key):
-        self.order = order
-        self.hypermodel = FourierHyperModel(4 * order**2, order**2, 3, key)
-        self.omega_scale = jnp.ones(1) * 50
+    def __init__(self, lim, res, key):
+        self.order = (res + 1) // 4
+        self.hypermodel = FourierHyperModel(
+            4 * self.order**2, 16 * self.order**2, 3, key
+        )
+        self.omega = 2 * jnp.pi * jnp.arange(1, self.order + 1) / (2 * lim)
 
     @eqx.filter_jit
     def fourier_expansion(self, weights, bias, r):
         weights = jnp.reshape(weights, (4, self.order, self.order))
-        omega = 2 * jnp.pi * jnp.arange(1, self.order + 1) / self.omega_scale
-        basis_terms = evaluate_basis(omega, r)
+        basis_terms = evaluate_basis(self.omega, r)
         elementwise_product = weights * basis_terms
         summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
         return bias + summed_product
@@ -72,13 +73,13 @@ if __name__ == "__main__":
         "n_sources": 2,
         "key": jr.PRNGKey(40),
         "lim": 3,
-        "res": 32,
+        "res": 50,
     }
     train_data = configure(**config)
     sources, r = train_data["sources"], train_data["grid"]
 
     # Show output from evaluating FourierModel model on source configuration
-    model = FourierModel(4, key=jr.PRNGKey(41))
+    model = FourierModel(config["lim"], config["res"], key=jr.PRNGKey(41))
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
 
     plots(train_data, model, idx=0)
