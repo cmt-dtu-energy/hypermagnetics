@@ -1,6 +1,6 @@
 source:
-  n_samples: 1000
-  n_sources: 2
+  n_samples: 250
+  n_sources: 1
   lim: 3
   res: 32
 model:
@@ -10,4 +10,4 @@ model:
   hdepth: 2
 trainer:
   log_learning_rate: -4.0
-  epochs: 5000
+  epochs: 50000

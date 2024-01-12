@@ -4,12 +4,6 @@ import jax.random as jr
 
 import wandb
 
-# from hypermagnetics.models.hyper_fourier import FourierModel  # noqa: F401
-from hypermagnetics.models.hyper_mlp import (
-    AdditiveMLP,  # noqa: F401
-    HyperMLP,  # noqa: F401
-)
-
 
 def count_mlp_params(in_features, out_features, width, depth):
     return (

@@ -7,7 +7,9 @@ import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics import plots
 from hypermagnetics.measures import accuracy, loss
-from hypermagnetics.models import AdditiveMLP, HyperMLP, save  # noqa: F401
+
+# from hypermagnetics.models import AdditiveMLP, HyperMLP, save  # noqa: F401
+from hypermagnetics.models.hyper_fourier import FourierModel
 
 
 def fit(trainer_config, optim, model, train, val, log=print, every=1):
@@ -17,7 +19,7 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
         loss_value, grads = eqx.filter_value_and_grad(loss)(model, data)
         updates, opt_state = optim.update(grads, opt_state, model)
 
-        # Manually scale learning rate for scalar parameter
+        # # Manually scale learning rate for scalar parameter
         # updates = jax.tree_util.tree_map(
         #     lambda x: x * 1e4 if eqx.is_array(x) and len(x) == 1 else x, updates
         # )
@@ -50,9 +52,11 @@ if __name__ == "__main__":
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     key = jr.PRNGKey(42)
+    run_configuration["model"] = {"order": 32}
     model_config = run_configuration["model"]
     # model = HyperMLP(**model_config, key=key)
-    model = AdditiveMLP(**model_config, key=key)
+    # model = AdditiveMLP(**model_config, key=key)
+    model = FourierModel(**model_config, key=key)
 
     trainer_config = run_configuration["trainer"]
     learning_rate = 10 ** trainer_config["log_learning_rate"]
