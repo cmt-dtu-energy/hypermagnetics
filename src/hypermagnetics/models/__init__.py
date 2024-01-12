@@ -11,6 +11,14 @@ from hypermagnetics.models.hyper_mlp import (
 )
 
 
+def count_mlp_params(in_features, out_features, width, depth):
+    return (
+        (in_features + 1) * width
+        + (width + 1) * width * (depth - 1)
+        + (width + 1) * out_features
+    )
+
+
 def save(model, id):
     # Save model to file and prepare artifact
     model_path = f"models/{id}.eqx"

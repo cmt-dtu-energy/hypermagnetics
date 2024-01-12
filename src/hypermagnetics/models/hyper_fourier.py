@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
-from hypermagnetics.models import HyperModel
+from hypermagnetics.models import HyperModel, count_mlp_params
 from hypermagnetics.sources import configure
 
 
@@ -51,6 +51,11 @@ class FourierModel(HyperModel):
         self.lfmax = jnp.ones(1) * 1
         self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 3, key)
 
+    @property
+    def nparams(self):
+        return count_mlp_params(4, 4 * self.order**2, self.order**2, 3)
+
+    @property
     def omega(self):
         modes = jnp.floor(jnp.logspace(0, self.lfmax - self.lfmin, self.order))
         return jnp.squeeze(2 * jnp.pi * modes * 10**self.lfmin)
@@ -58,7 +63,7 @@ class FourierModel(HyperModel):
     @eqx.filter_jit
     def fourier_expansion(self, weights, bias, r):
         weights = jnp.reshape(weights, (4, self.order, self.order))
-        basis_terms = evaluate_basis(self.omega(), r)
+        basis_terms = evaluate_basis(self.omega, r)
         elementwise_product = weights * basis_terms
         summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
         return bias + summed_product

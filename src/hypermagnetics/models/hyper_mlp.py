@@ -4,6 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
+from hypermagnetics.models import count_mlp_params
 from hypermagnetics.sources import configure
 
 
@@ -33,14 +34,6 @@ def reshape_params(old_params, flat_params):
         new_params += (jnp.reshape(flat_params[idx : idx + w.size], w.shape),)
         idx += w.size
     return new_params
-
-
-def count_mlp_params(in_features, out_features, width, depth):
-    return (
-        (in_features + 1) * width
-        + (width + 1) * width * (depth - 1)
-        + (width + 1) * out_features
-    )
 
 
 class AdditiveMLP(eqx.Module):
