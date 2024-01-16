@@ -30,7 +30,7 @@ class FourierHyperModel(eqx.Module):
     w: eqx.nn.MLP
     b: eqx.nn.Linear
 
-    def __init__(self, out, width, depth, key):
+    def __init__(self, out: int, width: int, depth: int, key: jr.PRNGKeyArray):
         weightkey, biaskey = jr.split(key, 2)
         self.w = eqx.nn.MLP(4, out, width, depth, jax.nn.gelu, key=weightkey)
         self.b = eqx.nn.Linear(4, "scalar", key=biaskey)
