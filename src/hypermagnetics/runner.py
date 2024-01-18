@@ -34,7 +34,9 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
                 "train_err": train_err.item(),
                 "val_err": val_err.item(),
             }
-        ) if epoch % every == 0 else None
+        ) if (epoch % every == 0 and log == print) else None
+        if train_err < 2.0:
+            break
 
     return model
 

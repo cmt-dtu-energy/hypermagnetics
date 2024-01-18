@@ -43,7 +43,7 @@ class FourierModel(HyperModel):
 
     def __init__(self, order, key):
         self.order = order
-        self.kl = jnp.array([-5.0, 1.0])
+        self.kl = jnp.array([-2.0, 1.0])
         # self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 3, key)
         self.hypermodel = jnp.zeros((1, 4 * self.order * self.order))
 
