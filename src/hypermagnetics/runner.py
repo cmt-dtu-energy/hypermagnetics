@@ -35,7 +35,7 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
                 "val_err": val_err.item(),
             }
         ) if (epoch % every == 0) else None
-        if train_err < 1.0:
+        if train_err < 1.9:
             break
 
     return model
@@ -67,6 +67,7 @@ if __name__ == "__main__":
     for trainer_config in schedule:
         optim = optax.adam(**trainer_config["params"])
         model = fit(trainer_config, optim, model, train, val, log=wandb.log, every=10)
+        wandb.log({"modes": model.k})
 
     # save(model, wandb.run.id)
     plots(train, model, idx=0, output="wandb")
