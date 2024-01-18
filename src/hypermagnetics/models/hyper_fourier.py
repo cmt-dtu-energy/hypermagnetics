@@ -1,3 +1,5 @@
+from typing import Union
+
 import equinox as eqx
 import jax
 import jax.numpy as jnp
@@ -8,19 +10,19 @@ from hypermagnetics.models import HyperModel, count_mlp_params
 from hypermagnetics.sources import configure
 
 
-def basis_term(fun1, fun2, omega, r):
+def basis_term(fun1, fun2, k, r):
     """Compute basis terms for the Fourier series expansion."""
-    return fun1(omega[:, None] * r[0]) * fun2(omega[None, :] * r[1])
+    return fun1(k[:, None] * r[0]) * fun2(k[None, :] * r[1])
 
 
 @jax.jit
-def evaluate_basis(omega, r):
+def evaluate_basis(k, r):
     return jnp.stack(
         [
-            basis_term(jnp.cos, jnp.cos, omega, r),
-            basis_term(jnp.sin, jnp.cos, omega, r),
-            basis_term(jnp.cos, jnp.sin, omega, r),
-            basis_term(jnp.sin, jnp.sin, omega, r),
+            basis_term(jnp.cos, jnp.cos, k, r),
+            basis_term(jnp.sin, jnp.cos, k, r),
+            basis_term(jnp.cos, jnp.sin, k, r),
+            basis_term(jnp.sin, jnp.sin, k, r),
         ],
         axis=0,
     )
@@ -37,39 +39,36 @@ class FourierHyperModel(eqx.Module):
 
 
 class FourierModel(HyperModel):
-    hypermodel: FourierHyperModel
-    lfmin: jax.Array
-    lfmax: jax.Array
+    hypermodel: Union[FourierHyperModel, jax.Array]
+    kl: jax.Array
     order: int
 
     def __init__(self, order, key):
         self.order = order
-        self.lfmin = jnp.ones(1) * -order / 2
-        self.lfmax = jnp.ones(1) * 1
-        self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 3, key)
+        self.kl = jnp.array([-5.0, 1.0])
+        # self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 2, key)
+        self.hypermodel = jnp.ones((1, 4 * self.order * self.order))
 
     @property
     def nparams(self):
         return count_mlp_params(4, 4 * self.order**2, self.order**2, 3)
 
     @property
-    def omega(self):
-        modes = jnp.squeeze(
-            jnp.floor(jnp.logspace(0, self.lfmax - self.lfmin, self.order - 1))
-        )
-        modes = jnp.concatenate((jnp.zeros(1), modes))  # Append zero mode
-        return 2 * jnp.pi * modes * 10**self.lfmin
+    def k(self):
+        logmodes = jnp.squeeze(jnp.linspace(self.kl[0], self.kl[1], self.order - 1))
+        return jnp.concatenate((jnp.zeros(1), 10**logmodes))  # Append zero mode
 
     @eqx.filter_jit
     def fourier_expansion(self, weights, r):
         weights = jnp.reshape(weights, (4, self.order, self.order))
-        basis_terms = evaluate_basis(self.omega, r)
+        basis_terms = evaluate_basis(self.k, r)
         elementwise_product = weights * basis_terms
         summed_product = jnp.sum(elementwise_product, axis=(0, 1, 2))
         return summed_product
 
     def prepare_weights(self, sources):
-        w = jax.vmap(self.hypermodel)(sources)
+        # w = jax.vmap(self.hypermodel)(sources)
+        w = self.hypermodel
         return jnp.sum(w, axis=0), None
 
     def prepare_model(self, weights, bias):

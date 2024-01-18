@@ -15,14 +15,10 @@ from hypermagnetics.models.hyper_fourier import FourierModel
 def fit(trainer_config, optim, model, train, val, log=print, every=1):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
+    @eqx.filter_jit
     def step(model, opt_state, data):
         loss_value, grads = eqx.filter_value_and_grad(loss)(model, data)
         updates, opt_state = optim.update(grads, opt_state, model)
-
-        # # Manually scale learning rate for scalar parameter
-        # updates = jax.tree_util.tree_map(
-        #     lambda x: x * 1e4 if eqx.is_array(x) and len(x) == 1 else x, updates
-        # )
 
         model = eqx.apply_updates(model, updates)
         return model, opt_state, loss_value
