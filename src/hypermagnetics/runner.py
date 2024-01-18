@@ -34,8 +34,8 @@ def fit(trainer_config, optim, model, train, val, log=print, every=1):
                 "train_err": train_err.item(),
                 "val_err": val_err.item(),
             }
-        ) if (epoch % every == 0 and log == print) else None
-        if train_err < 2.0:
+        ) if (epoch % every == 0) else None
+        if train_err < 1.0:
             break
 
     return model
@@ -46,8 +46,8 @@ if __name__ == "__main__":
         run_configuration = yaml.safe_load(f)
 
     source_config = run_configuration["source"]
-    train = sources.configure(**source_config, key=jr.PRNGKey(40))
-    val = sources.configure(**source_config, key=jr.PRNGKey(41))
+    train = sources.configure(**source_config, key=jr.PRNGKey(100))
+    val = sources.configure(**source_config, key=jr.PRNGKey(101))
 
     key = jr.PRNGKey(42)
     run_configuration["model"] = {"order": 64}  # Hijack run configuration
@@ -62,11 +62,11 @@ if __name__ == "__main__":
         project="hypermagnetics",
         config=run_configuration,
     )
-    wandb.log({"nparams": model.nparams, "schedule": schedule})
+    wandb.log({"nparams": model.nparams})
 
     for trainer_config in schedule:
         optim = optax.adam(**trainer_config["params"])
-        model = fit(trainer_config, optim, model, train, val, log=wandb.log)
+        model = fit(trainer_config, optim, model, train, val, log=wandb.log, every=10)
 
     # save(model, wandb.run.id)
     plots(train, model, idx=0, output="wandb")
