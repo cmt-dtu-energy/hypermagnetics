@@ -50,23 +50,24 @@ if __name__ == "__main__":
     val = sources.configure(**source_config, key=jr.PRNGKey(41))
 
     key = jr.PRNGKey(42)
-    run_configuration["model"] = {"order": 32}
+    run_configuration["model"] = {"order": 64}  # Hijack run configuration
     model_config = run_configuration["model"]
     # model = HyperMLP(**model_config, key=key)
     # model = AdditiveMLP(**model_config, key=key)
     model = FourierModel(**model_config, key=key)
 
-    trainer_config = run_configuration["trainer"]
-    learning_rate = 10 ** trainer_config["log_learning_rate"]
-    optim = optax.adam(learning_rate, b1=0.95)
-
+    schedule = run_configuration["schedule"]
     wandb.init(
         entity="dl4mag",
         project="hypermagnetics",
         config=run_configuration,
     )
-    wandb.log({"nparams": model.nparams, "learning_rate": learning_rate})
-    model = fit(trainer_config, optim, model, train, val, log=wandb.log)
+    wandb.log({"nparams": model.nparams, "schedule": schedule})
+
+    for trainer_config in schedule:
+        optim = optax.adam(**trainer_config["params"])
+        model = fit(trainer_config, optim, model, train, val, log=wandb.log)
+
     # save(model, wandb.run.id)
     plots(train, model, idx=0, output="wandb")
     wandb.finish()

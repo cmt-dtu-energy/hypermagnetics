@@ -1,13 +1,23 @@
 source:
-  n_samples: 250
+  n_samples: 1
   n_sources: 1
   lim: 3
-  res: 32
+  res: 64
 model:
   width: 1024
   depth: 3
   hwidth: 2
   hdepth: 2
-trainer:
-  log_learning_rate: -4.0
-  epochs: 50000
+schedule:
+  - epochs: 10000
+    params:
+      learning_rate: 1e-2
+  - epochs: 10000
+    params:
+      learning_rate: 1e-3
+  - epochs: 50000
+    params:
+      learning_rate: 1e-4
+  - epochs: 50000
+    params:
+      learning_rate: 1e-5
