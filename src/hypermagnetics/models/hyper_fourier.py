@@ -1,5 +1,3 @@
-from typing import Union
-
 import equinox as eqx
 import jax
 import jax.numpy as jnp
@@ -39,15 +37,15 @@ class FourierHyperModel(eqx.Module):
 
 
 class FourierModel(HyperModel):
-    hypermodel: Union[FourierHyperModel, jax.Array]
+    hypermodel: jax.Array  # | FourierHyperModel
     kl: jax.Array
     order: int
 
     def __init__(self, order, key):
         self.order = order
         self.kl = jnp.array([-5.0, 1.0])
-        # self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 2, key)
-        self.hypermodel = jnp.ones((1, 4 * self.order * self.order))
+        # self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 3, key)
+        self.hypermodel = jnp.zeros((1, 4 * self.order * self.order))
 
     @property
     def nparams(self):
