@@ -42,18 +42,22 @@ def configure(n_samples, n_sources, lim=3, res=32, key=jr.PRNGKey(0)):
         key (jr.PRNGKey): Random number generator key.
     """
 
-    rkey, mkey = jr.split(key, 2)
-    r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, 2), key=rkey)
+    r0key, mkey, rkey = jr.split(key, 3)
+    r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, 2), key=r0key)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2))
 
     range = jnp.linspace(-lim, lim, res)
     x, y = jnp.meshgrid(range, range)
     grid = jnp.stack([x.flatten(), y.flatten()], axis=1)
+    r = sample_grid(rkey, lim, res)
     return {
         "sources": jnp.concatenate([m, r0], axis=-1),
+        "r": r,
+        "potential": _total(_potential, m, r0, r),
+        "field": _total(_field, m, r0, r),
         "grid": grid,
-        "potential": _total(_potential, m, r0, grid),
-        "field": _total(_field, m, r0, grid),
+        "potential_grid": _total(_potential, m, r0, grid),
+        "field_grid": _total(_field, m, r0, grid),
     }
 
 
