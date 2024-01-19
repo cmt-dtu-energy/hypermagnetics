@@ -46,11 +46,11 @@ if __name__ == "__main__":
         run_configuration = yaml.safe_load(f)
 
     source_config = run_configuration["source"]
-    train = sources.configure(**source_config, key=jr.PRNGKey(100))
-    val = sources.configure(**source_config, key=jr.PRNGKey(101))
+    train = sources.configure(**source_config, n_sources=1, key=jr.PRNGKey(100))
+    val = sources.configure(**source_config, n_sources=4, key=jr.PRNGKey(101))
 
     key = jr.PRNGKey(42)
-    run_configuration["model"] = {"order": 32}  # Hijack run configuration
+    run_configuration["model"] = {"order": 16}  # Hijack run configuration
     model_config = run_configuration["model"]
     # model = HyperMLP(**model_config, key=key)
     # model = AdditiveMLP(**model_config, key=key)
@@ -71,4 +71,5 @@ if __name__ == "__main__":
 
     # save(model, wandb.run.id)
     plots(train, model, idx=0, output="wandb")
+    plots(val, model, idx=0, output="wandb")
     wandb.finish()
