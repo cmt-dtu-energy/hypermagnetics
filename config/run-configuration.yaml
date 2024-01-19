@@ -1,8 +1,8 @@
 source:
-  n_samples: 1
+  n_samples: 100
   n_sources: 1
   lim: 3
-  res: 64
+  res: 32
 model:
   width: 1024
   depth: 3

@@ -50,7 +50,7 @@ if __name__ == "__main__":
     val = sources.configure(**source_config, key=jr.PRNGKey(101))
 
     key = jr.PRNGKey(42)
-    run_configuration["model"] = {"order": 64}  # Hijack run configuration
+    run_configuration["model"] = {"order": 32}  # Hijack run configuration
     model_config = run_configuration["model"]
     # model = HyperMLP(**model_config, key=key)
     # model = AdditiveMLP(**model_config, key=key)

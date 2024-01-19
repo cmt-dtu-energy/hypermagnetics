@@ -37,15 +37,15 @@ class FourierHyperModel(eqx.Module):
 
 
 class FourierModel(HyperModel):
-    hypermodel: jax.Array  # | FourierHyperModel
+    hypermodel: FourierHyperModel
     kl: jax.Array
     order: int
 
     def __init__(self, order, key):
         self.order = order
         self.kl = jnp.array([-3.0, 1.0])
-        # self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 3, key)
-        self.hypermodel = jnp.zeros((1, 4 * self.order * self.order))
+        self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 2, key)
+        # self.hypermodel = jnp.zeros((1, 4 * self.order * self.order))
 
     @property
     def nparams(self):
@@ -65,8 +65,8 @@ class FourierModel(HyperModel):
         return summed_product
 
     def prepare_weights(self, sources):
-        # w = jax.vmap(self.hypermodel)(sources)
-        w = self.hypermodel
+        w = jax.vmap(self.hypermodel)(sources)
+        # w = self.hypermodel
         return jnp.sum(w, axis=0), None
 
     def prepare_model(self, weights, bias):
