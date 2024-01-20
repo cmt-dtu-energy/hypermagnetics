@@ -29,7 +29,7 @@ def evaluate_basis(k, r):
 class FourierHyperModel(eqx.Module):
     w: eqx.nn.MLP
 
-    def __init__(self, out: int, width: int, depth: int, key: jr.PRNGKeyArray):
+    def __init__(self, out: int, width: int, depth: int, key: jax.Array):
         self.w = eqx.nn.MLP(4, out, width, depth, jax.nn.gelu, key=key)
 
     def __call__(self, sources):
