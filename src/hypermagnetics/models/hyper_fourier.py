@@ -43,13 +43,13 @@ class FourierModel(HyperModel):
 
     def __init__(self, order, key):
         self.order = order
-        self.kl = jnp.array([-3.0, 1.0])
-        self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 2, key)
+        self.kl = jnp.array([-2.9, 0.75])
+        self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 1, key)
         # self.hypermodel = jnp.zeros((1, 4 * self.order * self.order))
 
     @property
     def nparams(self):
-        return count_mlp_params(4, 4 * self.order**2, self.order**2, 3)
+        return count_mlp_params(4, 4 * self.order**2, self.order**2, 2)
 
     @property
     def k(self):

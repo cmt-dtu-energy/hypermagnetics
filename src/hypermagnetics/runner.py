@@ -67,7 +67,7 @@ if __name__ == "__main__":
     for trainer_config in schedule:
         optim = optax.adam(**trainer_config["params"])
         model = fit(trainer_config, optim, model, train, val, log=wandb.log, every=10)
-        wandb.log({"modes": model.k})
+        wandb.log({"mode_limits": model.kl})
 
     # save(model, wandb.run.id)
     plots(train, model, idx=0, output="wandb")
