@@ -42,7 +42,7 @@ if __name__ == "__main__":
     with open("config/run-configuration.yaml", "r") as f:
         run_configuration = yaml.safe_load(f)
 
-    source_config = run_configuration["source"]
+    source_config = run_configuration["sources"]
     train = sources.configure(**source_config["train"])
     test = sources.configure(**source_config["test"])
     val = sources.configure(**source_config["val"])

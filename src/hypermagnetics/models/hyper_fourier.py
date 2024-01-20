@@ -45,9 +45,9 @@ class FourierModel(HyperModel):
         key = jr.PRNGKey(seed)
         self.order = order
         self.kl = jnp.array([-2.9, 0.75])
-        out_size = 4 * self.order * self.order
-        self.hypermodel = FourierHyperModel(out_size, hwidth * out_size, hdepth, key)
-        # self.hypermodel = jnp.zeros((1, out_size))
+        out = 4 * self.order * self.order
+        self.hypermodel = FourierHyperModel(out, int(hwidth * out), hdepth, key)
+        # self.hypermodel = jnp.zeros((1, out))
 
     @property
     def k(self):

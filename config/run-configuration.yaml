@@ -6,23 +6,23 @@ hmodel_params: &hmodel_params
   hwidth: 0.25
   hdepth: 2
 
-source:
-  - train:
-      <<: *sample_params
-      n_samples: 5000
-      n_sources: 1
-      seed: 100
-  - test:
-      <<: *sample_params
-      n_samples: 1000
-      n_sources: 4
-      seed: 101
-  - val:
-      <<: *sample_params
-      n_samples: 1
-      n_sources: 4
-      res: 128
-      seed: 102
+sources:
+  train:
+    <<: *sample_params
+    n_samples: 5000
+    n_sources: 1
+    seed: 100
+  test:
+    <<: *sample_params
+    n_samples: 1000
+    n_sources: 4
+    seed: 101
+  val:
+    <<: *sample_params
+    n_samples: 1
+    n_sources: 4
+    res: 128
+    seed: 102
 
 model:
   hyperlayer:
