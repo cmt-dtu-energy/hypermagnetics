@@ -3,34 +3,34 @@ sample_params: &sample_params
   res: 16
 
 hmodel_params: &hmodel_params
-  hwidth: 2
+  hwidth: 0.25
   hdepth: 2
 
-sources:
+source:
   - train:
-    <<: *sample_params
-    n_samples: 5000
-    n_sources: 1
-    seed: 100
+      <<: *sample_params
+      n_samples: 5000
+      n_sources: 1
+      seed: 100
   - test:
-    <<: *sample_params
-    n_samples: 1000
-    n_sources: 4
-    seed: 101
+      <<: *sample_params
+      n_samples: 1000
+      n_sources: 4
+      seed: 101
   - val:
-    <<: *sample_params
-    n_samples: 1
-    n_sources: 4
-    res: 128
-    seed: 102
+      <<: *sample_params
+      n_samples: 1
+      n_sources: 4
+      res: 128
+      seed: 102
 
 model:
-  - HyperLayer:
+  hyperlayer:
     <<: *hmodel_params
     width: 1024
     depth: 3
     seed: 41
-  - Fourier:
+  fourier:
     <<: *hmodel_params
     order: 16
     seed: 42
