@@ -41,11 +41,12 @@ class FourierModel(HyperModel):
     kl: jax.Array
     order: int
 
-    def __init__(self, order, key):
+    def __init__(self, order, hwidth=1, hdepth=2, key=jr.PRNGKey(1)):
         self.order = order
         self.kl = jnp.array([-2.9, 0.75])
-        self.hypermodel = FourierHyperModel(4 * self.order**2, self.order**2, 1, key)
-        # self.hypermodel = jnp.zeros((1, 4 * self.order * self.order))
+        out_size = 4 * self.order * self.order
+        self.hypermodel = FourierHyperModel(out_size, hwidth * out_size, hdepth, key)
+        # self.hypermodel = jnp.zeros((1, out_size))
 
     @property
     def k(self):
