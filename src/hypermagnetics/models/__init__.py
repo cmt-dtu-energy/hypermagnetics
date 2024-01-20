@@ -5,7 +5,14 @@ import jax.random as jr
 import wandb
 
 
-def count_mlp_params(in_features, out_features, width, depth):
+def count_params(model):
+    param_tree = eqx.filter(model, eqx.is_array)
+    return jax.tree_util.tree_reduce(
+        lambda x, y: x + y, jax.tree_util.tree_map(lambda x: x.size, param_tree), 0
+    )
+
+
+def count_mlp_params(in_features: int, out_features: int, width: int, depth: int):
     return (
         (in_features + 1) * width
         + (width + 1) * width * (depth - 1)
@@ -47,6 +54,11 @@ def load(id):
 
 class HyperModel(eqx.Module):
     """A hypermodel is a model whose parameters are themselves parameterised."""
+
+    @property
+    def nparams(self):
+        """Number of parameters in the model."""
+        return count_params(self)
 
     def prepare_weights(self, sources):
         """Compute inference model weights."""
