@@ -30,7 +30,7 @@ def _total(fun, m, r0, r):
     return jnp.sum(components, axis=0)
 
 
-def configure(n_samples, n_sources, lim=3, res=32, key=jr.PRNGKey(0)):
+def configure(n_samples, n_sources, lim=3, res=32, seed=0):
     """
     Configures samples of sources.
 
@@ -42,6 +42,7 @@ def configure(n_samples, n_sources, lim=3, res=32, key=jr.PRNGKey(0)):
         key (jr.PRNGKey): Random number generator key.
     """
 
+    key = jr.PRNGKey(seed)
     r0key, mkey, rkey = jr.split(key, 3)
     r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, 2), key=r0key)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2))
@@ -71,9 +72,9 @@ if __name__ == "__main__":
     config = {
         "n_samples": 10,
         "n_sources": 2,
-        "key": jr.PRNGKey(40),
+        "seed": 40,
         "lim": 3,
-        "res": 32,
+        "res": 128,
     }
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)

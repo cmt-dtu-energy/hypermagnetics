@@ -1,5 +1,4 @@
 import equinox as eqx
-import jax.random as jr
 import optax
 import yaml
 

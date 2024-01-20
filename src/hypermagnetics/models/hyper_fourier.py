@@ -41,7 +41,8 @@ class FourierModel(HyperModel):
     kl: jax.Array
     order: int
 
-    def __init__(self, order, hwidth=1, hdepth=2, key=jr.PRNGKey(1)):
+    def __init__(self, order, hwidth=1, hdepth=2, seed=1):
+        key = jr.PRNGKey(seed)
         self.order = order
         self.kl = jnp.array([-2.9, 0.75])
         out_size = 4 * self.order * self.order
@@ -74,14 +75,14 @@ if __name__ == "__main__":
     config = {
         "n_samples": 10,
         "n_sources": 2,
-        "key": jr.PRNGKey(40),
+        "seed": 40,
         "lim": 3,
         "res": 32,
     }
     train_data = configure(**config)
     sources, r = train_data["sources"], train_data["grid"]
 
-    model = FourierModel(order=32, key=jr.PRNGKey(41))
+    model = FourierModel(order=32, seed=41)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
 
     plots(train_data, model, idx=0)
