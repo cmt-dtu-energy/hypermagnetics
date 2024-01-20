@@ -1,12 +1,40 @@
-source:
-  n_samples: 5000
+sample_params: &sample_params
   lim: 3
   res: 16
-model:
-  width: 1024
-  depth: 3
+
+hmodel_params: &hmodel_params
   hwidth: 2
   hdepth: 2
+
+sources:
+  - train:
+    <<: *sample_params
+    n_samples: 5000
+    n_sources: 1
+    seed: 100
+  - test:
+    <<: *sample_params
+    n_samples: 1000
+    n_sources: 4
+    seed: 101
+  - val:
+    <<: *sample_params
+    n_samples: 1
+    n_sources: 4
+    res: 128
+    seed: 102
+
+model:
+  - HyperLayer:
+    <<: *hmodel_params
+    width: 1024
+    depth: 3
+    seed: 41
+  - Fourier:
+    <<: *hmodel_params
+    order: 16
+    seed: 42
+
 schedule:
   - epochs: 5000
     params:

@@ -6,8 +6,6 @@ import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics import plots
 from hypermagnetics.measures import accuracy, loss
-
-# from hypermagnetics.models import AdditiveMLP, HyperMLP, save  # noqa: F401
 from hypermagnetics.models.hyper_fourier import FourierModel
 
 
@@ -45,15 +43,14 @@ if __name__ == "__main__":
         run_configuration = yaml.safe_load(f)
 
     source_config = run_configuration["source"]
-    train = sources.configure(**source_config, n_sources=1, key=jr.PRNGKey(100))
-    val = sources.configure(**source_config, n_sources=4, key=jr.PRNGKey(101))
+    train = sources.configure(**source_config["train"])
+    test = sources.configure(**source_config["test"])
+    val = sources.configure(**source_config["val"])
 
-    key = jr.PRNGKey(42)
-    run_configuration["model"] = {"order": 16}  # Hijack run configuration
     model_config = run_configuration["model"]
+    model = FourierModel(**model_config["fourier"])
     # model = HyperMLP(**model_config, key=key)
     # model = AdditiveMLP(**model_config, key=key)
-    model = FourierModel(**model_config, key=key)
 
     schedule = run_configuration["schedule"]
     wandb.init(
@@ -65,10 +62,11 @@ if __name__ == "__main__":
 
     for trainer_config in schedule:
         optim = optax.adam(**trainer_config["params"])
-        model = fit(trainer_config, optim, model, train, val, log=wandb.log, every=10)
+        model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)
         wandb.log({"mode_limits": model.kl})
 
     # save(model, wandb.run.id)
     plots(train, model, idx=0, output="wandb")
+    plots(test, model, idx=0, output="wandb")
     plots(val, model, idx=0, output="wandb")
     wandb.finish()
