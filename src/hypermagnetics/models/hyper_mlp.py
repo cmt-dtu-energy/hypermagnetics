@@ -58,9 +58,8 @@ class HyperLayer(HyperModel):
         self.final_layer = eqx.nn.MLP(width, "scalar", width, 0, key=finalkey)
 
         p = width + 1
-        self.hypermodel = eqx.nn.MLP(
-            4, p, hwidth * p, hdepth, jax.nn.gelu, key=hyperkey
-        )
+        q = int(hwidth * p)
+        self.hypermodel = eqx.nn.MLP(4, p, q, hdepth, jax.nn.gelu, key=hyperkey)
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
@@ -98,9 +97,8 @@ class HyperMLP(HyperModel):
         self.nweights = sum(w.size for w in get_weights(self.model))
         self.nbiases = sum(b.size for b in get_biases(self.model))
         p = self.nweights + self.nbiases
-        self.hypermodel = eqx.nn.MLP(
-            4, p, (hwidth * p), hdepth, jax.nn.gelu, key=hyperkey
-        )
+        q = int(hwidth * p)
+        self.hypermodel = eqx.nn.MLP(4, p, q, hdepth, jax.nn.gelu, key=hyperkey)
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
