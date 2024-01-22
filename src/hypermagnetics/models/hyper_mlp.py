@@ -62,14 +62,6 @@ class HyperLayer(HyperModel):
             4, p, hwidth * p, hdepth, jax.nn.gelu, key=hyperkey
         )
 
-    def get_hyperparameters(self):
-        return {
-            "width": self.model.width_size,
-            "depth": self.model.depth,
-            "hwidth": self.hypermodel.width_size,
-            "hdepth": self.hypermodel.depth,
-        }
-
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
         weights, bias = wb[:-1], wb[-1:]
@@ -109,14 +101,6 @@ class HyperMLP(HyperModel):
         self.hypermodel = eqx.nn.MLP(
             4, p, (hwidth * p), hdepth, jax.nn.gelu, key=hyperkey
         )
-
-    def get_hyperparameters(self):
-        return {
-            "width": self.model.width_size,
-            "depth": self.model.depth,
-            "hwidth": self.hypermodel.width_size,
-            "hdepth": self.hypermodel.depth,
-        }
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
