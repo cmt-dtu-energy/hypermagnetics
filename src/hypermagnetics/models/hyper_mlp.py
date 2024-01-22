@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
-from hypermagnetics.models import HyperModel, count_mlp_params
+from hypermagnetics.models import HyperModel
 from hypermagnetics.sources import configure
 
 
@@ -36,7 +36,7 @@ def reshape_params(old_params, flat_params):
     return new_params
 
 
-class AdditiveMLP(eqx.Module):
+class HyperLayer(HyperModel):
     hypermodel: eqx.nn.MLP
     nparams: int
     model: eqx.nn.MLP
@@ -61,9 +61,6 @@ class AdditiveMLP(eqx.Module):
         self.hypermodel = eqx.nn.MLP(
             4, p, hwidth * p, hdepth, jax.nn.gelu, key=hyperkey
         )
-        self.nparams = count_mlp_params(4, p, hwidth * p, hdepth) + count_mlp_params(
-            2, width, width, depth
-        )
 
     def get_hyperparameters(self):
         return {
@@ -78,7 +75,7 @@ class AdditiveMLP(eqx.Module):
         weights, bias = wb[:-1], wb[-1:]
         return weights, bias
 
-    def prepare_final_layer(self, weights, bias):
+    def prepare_model(self, weights, bias):
         final_layer = eqx.tree_at(
             get_weights,
             self.final_layer,
@@ -87,21 +84,7 @@ class AdditiveMLP(eqx.Module):
         final_layer = eqx.tree_at(
             get_biases, final_layer, reshape_params(get_biases(final_layer), bias)
         )
-        return final_layer
-
-    def field(self, sources, r):
-        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
-        Returns the potential by default, or the magnetic field if field=True."""
-        weights, bias = self.prepare_weights(sources)
-        final_layer = self.prepare_final_layer(weights, bias)
-        return -jax.vmap(jax.grad(lambda r: final_layer(self.model(r))))(r)
-
-    def __call__(self, sources, r):
-        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
-        Returns the potential by default, or the magnetic field if field=True."""
-        weights, bias = self.prepare_weights(sources)
-        final_layer = self.prepare_final_layer(weights, bias)
-        return jax.vmap(lambda r: final_layer(self.model(r)))(r)
+        return lambda r: final_layer(self.model(r))
 
 
 class HyperMLP(HyperModel):
@@ -149,20 +132,6 @@ class HyperMLP(HyperModel):
         )
         return model
 
-    def field(self, sources, r):
-        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
-        Returns the potential by default, or the magnetic field if field=True."""
-        weights, biases = self.prepare_weights(sources)
-        model = self.prepare_model(weights, biases)
-        return -jax.vmap(jax.grad(model))(r)
-
-    def __call__(self, sources, r):
-        """Evaluate the hypernetwork given sources (sources) and field evaluation points (r).
-        Returns the potential by default, or the magnetic field if field=True."""
-        weights, biases = self.prepare_weights(sources)
-        model = self.prepare_model(weights, biases)
-        return jax.vmap(model)(r)
-
 
 if __name__ == "__main__":
     config = {
@@ -181,6 +150,6 @@ if __name__ == "__main__":
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
     plots(train_data, model, idx=0)
 
-    additive_model = AdditiveMLP(4, 3, 1, 2, seed)
+    additive_model = HyperLayer(4, 3, 1, 2, seed)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
     plots(train_data, additive_model, idx=0)
