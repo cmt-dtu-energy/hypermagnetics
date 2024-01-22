@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
-from hypermagnetics.models import HyperModel
+from hypermagnetics.models import HyperModel, count_params
 from hypermagnetics.sources import configure
 
 
@@ -38,7 +38,6 @@ def reshape_params(old_params, flat_params):
 
 class HyperLayer(HyperModel):
     hypermodel: eqx.nn.MLP
-    nparams: int
     model: eqx.nn.MLP
     final_layer: eqx.nn.MLP = eqx.field(static=True)
 
@@ -60,6 +59,11 @@ class HyperLayer(HyperModel):
         p = width + 1
         q = int(hwidth * p)
         self.hypermodel = eqx.nn.MLP(4, p, q, hdepth, jax.nn.gelu, key=hyperkey)
+
+    @property
+    def nparams(self):
+        # Avoid double counting params in the final layer
+        return count_params(self.model) + count_params(self.hypermodel)
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
@@ -85,7 +89,6 @@ class HyperMLP(HyperModel):
     hypermodel: eqx.nn.MLP
     nbiases: int
     nweights: int
-    nparams: int
     model: eqx.nn.MLP = eqx.field(static=True)
 
     def __init__(self, width, depth, hwidth, hdepth, seed):

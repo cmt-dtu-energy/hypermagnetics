@@ -50,7 +50,7 @@ if __name__ == "__main__":
     model_config = run_configuration["model"]
     # model = FourierModel(**model_config["fourier"])
     model = HyperLayer(**model_config["hyperlayer"])
-    # model = AdditiveMLP(**model_config, key=key)
+    # model = HyperMLP(**model_config["hypernetwork"])
 
     schedule = run_configuration["schedule"]
     wandb.init(
