@@ -3,13 +3,13 @@ sample_params: &sample_params
   res: 16
 
 hmodel_params: &hmodel_params
-  hwidth: 0.25
-  hdepth: 2
+  hwidth: 1
+  hdepth: 3
 
 sources:
   train:
     <<: *sample_params
-    n_samples: 5000
+    n_samples: 10000
     n_sources: 1
     seed: 100
   test:
@@ -27,7 +27,7 @@ sources:
 model:
   hyperlayer:
     <<: *hmodel_params
-    width: 1024
+    width: 512
     depth: 3
     seed: 41
   fourier:
@@ -38,13 +38,13 @@ model:
 schedule:
   - epochs: 5000
     params:
-      learning_rate: 0.005
+      learning_rate: 0.01
   - epochs: 5000
     params:
-      learning_rate: 0.0005
+      learning_rate: 0.001
   - epochs: 5000
     params:
-      learning_rate: 0.00005
+      learning_rate: 0.0001
   - epochs: 5000
     params:
-      learning_rate: 0.000005
+      learning_rate: 0.00001
