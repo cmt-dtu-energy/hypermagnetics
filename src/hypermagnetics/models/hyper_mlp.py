@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
-from hypermagnetics.models import count_mlp_params
+from hypermagnetics.models import HyperModel, count_mlp_params
 from hypermagnetics.sources import configure
 
 
@@ -104,7 +104,7 @@ class AdditiveMLP(eqx.Module):
         return jax.vmap(lambda r: final_layer(self.model(r)))(r)
 
 
-class HyperMLP(eqx.Module):
+class HyperMLP(HyperModel):
     """A hypernetwork that generates weights and biases for a given MLP architecture,
     applies them to a template MLP model, and evaluates the resulting model on a given input."""
 
@@ -126,7 +126,6 @@ class HyperMLP(eqx.Module):
         self.hypermodel = eqx.nn.MLP(
             4, p, (hwidth * p), hdepth, jax.nn.gelu, key=hyperkey
         )
-        self.nparams = count_mlp_params(4, p, hwidth * p, hdepth)
 
     def get_hyperparameters(self):
         return {
@@ -180,8 +179,8 @@ if __name__ == "__main__":
     seed = 39
     model = HyperMLP(4, 3, 2, 2, seed)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
+    plots(train_data, model, idx=0)
 
     additive_model = AdditiveMLP(4, 3, 1, 2, seed)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
-
-    plots(train_data, model, idx=0)
+    plots(train_data, additive_model, idx=0)
