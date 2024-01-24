@@ -16,13 +16,21 @@ def loss(model, data):
     Returns:
     - The mean loss value calculated using the Huber loss function.
     """
-    sources, r, target = data["sources"], data["r"], data["potential"]
-    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    potential_loss = jnp.mean(optax.huber_loss(pred, target))
+    sources, r, P, F = data["sources"], data["r"], data["potential"], data["field"]
+    BATCH_SIZE = 1000
+    num_batches = len(data["sources"]) // BATCH_SIZE
+    potential_loss = 0.0
+    field_loss = 0.0
 
-    sources, r, target = data["sources"], data["r"], data["field"]
-    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
-    field_loss = jnp.mean(optax.huber_loss(pred, target))
+    for i in range(num_batches):
+        start = i * BATCH_SIZE
+        end = (i + 1) * BATCH_SIZE
+
+        pred = jax.vmap(model, in_axes=(0, None))(sources[start:end], r)
+        potential_loss += jnp.mean(optax.huber_loss(pred, P[start:end]))
+
+        pred = jax.vmap(model.field, in_axes=(0, None))(sources[start:end], r)
+        field_loss += jnp.mean(optax.huber_loss(pred, F[start:end]))
 
     return potential_loss + field_loss
 
@@ -59,6 +67,7 @@ def accuracy(model, data):
 
     """
     sources, r, target = data["sources"], data["r"], data["potential"]
-    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    diff = jnp.linalg.norm(target - pred)
-    return jnp.median(diff / jnp.linalg.norm(target) * 100)
+    BATCH_SIZE = 1000
+    pred = jax.vmap(model, in_axes=(0, None))(sources[:BATCH_SIZE], r)
+    diff = jnp.linalg.norm(target[:BATCH_SIZE] - pred)
+    return jnp.median(diff / jnp.linalg.norm(target[:BATCH_SIZE]) * 100)
