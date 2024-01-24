@@ -1,6 +1,6 @@
 sample_params: &sample_params
   lim: 3
-  res: 16
+  res: 32
 
 hmodel_params: &hmodel_params
   hwidth: 1
@@ -27,7 +27,7 @@ sources:
 model:
   hyperlayer:
     <<: *hmodel_params
-    width: 512
+    width: 400
     depth: 3
     seed: 41
   fourier:
