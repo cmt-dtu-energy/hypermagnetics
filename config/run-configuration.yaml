@@ -32,7 +32,7 @@ model:
     seed: 41
   fourier:
     <<: *hmodel_params
-    order: 16
+    order: 32
     seed: 42
 
 schedule:
