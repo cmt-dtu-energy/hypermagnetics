@@ -54,7 +54,7 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
 
 def plots(sources, model, idx=0, output="show"):
     """Plots the sources and field/potential of a single sample."""
-    mr = sources["sources"]
+    mr = sources["sources"][idx : idx + 1]
     m, r0 = jnp.split(mr, 2, axis=-1)
     grid = sources["grid"]
 
@@ -64,8 +64,8 @@ def plots(sources, model, idx=0, output="show"):
     x_grid = np.array(grid[:, 0].reshape((res, res)))
     y_grid = np.array(grid[:, 1].reshape((res, res)))
 
-    target_potential = sources["potential_grid"].reshape((N, res, res))
-    target_field = sources["field_grid"].reshape((N, res, res, 2))
+    target_potential = sources["potential_grid"][idx : idx + 1].reshape((N, res, res))
+    target_field = sources["field_grid"][idx : idx + 1].reshape((N, res, res, 2))
 
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
