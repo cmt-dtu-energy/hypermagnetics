@@ -4,7 +4,7 @@ sample_params: &sample_params
 
 hmodel_params: &hmodel_params
   hwidth: 1
-  hdepth: 3
+  hdepth: 2
 
 sources:
   train:
@@ -21,7 +21,7 @@ sources:
     <<: *sample_params
     n_samples: 1
     n_sources: 4
-    res: 128
+    res: 50
     seed: 102
 
 model:
