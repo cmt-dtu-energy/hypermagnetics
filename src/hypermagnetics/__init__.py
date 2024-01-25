@@ -7,6 +7,9 @@ import wandb
 
 
 def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
+    xlims = (x_grid.min(), x_grid.max())
+    ylims = (y_grid.min(), y_grid.max())
+
     # Subplot 1: Magnetic Scalar Potential
     _ = axes[0].contourf(x_grid, y_grid, potential[idx])
     # plt.colorbar(cp, ax=axes[0])
@@ -24,6 +27,8 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
     axes[0].set_title("Magnetic Scalar Potential")
     axes[0].set_xlabel("x")
     axes[0].set_ylabel("y")
+    axes[0].set_xlim(xlims)
+    axes[0].set_ylim(ylims)
 
     # Subplot 2: Magnetic Field
     axes[1].streamplot(
@@ -50,6 +55,8 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
     axes[1].set_title("Magnetic Field")
     axes[1].set_xlabel("x")
     axes[1].set_ylabel("y")
+    axes[1].set_xlim(xlims)
+    axes[1].set_ylim(ylims)
 
 
 def plots(sources, model, idx=0, output="show"):
