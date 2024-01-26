@@ -9,7 +9,7 @@ hmodel_params: &hmodel_params
 sources:
   train:
     <<: *sample_params
-    n_samples: 10000
+    n_samples: 1000
     n_sources: 1
     seed: 100
   test:
@@ -25,15 +25,20 @@ sources:
     seed: 102
 
 model:
-  hyperlayer:
+  # hyperlayer:
+  #   <<: *hmodel_params
+  #   width: 400
+  #   depth: 3
+  #   seed: 41
+  # fourier:
+  #   <<: *hmodel_params
+  #   order: 32
+  #   seed: 42
+  hypernetwork:
     <<: *hmodel_params
-    width: 400
+    width: 20
     depth: 3
-    seed: 41
-  fourier:
-    <<: *hmodel_params
-    order: 32
-    seed: 42
+    seed: 43
 
 schedule:
   - epochs: 5000

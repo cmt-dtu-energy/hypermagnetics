@@ -6,9 +6,8 @@ import hypermagnetics.sources as sources
 import wandb
 from hypermagnetics import plots
 from hypermagnetics.measures import accuracy, loss
-
-# from hypermagnetics.models.hyper_fourier import FourierModel
-from hypermagnetics.models.hyper_mlp import HyperLayer
+from hypermagnetics.models.hyper_fourier import FourierModel  # noqa
+from hypermagnetics.models.hyper_mlp import HyperLayer, HyperMLP  # noqa
 
 
 def fit(trainer_config, optim, model, train, val, log=print, every=1):
@@ -50,8 +49,8 @@ if __name__ == "__main__":
 
     model_config = run_configuration["model"]
     # model = FourierModel(**model_config["fourier"])
-    model = HyperLayer(**model_config["hyperlayer"])
-    # model = HyperMLP(**model_config["hypernetwork"])
+    # model = HyperLayer(**model_config["hyperlayer"])
+    model = HyperMLP(**model_config["hypernetwork"])
 
     schedule = run_configuration["schedule"]
     wandb.init(

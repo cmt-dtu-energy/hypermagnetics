@@ -17,7 +17,7 @@ def loss(model, data):
     - The mean loss value calculated using the Huber loss function.
     """
     sources, r, P, F = data["sources"], data["r"], data["potential"], data["field"]
-    BATCH_SIZE = 5000
+    BATCH_SIZE = 1000
     num_batches = len(data["sources"]) // BATCH_SIZE
     potential_loss = 0.0
     field_loss = 0.0
@@ -67,7 +67,7 @@ def accuracy(model, data):
 
     """
     sources, r, target = data["sources"], data["r"], data["potential"]
-    BATCH_SIZE = 5000
+    BATCH_SIZE = 1000
     pred = jax.vmap(model, in_axes=(0, None))(sources[:BATCH_SIZE], r)
     diff = jnp.linalg.norm(target[:BATCH_SIZE] - pred)
     return jnp.median(diff / jnp.linalg.norm(target[:BATCH_SIZE]) * 100)
