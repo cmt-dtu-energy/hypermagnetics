@@ -36,10 +36,9 @@ def main():
     # model = HyperMLP(**model_config["hypernetwork"])
     wandb.log({"nparams": model.nparams})
 
-    schedule = sweep_configuration["schedule"]
-    for trainer_config in schedule:
-        optim = optax.adam(**trainer_config["params"])
-        model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)
+    trainer_config = sweep_configuration["schedule"]
+    optim = optax.adam(**trainer_config["params"])
+    model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)
 
     train_err = accuracy(model, train)
     val_single_err = accuracy(model, val_single)

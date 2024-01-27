@@ -38,7 +38,8 @@ parameters:
       depth:
         values: [1, 2] #, 3, 4, 5, 6]
       seed: 41
+
   schedule:
-    - epochs: 25000
-      params:
-        learning_rate: 0.0001
+    epochs: 25000
+    params:
+      learning_rate: 0.0001
