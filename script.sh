@@ -8,6 +8,7 @@
 #SBATCH --gpus 1
 
 ml texlive
+conda init
 conda activate hypermagnetics
 wandb login
-python src/hypermagnetics/runner.py
+python src/hypermagnetics/sweeper.py

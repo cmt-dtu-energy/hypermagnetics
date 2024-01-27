@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import optax
 import scienceplots  # noqa
 import yaml
+import jax.numpy as jnp
 
 import hypermagnetics.sources as sources
 import wandb
@@ -29,14 +30,17 @@ def main():
     val_single = sources.configure(n_samples=100, n_sources=1, lim=3, res=50, seed=102)
     val_multi = sources.configure(n_samples=1, n_sources=4, lim=3, res=50, seed=102)
 
-    # model = FourierModel(**model_config["fourier"])
-    model = HyperLayer(
-        width=wandb.config.width, depth=wandb.config.depth, hwidth=2, hdepth=3, seed=41
+    model = FourierModel(
+        order=wandb.config.order, hwidth=wandb.config.hwidth, hdepth=wandb.config.hdepth, seed=41
     )
+    # model = HyperLayer(
+    #     width=wandb.config.width, depth=wandb.config.depth, hwidth=2, hdepth=3, seed=41
+    # )
     # model = HyperMLP(**model_config["hypernetwork"])
     wandb.log({"nparams": model.nparams})
 
-    trainer_config = {"epochs": 25000, "params": {"learning_rate": 1e-3}}
+    lr = (1 - jnp.log10(model.nparams)).item()
+    trainer_config = {"epochs": 25000, "params": {"learning_rate": lr}}
     optim = optax.adam(**trainer_config["params"])
     model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)
 

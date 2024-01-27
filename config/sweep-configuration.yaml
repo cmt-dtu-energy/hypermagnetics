@@ -3,7 +3,9 @@ method: grid
 name: fcilr-size
 
 parameters:
-  width:
-    values: [8, 16, 32, 64, 128, 256]
-  depth:
+  order:
+    values: [8, 16, 24, 32, 40]
+  hwidth:
+    values: [0.25, 0.5, 0.75, 1.0]
+  hdepth:
     values: [1, 2, 3, 4, 5, 6]
