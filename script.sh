@@ -7,6 +7,7 @@
 #SBATCH --time 18:00:00
 #SBATCH --gpus 1
 
+ml texlive
 conda activate hypermagnetics
 wandb login
 python src/hypermagnetics/runner.py
