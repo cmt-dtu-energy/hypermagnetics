@@ -1,35 +1,44 @@
 program: sweeper.py
-method: bayes
-name: varying-learning-rate
-metric:
-  name: val_acc
-  goal: minimize
+method: grid
+name: fcilr-size
+
 parameters:
-  source:
-    parameters:
-      n_samples:
-        value: 5000
-      n_sources:
-        value: 2
-      lim:
-        value: 3
-      res:
-        value: 32
+  sources:
+    train:
+      n_samples: 1000
+      n_sources: 1
+      lim: 3
+      res: 32
+      seed: 100
+    test:
+      n_samples: 1000
+      n_sources: 4
+      lim: 3
+      res: 32
+      seed: 101
+    val-single:
+      n_samples: 1000
+      n_sources: 1
+      lim: 3
+      res: 50
+      seed: 102
+    val-multi:
+      n_samples: 1
+      n_sources: 4
+      lim: 3
+      res: 50
+      seed: 102
+
   model:
-    parameters:
+    hyperlayer:
+      hwidth: 2
+      hdepth: 3
       width:
-        value: 20
+        values: [8, 16] #, 32, 64, 128, 256]
       depth:
-        value: 3
-      hwidth: # Factor by which to multiply nparams
-        value: 2
-      hdepth:
-        value: 2
-  trainer:
-    parameters:
-      log_learning_rate:
-        min: -6.01
-        max: -4.01
-      epochs:
-        value: 5000
-run_cap: 25
+        values: [1, 2] #, 3, 4, 5, 6]
+      seed: 41
+  schedule:
+    - epochs: 25000
+      params:
+        learning_rate: 0.0001
