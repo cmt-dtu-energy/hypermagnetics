@@ -3,43 +3,7 @@ method: grid
 name: fcilr-size
 
 parameters:
-  sources:
-    train:
-      n_samples: 1000
-      n_sources: 1
-      lim: 3
-      res: 32
-      seed: 100
-    test:
-      n_samples: 1000
-      n_sources: 4
-      lim: 3
-      res: 32
-      seed: 101
-    val-single:
-      n_samples: 1000
-      n_sources: 1
-      lim: 3
-      res: 50
-      seed: 102
-    val-multi:
-      n_samples: 1
-      n_sources: 4
-      lim: 3
-      res: 50
-      seed: 102
-
-  model:
-    hyperlayer:
-      hwidth: 2
-      hdepth: 3
-      width:
-        values: [8, 16] #, 32, 64, 128, 256]
-      depth:
-        values: [1, 2] #, 3, 4, 5, 6]
-      seed: 41
-
-  schedule:
-    epochs: 25000
-    params:
-      learning_rate: 0.0001
+  width:
+    values: [8, 16, 32, 64, 128, 256]
+  depth:
+    values: [1, 2, 3, 4, 5, 6]

@@ -24,19 +24,19 @@ sweep_id = wandb.sweep(
 def main():
     wandb.init()
 
-    source_config = sweep_configuration["sources"]
-    train = sources.configure(**source_config["train"])
-    test = sources.configure(**source_config["test"])
-    val_single = sources.configure(**source_config["val-single"])
-    val_multi = sources.configure(**source_config["val-multi"])
+    train = sources.configure(n_samples=5000, n_sources=1, lim=3, res=32, seed=100)
+    test = sources.configure(n_samples=1000, n_sources=4, lim=3, res=32, seed=101)
+    val_single = sources.configure(n_samples=100, n_sources=1, lim=3, res=50, seed=102)
+    val_multi = sources.configure(n_samples=1, n_sources=4, lim=3, res=50, seed=102)
 
-    model_config = sweep_configuration["model"]
     # model = FourierModel(**model_config["fourier"])
-    model = HyperLayer(**model_config["hyperlayer"])
+    model = HyperLayer(
+        width=wandb.config.width, depth=wandb.config.depth, hwidth=2, hdepth=3, seed=41
+    )
     # model = HyperMLP(**model_config["hypernetwork"])
     wandb.log({"nparams": model.nparams})
 
-    trainer_config = sweep_configuration["schedule"]
+    trainer_config = {"epochs": 25000, "params": {"learning_rate": 1e-3}}
     optim = optax.adam(**trainer_config["params"])
     model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)
 
