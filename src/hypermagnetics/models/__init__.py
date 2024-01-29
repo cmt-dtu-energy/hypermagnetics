@@ -20,8 +20,8 @@ def count_mlp_params(in_features: int, out_features: int, width: int, depth: int
     )
 
 
-def save(model, id):
-    # Save model to file and prepare artifact
+def upload(model, id):
+    # Save model to wandb and prepare artifact
     model_path = f"models/{id}.eqx"
     eqx.tree_serialise_leaves(model_path, model)
     artifact = wandb.Artifact("model", type="model")
@@ -37,7 +37,7 @@ def save(model, id):
     wandb.log_artifact(artifact)
 
 
-def load(id):
+def download(id):
     # Download artifact from wandb
     artifact = wandb.use_artifact(f"model:{id}", type="model")
     hyperparameters = artifact.metadata["hyperparameters"]
