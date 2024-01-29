@@ -1,3 +1,5 @@
+import json
+
 import equinox as eqx
 import jax
 
@@ -48,6 +50,34 @@ def download(id):
 
 class HyperModel(eqx.Module):
     """A hypermodel is a model whose parameters are themselves parameterised."""
+
+    @classmethod
+    def load(cls, filename):
+        with open(filename, "rb") as f:
+            model_info = json.loads(f.readline().decode())
+            hyperparams = model_info["hyperparameters"]
+
+            if cls.__name__ != model_info["model_type"]:
+                raise TypeError(
+                    f"Model type mismatch: Expected {cls.__name__}, got {model_info['model_type']}"
+                )
+
+            model = cls(**hyperparams)
+            return eqx.tree_deserialise_leaves(f, model)
+
+    def save(self, filename):
+        model_info = {
+            "model_type": type(self).__name__,
+            "hyperparameters": self.hparams,
+        }
+        with open(filename, "wb") as f:
+            f.write((json.dumps(model_info) + "\n").encode())
+            eqx.tree_serialise_leaves(f, self)
+
+    @property
+    def hparams(self):
+        """Hyperparameters of the model."""
+        raise NotImplementedError
 
     @property
     def nparams(self):
