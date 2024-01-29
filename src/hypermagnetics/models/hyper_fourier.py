@@ -37,17 +37,29 @@ class FourierHyperModel(eqx.Module):
 
 
 class FourierModel(HyperModel):
-    hypermodel: FourierHyperModel
-    kl: jax.Array
     order: int
+    hwidth: int = 1
+    hdepth: int = 2
+    seed: int = 1
+    hypermodel: FourierHyperModel = eqx.field(init=False)
+    kl: jax.Array = eqx.field(init=False)
 
-    def __init__(self, order, hwidth=1, hdepth=2, seed=1):
-        key = jr.PRNGKey(seed)
-        self.order = order
+    def __post_init__(self):
+        key = jr.PRNGKey(self.seed)
         self.kl = jnp.array([-2.9, 0.75])
         out = 4 * self.order * self.order
-        self.hypermodel = FourierHyperModel(out, int(hwidth * out), hdepth, key)
+        hwidth = int(self.hwidth * out)
+        self.hypermodel = FourierHyperModel(out, hwidth, self.hdepth, key)
         # self.hypermodel = jnp.zeros((1, out))
+
+    @property
+    def hparams(self):
+        return {
+            "order": self.order,
+            "hwidth": self.hwidth,
+            "hdepth": self.hdepth,
+            "seed": self.seed,
+        }
 
     @property
     def k(self):
@@ -83,6 +95,6 @@ if __name__ == "__main__":
     sources, r = train_data["sources"], train_data["grid"]
 
     model = FourierModel(order=32, seed=41)
+    print(model.hparams)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
-
     plots(train_data, model, idx=0)
