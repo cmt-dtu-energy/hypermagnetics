@@ -1,6 +1,5 @@
 import equinox as eqx
 import jax
-import jax.random as jr
 
 import wandb
 
@@ -21,19 +20,17 @@ def count_mlp_params(in_features: int, out_features: int, width: int, depth: int
 
 
 def upload(model, id):
-    # Save model to wandb and prepare artifact
+    # Serialise model weights
     model_path = f"models/{id}.eqx"
     eqx.tree_serialise_leaves(model_path, model)
+
+    # Upload model artifact to wandb
     artifact = wandb.Artifact("model", type="model")
     artifact.add_file(model_path)
-
-    # Add hyperparameters to artifact metadata
-    hyperparameters = {
+    artifact.metadata = {
         "model_class": model.__class__.__name__,
-        "hyperparameters": model.get_hyperparameters(),
+        "hyperparameters": model.hparams,
     }
-    artifact.metadata = hyperparameters
-
     wandb.log_artifact(artifact)
 
 
@@ -44,11 +41,8 @@ def download(id):
     model_path = artifact.file()
 
     # Instantiate new model with saved hyperparameters
-    hyperkey, mainkey = jr.split(jr.PRNGKey(42), 2)
     model_class = globals()[artifact.metadata["model_class"]]
-    model = model_class(**hyperparameters, hyperkey=hyperkey, mainkey=mainkey)
-
-    # Load parameters into model
+    model = model_class(**hyperparameters)
     return eqx.tree_deserialise_leaves(model_path, like=model)
 
 
@@ -79,3 +73,24 @@ class HyperModel(eqx.Module):
         weights, bias = self.prepare_weights(sources)
         model = self.prepare_model(weights, bias)
         return jax.vmap(model)(r)
+
+
+class MLPHyperModel(HyperModel):
+    """A hypernetwork using two fully-connected network architectures."""
+
+    width: int
+    depth: int
+    hwidth: int
+    hdepth: int
+    seed: int
+
+    @property
+    def hparams(self):
+        """Hyperparameters of the model."""
+        return {
+            "width": self.width,
+            "depth": self.depth,
+            "hwidth": self.hwidth,
+            "hdepth": self.hdepth,
+            "seed": self.seed,
+        }

@@ -4,7 +4,7 @@ import jax.numpy as jnp
 import jax.random as jr
 
 from hypermagnetics import plots
-from hypermagnetics.models import HyperModel, count_params
+from hypermagnetics.models import MLPHyperModel, count_params
 from hypermagnetics.sources import configure
 
 
@@ -36,29 +36,29 @@ def reshape_params(old_params, flat_params):
     return new_params
 
 
-class HyperLayer(HyperModel):
-    hypermodel: eqx.nn.MLP
-    model: eqx.nn.MLP
-    final_layer: eqx.nn.MLP = eqx.field(static=True)
+class HyperLayer(MLPHyperModel):
+    hypermodel: eqx.nn.MLP = eqx.field(init=False)
+    model: eqx.nn.MLP = eqx.field(init=False)
+    final_layer: eqx.nn.MLP = eqx.field(static=True, init=False)
 
-    def __init__(self, width, depth, hwidth, hdepth, seed):
-        key = jr.PRNGKey(seed)
+    def __post_init__(self):
+        key = jr.PRNGKey(self.seed)
         hyperkey, modelkey, finalkey = jr.split(key, 3)
         self.model = eqx.nn.MLP(
             2,
-            width,
-            width,
-            depth,
+            self.width,
+            self.width,
+            self.depth,
             activation=jax.nn.gelu,
             final_activation=jax.nn.gelu,
             use_bias=True,
             key=modelkey,
         )
-        self.final_layer = eqx.nn.MLP(width, "scalar", width, 0, key=finalkey)
+        self.final_layer = eqx.nn.MLP(self.width, "scalar", self.width, 0, key=finalkey)
 
-        p = width + 1
-        q = int(hwidth * p)
-        self.hypermodel = eqx.nn.MLP(4, p, q, hdepth, jax.nn.gelu, key=hyperkey)
+        p = self.width + 1
+        q = int(self.hwidth * p)
+        self.hypermodel = eqx.nn.MLP(4, p, q, self.hdepth, jax.nn.gelu, key=hyperkey)
 
     @property
     def nparams(self):
@@ -82,26 +82,26 @@ class HyperLayer(HyperModel):
         return lambda r: final_layer(self.model(r))
 
 
-class HyperMLP(HyperModel):
+class HyperMLP(MLPHyperModel):
     """A hypernetwork that generates weights and biases for a given MLP architecture,
     applies them to a template MLP model, and evaluates the resulting model on a given input."""
 
-    hypermodel: eqx.nn.MLP
-    nbiases: int
-    nweights: int
-    model: eqx.nn.MLP = eqx.field(static=True)
+    hypermodel: eqx.nn.MLP = eqx.field(init=False)
+    nbiases: int = eqx.field(init=False)
+    nweights: int = eqx.field(init=False)
+    model: eqx.nn.MLP = eqx.field(static=True, init=False)
 
-    def __init__(self, width, depth, hwidth, hdepth, seed):
-        key = jr.PRNGKey(seed)
+    def __post_init__(self):
+        key = jr.PRNGKey(self.seed)
         hyperkey, mainkey = jr.split(key, 2)
         self.model = eqx.nn.MLP(
-            2, "scalar", width, depth, jax.nn.gelu, use_bias=True, key=mainkey
+            2, "scalar", self.width, self.depth, jax.nn.gelu, use_bias=True, key=mainkey
         )
         self.nweights = sum(w.size for w in get_weights(self.model))
         self.nbiases = sum(b.size for b in get_biases(self.model))
         p = self.nweights + self.nbiases
-        q = int(hwidth * p)
-        self.hypermodel = eqx.nn.MLP(4, p, q, hdepth, jax.nn.gelu, key=hyperkey)
+        q = int(self.hwidth * p)
+        self.hypermodel = eqx.nn.MLP(4, p, q, self.hdepth, jax.nn.gelu, key=hyperkey)
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
@@ -132,9 +132,11 @@ if __name__ == "__main__":
     # Show output from evaluating HyperMLP model on source configuration
     seed = 39
     model = HyperMLP(4, 3, 2, 2, seed)
+    print(model.hparams)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
     plots(train_data, model, idx=0)
 
     additive_model = HyperLayer(4, 3, 1, 2, seed)
+    print(additive_model.hparams)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
     plots(train_data, additive_model, idx=0)
