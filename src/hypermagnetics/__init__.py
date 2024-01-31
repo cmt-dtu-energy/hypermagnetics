@@ -6,7 +6,7 @@ import numpy as np
 import wandb
 
 
-def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
+def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
 
@@ -24,9 +24,10 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
         scale=1,
         color="red",
     )
-    axes[0].set_title("Magnetic Scalar Potential")
-    axes[0].set_xlabel("x")
-    axes[0].set_ylabel("y")
+    axes[0].set_title(prefix + " " + "Magnetic Scalar Potential")
+    units_str = ", in units of source radius"
+    axes[0].set_xlabel("$x$" + units_str)
+    axes[0].set_ylabel("$y$" + units_str)
     axes[0].set_xlim(xlims)
     axes[0].set_ylim(ylims)
 
@@ -52,14 +53,14 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx):
         scale=1,
         color="red",
     )
-    axes[1].set_title("Magnetic Field")
-    axes[1].set_xlabel("x")
-    axes[1].set_ylabel("y")
+    axes[1].set_title(prefix + " " + "Magnetic Field")
+    axes[1].set_xlabel("x" + units_str)
+    axes[1].set_ylabel("y" + units_str)
     axes[1].set_xlim(xlims)
     axes[1].set_ylim(ylims)
 
 
-def plots(sources, model, idx=0, output="show"):
+def plots(sources, model, idx=0, prefix="", output="show"):
     """Plots the sources and field/potential of a single sample."""
     mr = sources["sources"][idx : idx + 1]
     m, r0 = jnp.split(mr, 2, axis=-1)
@@ -76,7 +77,7 @@ def plots(sources, model, idx=0, output="show"):
 
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
-        _plot(axes, x_grid, y_grid, target_potential, target_field, m, r0, idx)
+        _plot(axes, x_grid, y_grid, target_potential, target_field, m, r0, idx, prefix)
     else:
         model_potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape(
             (N, res, res)
@@ -86,8 +87,10 @@ def plots(sources, model, idx=0, output="show"):
         )
 
         _, axes = plt.subplots(2, 2, figsize=(8, 8))
-        _plot(axes[0], x_grid, y_grid, target_potential, target_field, m, r0, idx)
-        _plot(axes[1], x_grid, y_grid, model_potential, model_field, m, r0, idx)
+        _plot(
+            axes[0], x_grid, y_grid, target_potential, target_field, m, r0, idx, prefix
+        )
+        _plot(axes[1], x_grid, y_grid, model_potential, model_field, m, r0, idx, prefix)
 
     plt.tight_layout()
     if output == "show":
