@@ -3,7 +3,7 @@ sample_params: &sample_params
   res: 32
 
 hmodel_params: &hmodel_params
-  hwidth: 1.5
+  hwidth: 0.25
   hdepth: 3
 
 sources:
@@ -31,15 +31,15 @@ sources:
     seed: 102
 
 model:
-  hyperlayer:
-    <<: *hmodel_params
-    width: 400
-    depth: 3
-    seed: 41
-  # fourier:
+  # hyperlayer:
   #   <<: *hmodel_params
-  #   order: 32
-  #   seed: 42
+  #   width: 400
+  #   depth: 3
+  #   seed: 41
+  fourier:
+    <<: *hmodel_params
+    order: 32
+    seed: 42
   # hypernetwork:
   #   <<: *hmodel_params
   #   width: 20
@@ -55,7 +55,7 @@ schedule:
   #     learning_rate: 0.001
   - epochs: 25000
     params:
-      learning_rate: 0.0001
+      learning_rate: 0.00005
   # - epochs: 5000
   #   params:
   #     learning_rate: 0.00001

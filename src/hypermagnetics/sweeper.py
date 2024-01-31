@@ -25,7 +25,7 @@ sweep_id = wandb.sweep(
 def main():
     wandb.init()
 
-    train = sources.configure(n_samples=5000, n_sources=1, lim=3, res=32, seed=100)
+    train = sources.configure(n_samples=1000, n_sources=1, lim=3, res=32, seed=100)
     test = sources.configure(n_samples=1000, n_sources=4, lim=3, res=32, seed=101)
     val_single = sources.configure(n_samples=100, n_sources=1, lim=3, res=50, seed=102)
     val_multi = sources.configure(n_samples=1, n_sources=4, lim=3, res=50, seed=102)
@@ -39,7 +39,7 @@ def main():
     # model = HyperMLP(**model_config["hypernetwork"])
     wandb.log({"nparams": model.nparams})
 
-    lr = (1 - jnp.log10(model.nparams)).item()
+    lr = 10 ** (-jnp.log10(model.nparams))
     trainer_config = {"epochs": 25000, "params": {"learning_rate": lr}}
     optim = optax.adam(**trainer_config["params"])
     model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)

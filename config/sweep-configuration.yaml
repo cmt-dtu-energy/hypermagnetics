@@ -1,11 +1,11 @@
 program: sweeper.py
 method: grid
-name: fcilr-size
+name: fourier-size
 
 parameters:
   order:
-    values: [8, 16, 24, 32, 40]
+    values: [8, 16, 24, 32]
   hwidth:
     values: [0.25, 0.5, 0.75, 1.0]
   hdepth:
-    values: [1, 2, 3, 4, 5, 6]
+    values: [2, 3]

@@ -51,8 +51,8 @@ if __name__ == "__main__":
     val_multi = sources.configure(**source_config["val-multi"])
 
     model_config = run_configuration["model"]
-    # model = FourierModel(**model_config["fourier"])
-    model = HyperLayer(**model_config["hyperlayer"])
+    model = FourierModel(**model_config["fourier"])
+    # model = HyperLayer(**model_config["hyperlayer"])
     # model = HyperMLP(**model_config["hypernetwork"])
 
     schedule = run_configuration["schedule"]
