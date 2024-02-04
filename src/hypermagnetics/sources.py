@@ -5,6 +5,7 @@ import jax.random as jr
 from hypermagnetics import plots
 
 
+@jax.jit
 def _potential(m, r0, r):
     """Dipole potential in two dimensions."""
     core = 1.0
@@ -17,6 +18,7 @@ def _potential(m, r0, r):
     return jnp.where(close_to_source, interior, exterior)
 
 
+@jax.jit
 def _field(m, r0, r):
     """Dipole field in two dimensions."""
     return -jax.grad(_potential, argnums=2)(m, r0, r)
