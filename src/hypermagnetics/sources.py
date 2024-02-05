@@ -66,8 +66,9 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
     }
 
 
-def sample_grid(key, lim, res, dim=2):
-    n = res**dim
+def sample_grid(key, lim, res, dim=2, n=None):
+    if n is None:
+        n = res**dim
     return jr.uniform(minval=-lim, maxval=lim, shape=(n, dim), key=key)
 
 
