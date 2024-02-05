@@ -16,7 +16,15 @@ setup(
         # "jax" is intentionally left out here
     ],
     extras_require={
-        "dev": ["pytest", "matplotlib", "ipython", "ipykernel", "scienceplots"],
+        "dev": [
+            "pytest",
+            "matplotlib",
+            "ipython",
+            "ipykernel",
+            "scienceplots",
+            # "mayavi", # Install via conda
+            # "PyQt5",
+        ],
         "metal": ["jax-metal==0.0.5"],
     },
     python_requires=">=3.9",
