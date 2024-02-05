@@ -6,21 +6,21 @@ from hypermagnetics import plots
 
 
 @jax.jit
-def _potential(m, r0, r):
-    """Dipole potential in two dimensions."""
+def _potential(m, r0, r, dim=2):
+    """Dipole potential in two or three dimensions."""
     core = 1.0
     d = r - r0
     d_norm = jnp.linalg.norm(d)
     m_dot_r = jnp.dot(m, d)
     close_to_source = d_norm <= core
-    interior = m_dot_r / core / (2 * jnp.pi * core)
-    exterior = m_dot_r / d_norm / (2 * jnp.pi * d_norm)
+    interior = m_dot_r / core / (2 * (dim - 1) * jnp.pi * core ** (dim - 1))
+    exterior = m_dot_r / d_norm / (2 * (dim - 1) * jnp.pi * d_norm ** (dim - 1))
     return jnp.where(close_to_source, interior, exterior)
 
 
 @jax.jit
 def _field(m, r0, r):
-    """Dipole field in two dimensions."""
+    """Dipole field in two or three dimensions."""
     return -jax.grad(_potential, argnums=2)(m, r0, r)
 
 
@@ -32,7 +32,7 @@ def _total(fun, m, r0, r):
     return jnp.sum(components, axis=0)
 
 
-def configure(n_samples, n_sources, lim=3, res=32, seed=0):
+def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
     """
     Configures samples of sources.
 
@@ -46,13 +46,15 @@ def configure(n_samples, n_sources, lim=3, res=32, seed=0):
 
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey = jr.split(key, 3)
-    r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, 2), key=r0key)
-    m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2))
+    r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, dim), key=r0key)
+    m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
 
     range = jnp.linspace(-lim, lim, res)
-    x, y = jnp.meshgrid(range, range)
-    grid = jnp.stack([x.flatten(), y.flatten()], axis=1)
-    r = sample_grid(rkey, lim, res)
+    grids = jnp.meshgrid(*[range] * dim)
+    grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
+    r = sample_grid(rkey, lim, res, dim)
+
+    print(r.shape, r0.shape, m.shape, grid.shape)
     return {
         "sources": jnp.concatenate([m, r0], axis=-1),
         "r": r,
@@ -64,13 +66,13 @@ def configure(n_samples, n_sources, lim=3, res=32, seed=0):
     }
 
 
-def sample_grid(key, lim, res, n=None):
-    if n is None:
-        n = res * res
-    return jr.uniform(minval=-lim, maxval=lim, shape=(n, 2), key=key)
+def sample_grid(key, lim, res, dim=2):
+    n = res**dim
+    return jr.uniform(minval=-lim, maxval=lim, shape=(n, dim), key=key)
 
 
 if __name__ == "__main__":
+    # Two dimensions
     config = {
         "n_samples": 10,
         "n_sources": 2,
@@ -81,3 +83,15 @@ if __name__ == "__main__":
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)
     plots(train_data, model=None, idx=0)
+
+    # Three dimensions
+    config = {
+        "n_samples": 1,
+        "n_sources": 2,
+        "seed": 40,
+        "lim": 3,
+        "res": 16,
+        "dim": 3,
+    }
+    train_data = configure(**config)
+    print(train_data["potential"].shape, train_data["field"].shape)
