@@ -53,8 +53,6 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
     grids = jnp.meshgrid(*[range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
     r = sample_grid(rkey, lim, res, dim)
-
-    print(r.shape, r0.shape, m.shape, grid.shape)
     return {
         "sources": jnp.concatenate([m, r0], axis=-1),
         "r": r,
