@@ -22,8 +22,7 @@ setup(
             "ipython",
             "ipykernel",
             "scienceplots",
-            # "mayavi", # Install via conda
-            # "PyQt5",
+            # "pyvista", # Install via conda
         ],
         "metal": ["jax-metal==0.0.5"],
     },
