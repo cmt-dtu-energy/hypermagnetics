@@ -45,7 +45,7 @@ class HyperLayer(MLPHyperModel):
         key = jr.PRNGKey(self.seed)
         hyperkey, modelkey, finalkey = jr.split(key, 3)
         self.model = eqx.nn.MLP(
-            2,
+            self.in_size,
             self.width,
             self.width,
             self.depth,
@@ -92,10 +92,17 @@ class HyperMLP(MLPHyperModel):
     model: eqx.nn.MLP = eqx.field(static=True, init=False)
 
     def __post_init__(self):
+        self.in_size = 2 if self.in_size is None else self.in_size
         key = jr.PRNGKey(self.seed)
         hyperkey, mainkey = jr.split(key, 2)
         self.model = eqx.nn.MLP(
-            2, "scalar", self.width, self.depth, jax.nn.gelu, use_bias=True, key=mainkey
+            self.in_size,
+            "scalar",
+            self.width,
+            self.depth,
+            activation=jax.nn.gelu,
+            use_bias=True,
+            key=mainkey,
         )
         self.nweights = sum(w.size for w in get_weights(self.model))
         self.nbiases = sum(b.size for b in get_biases(self.model))
@@ -131,12 +138,12 @@ if __name__ == "__main__":
 
     # Show output from evaluating HyperMLP model on source configuration
     seed = 39
-    model = HyperMLP(4, 3, 2, 2, seed)
+    model = HyperMLP(width=4, depth=3, hwidth=2, hdepth=2, seed=seed)
     print(model.hparams)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
     plots(train_data, model, idx=0)
 
-    additive_model = HyperLayer(4, 3, 1, 2, seed)
+    additive_model = HyperLayer(width=4, depth=3, hwidth=1, hdepth=2, seed=seed)
     print(additive_model.hparams)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
     plots(train_data, additive_model, idx=0)

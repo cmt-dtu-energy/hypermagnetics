@@ -113,11 +113,13 @@ class MLPHyperModel(HyperModel):
     hwidth: int
     hdepth: int
     seed: int
+    in_size: int = 2
 
     @property
     def hparams(self):
         """Hyperparameters of the model."""
         return {
+            "in_size": self.in_size,
             "width": self.width,
             "depth": self.depth,
             "hwidth": self.hwidth,
