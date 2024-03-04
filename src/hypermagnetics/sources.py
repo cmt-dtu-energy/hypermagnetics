@@ -5,9 +5,10 @@ import jax.random as jr
 from hypermagnetics import plots
 
 
-@jax.jit
-def _potential(m, r0, r, dim=2):
-    """Dipole potential in two or three dimensions."""
+# @jax.jit
+def _sphere(sources, r, dim=2):
+    """Finite sphere potential in two or three dimensions."""
+    m, r0 = jnp.split(sources, 2, axis=-1)
     core = 1.0
     d = r - r0
     d_norm = jnp.linalg.norm(d)
@@ -18,17 +19,25 @@ def _potential(m, r0, r, dim=2):
     return jnp.where(close_to_source, interior, exterior)
 
 
+def _potential(sources, r, dim=2, shape="sphere"):
+    """Dispatcher for source potential calculation."""
+    if shape == "sphere":
+        return _sphere(sources, r, dim)
+    else:
+        raise ValueError(f"Unknown source shape: {shape}")
+
+
 @jax.jit
-def _field(m, r0, r):
-    """Dipole field in two or three dimensions."""
-    return -jax.grad(_potential, argnums=2)(m, r0, r)
+def _field(sources, r):
+    """Finite sphere field in two or three dimensions."""
+    return -jax.grad(_potential, argnums=1)(sources, r)
 
 
-def _total(fun, m, r0, r):
+def _total(fun, sources, r):
     """Aggregate the field or potential of all sources."""
-    points = jax.vmap(fun, in_axes=(None, None, 0))
-    batch = jax.vmap(points, in_axes=(0, 0, None))
-    components = jax.vmap(batch, in_axes=(1, 1, None))(m, r0, r)
+    points = jax.vmap(fun, in_axes=(None, 0))
+    batch = jax.vmap(points, in_axes=(0, None))
+    components = jax.vmap(batch, in_axes=(1, None))(sources, r)
     return jnp.sum(components, axis=0)
 
 
@@ -53,14 +62,16 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
     grids = jnp.meshgrid(*[range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
     r = sample_grid(rkey, lim, res, dim)
+    sources = jnp.concatenate([m, r0], axis=-1)
+    print(sources.shape)
     return {
-        "sources": jnp.concatenate([m, r0], axis=-1),
+        "sources": sources,
         "r": r,
-        "potential": _total(_potential, m, r0, r),
-        "field": _total(_field, m, r0, r),
+        "potential": _total(_potential, sources, r),
+        "field": _total(_field, sources, r),
         "grid": grid,
-        "potential_grid": _total(_potential, m, r0, grid),
-        "field_grid": _total(_field, m, r0, grid),
+        "potential_grid": _total(_potential, sources, grid),
+        "field_grid": _total(_field, sources, grid),
     }
 
 
