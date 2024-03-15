@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 import jax.random as jr
@@ -25,6 +27,7 @@ def _faces(x, y, z, a, b, c):
     )
 
 
+@jax.jit
 def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
     x, y, z = r - r0
     a, b, c = size
@@ -36,6 +39,7 @@ def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
     return -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
 
 
+@jax.jit
 def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
     """Finite sphere potential in two or three dimensions."""
     d = r - r0
@@ -47,8 +51,7 @@ def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
     return jnp.where(close_to_source, interior, exterior)
 
 
-@jax.jit
-def _potential(sources, r, shape="sphere"):
+def _potential(sources, r, shape):
     """Dispatcher for source potential calculation."""
     dim = sources.shape[-1] // 2
     m, r0 = jnp.split(sources, 2, axis=-1)
@@ -62,21 +65,22 @@ def _potential(sources, r, shape="sphere"):
         raise ValueError(f"Unknown source shape: {shape}")
 
 
-@jax.jit
-def _field(sources, r):
+def _field(sources, r, shape):
     """Finite sphere field in two or three dimensions."""
-    return -jax.grad(_potential, argnums=1)(sources, r)
+    _potential_with_shape = partial(_potential, shape=shape)
+    return -jax.grad(_potential_with_shape, argnums=1)(sources, r)
 
 
-def _total(fun, sources, r):
+def _total(fun, sources, r, shape):
     """Aggregate the field or potential of all sources."""
-    points = jax.vmap(fun, in_axes=(None, 0))
+    fun_with_shape = partial(fun, shape=shape)
+    points = jax.vmap(fun_with_shape, in_axes=(None, 0))
     batch = jax.vmap(points, in_axes=(0, None))
     components = jax.vmap(batch, in_axes=(1, None))(sources, r)
     return jnp.sum(components, axis=0)
 
 
-def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
+def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"):
     """
     Configures samples of sources.
 
@@ -101,11 +105,11 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
     return {
         "sources": sources,
         "r": r,
-        "potential": _total(_potential, sources, r),
-        "field": _total(_field, sources, r),
+        "potential": _total(_potential, sources, r, shape),
+        "field": _total(_field, sources, r, shape),
         "grid": grid,
-        "potential_grid": _total(_potential, sources, grid),
-        "field_grid": _total(_field, sources, grid),
+        "potential_grid": _total(_potential, sources, grid, shape),
+        "field_grid": _total(_field, sources, grid, shape),
     }
 
 
@@ -118,6 +122,7 @@ def sample_grid(key, lim, res, dim=2, n=None):
 if __name__ == "__main__":
     # Two dimensions
     config = {
+        "shape": "sphere",
         "n_samples": 10,
         "n_sources": 2,
         "seed": 40,
@@ -130,8 +135,22 @@ if __name__ == "__main__":
 
     # Three dimensions
     config = {
+        "shape": "sphere",
         "n_samples": 1,
         "n_sources": 2,
+        "seed": 40,
+        "lim": 3,
+        "res": 16,
+        "dim": 3,
+    }
+    train_data = configure(**config)
+    print(train_data["potential"].shape, train_data["field"].shape)
+
+    # Prism
+    config = {
+        "shape": "prism",
+        "n_samples": 1,
+        "n_sources": 1,
         "seed": 40,
         "lim": 3,
         "res": 16,
