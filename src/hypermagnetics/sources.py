@@ -5,9 +5,40 @@ import jax.random as jr
 from hypermagnetics import plots
 
 
-# @jax.jit
-def _sphere(sources, r, dim=2):
+def _F(x, y, z):
+    r = jnp.array([x, y, z])
+    d = jnp.linalg.norm(r)
+    terms = [jnp.arctan(y * z / (x * d)), -jnp.log(z + d), -jnp.log(y + d)]
+    return jnp.array(terms) @ r
+
+
+def _faces(x, y, z, a, b, c):
+    return (
+        _F(x + a, y + b, z + c)
+        - _F(x + a, y + b, z - c)
+        - _F(x + a, y - b, z + c)
+        + _F(x + a, y - b, z - c)
+        - _F(x - a, y + b, z + c)
+        + _F(x - a, y + b, z - c)
+        + _F(x - a, y - b, z + c)
+        - _F(x - a, y - b, z - c)
+    )
+
+
+def _prism(m: jax.Array, r: jax.Array, lims: jax.Array):
+    x, y, z = r
+    a, b, c = lims
+
+    fx = _faces(x, y, z, a, b, c)
+    fy = _faces(y, z, x, b, c, a)
+    fz = _faces(z, x, y, c, a, b)
+
+    return -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
+
+
+def _sphere(sources, r):
     """Finite sphere potential in two or three dimensions."""
+    dim = sources.shape[-1] // 2
     m, r0 = jnp.split(sources, 2, axis=-1)
     core = 1.0
     d = r - r0
@@ -19,10 +50,13 @@ def _sphere(sources, r, dim=2):
     return jnp.where(close_to_source, interior, exterior)
 
 
-def _potential(sources, r, dim=2, shape="sphere"):
+@jax.jit
+def _potential(sources, r, shape="sphere"):
     """Dispatcher for source potential calculation."""
     if shape == "sphere":
-        return _sphere(sources, r, dim)
+        return _sphere(sources, r)
+    elif shape == "prism":
+        return _prism(sources, r, jnp.array([1, 1, 1]))
     else:
         raise ValueError(f"Unknown source shape: {shape}")
 
