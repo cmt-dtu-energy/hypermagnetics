@@ -58,7 +58,9 @@ class HyperLayer(MLPHyperModel):
 
         p = self.width + 1
         q = int(self.hwidth * p)
-        self.hypermodel = eqx.nn.MLP(4, p, q, self.hdepth, jax.nn.gelu, key=hyperkey)
+        self.hypermodel = eqx.nn.MLP(
+            2 * self.in_size, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
+        )
 
     @property
     def nparams(self):
@@ -108,7 +110,9 @@ class HyperMLP(MLPHyperModel):
         self.nbiases = sum(b.size for b in get_biases(self.model))
         p = self.nweights + self.nbiases
         q = int(self.hwidth * p)
-        self.hypermodel = eqx.nn.MLP(4, p, q, self.hdepth, jax.nn.gelu, key=hyperkey)
+        self.hypermodel = eqx.nn.MLP(
+            2 * self.in_size, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
+        )
 
     def prepare_weights(self, sources):
         wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
@@ -132,6 +136,7 @@ if __name__ == "__main__":
         "seed": 40,
         "lim": 3,
         "res": 32,
+        "shape": "sphere",
     }
     train_data = configure(**config)
     sources, r = train_data["sources"], train_data["grid"]
