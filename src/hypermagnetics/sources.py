@@ -25,9 +25,9 @@ def _faces(x, y, z, a, b, c):
     )
 
 
-def _prism(m: jax.Array, r: jax.Array, lims: jax.Array):
-    x, y, z = r
-    a, b, c = lims
+def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
+    x, y, z = r - r0
+    a, b, c = size
 
     fx = _faces(x, y, z, a, b, c)
     fy = _faces(y, z, x, b, c, a)
@@ -36,16 +36,13 @@ def _prism(m: jax.Array, r: jax.Array, lims: jax.Array):
     return -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
 
 
-def _sphere(sources, r):
+def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
     """Finite sphere potential in two or three dimensions."""
-    dim = sources.shape[-1] // 2
-    m, r0 = jnp.split(sources, 2, axis=-1)
-    core = 1.0
     d = r - r0
     d_norm = jnp.linalg.norm(d)
     m_dot_r = jnp.dot(m, d)
-    close_to_source = d_norm <= core
-    interior = m_dot_r / core / (2 * (dim - 1) * jnp.pi * core ** (dim - 1))
+    close_to_source = d_norm <= size
+    interior = m_dot_r / size / (2 * (dim - 1) * jnp.pi * size ** (dim - 1))
     exterior = m_dot_r / d_norm / (2 * (dim - 1) * jnp.pi * d_norm ** (dim - 1))
     return jnp.where(close_to_source, interior, exterior)
 
@@ -53,10 +50,14 @@ def _sphere(sources, r):
 @jax.jit
 def _potential(sources, r, shape="sphere"):
     """Dispatcher for source potential calculation."""
+    dim = sources.shape[-1] // 2
+    m, r0 = jnp.split(sources, 2, axis=-1)
     if shape == "sphere":
-        return _sphere(sources, r)
+        size = 1.0
+        return _sphere(m, r0, r, size, dim)
     elif shape == "prism":
-        return _prism(sources, r, jnp.array([1, 1, 1]))
+        size = jnp.array([1.0, 1.0, 1.0])
+        return _prism(m, r0, r, size)
     else:
         raise ValueError(f"Unknown source shape: {shape}")
 
@@ -97,7 +98,6 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0):
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
     r = sample_grid(rkey, lim, res, dim)
     sources = jnp.concatenate([m, r0], axis=-1)
-    print(sources.shape)
     return {
         "sources": sources,
         "r": r,
