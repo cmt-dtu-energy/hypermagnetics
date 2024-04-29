@@ -9,10 +9,10 @@ setup(
     package_dir={"": "src"},
     packages=find_packages(where="src"),
     install_requires=[
-        "optax",
-        "equinox>=0.11.2",
+        "optax>=0.2.2",
+        "equinox>=0.11.4",
         "wandb",
-        "jaxtyping>=0.2.23",
+        "jaxtyping>=0.2.28",
         # "jax" is intentionally left out here
     ],
     extras_require={
@@ -24,7 +24,7 @@ setup(
             "scienceplots",
             # "pyvista", # Install via conda
         ],
-        "metal": ["jax-metal==0.0.5"],
+        "metal": ["jax-metal==0.0.6"],
     },
     python_requires=">=3.9",
 )

@@ -18,7 +18,8 @@ for a model that evaluates the potential/field at specified locations.
 Install via a pyenv or conda environment:
 
 ```zsh
-conda create -n hypermagnetics python=3.9
+conda create -n hypermagnetics python=3.9 && conda activate hypermagnetics
+python -m pip install numpy wheel ml-dtypes==0.2.0
 conda install -c conda-forge pyvista jupyterlab trame ipywidgets # For visualisation
 # pip install --upgrade "jax[cuda12_pip]" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html # For Linux with NVIDIA GPU
 pip install -e .
