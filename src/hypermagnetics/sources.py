@@ -36,7 +36,9 @@ def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
     fy = _faces(y, z, x, b, c, a)
     fz = _faces(z, x, y, c, a, b)
 
-    return -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
+    value = -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
+    value = jax.lax.select(jnp.isinf(value), 0.0, value)
+    return jax.lax.select(jnp.isnan(value), 0.0, value)
 
 
 @jax.jit
