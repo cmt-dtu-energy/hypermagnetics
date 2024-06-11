@@ -14,9 +14,14 @@ def _F(x, y, z):
     return jnp.array(terms) @ r
 
 
+def _F2(X, Y):
+    d = jnp.array([X, Y])
+    return Y + jnp.linalg.norm(d)
+
+
 def _faces(x, y, z, a, b, c):
     return (
-        _F(x + a, y + b, z + c)
+        +_F(x + a, y + b, z + c)
         - _F(x + a, y + b, z - c)
         - _F(x + a, y - b, z + c)
         + _F(x + a, y - b, z - c)
@@ -24,6 +29,12 @@ def _faces(x, y, z, a, b, c):
         + _F(x - a, y + b, z - c)
         + _F(x - a, y - b, z + c)
         - _F(x - a, y - b, z - c)
+    )
+
+
+def _edges(x, y, a, b):
+    return jnp.log(
+        _F2(x - a, y + b) * _F2(x + a, y - b) / _F2(x - a, y - b) / _F2(x + a, y + b)
     )
 
 
@@ -35,10 +46,26 @@ def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
     fx = _faces(x, y, z, a, b, c)
     fy = _faces(y, z, x, b, c, a)
     fz = _faces(z, x, y, c, a, b)
+    f = jnp.array([fx, fy, fz])
 
-    value = -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
+    value = -(1 / 4 * jnp.pi) * m @ f
     value = jax.lax.select(jnp.isinf(value), 0.0, value)
     return jax.lax.select(jnp.isnan(value), 0.0, value)
+
+
+@jax.jit
+def _prism2(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
+    x, y = r - r0
+    a, b = size[:2]
+
+    ex = _edges(x, y, a, b)
+    ey = _edges(y, x, b, a)
+    e = jnp.array([ex, ey])
+
+    value = -(1 / 2 * jnp.pi) * m @ e
+    # value = jax.lax.select(jnp.isinf(value), 0.0, value)
+    # value = jax.lax.select(jnp.isnan(value), 0.0, value)
+    return value
 
 
 @jax.jit
@@ -55,14 +82,17 @@ def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
 
 def _potential(sources, r, shape):
     """Dispatcher for source potential calculation."""
-    dim = sources.shape[-1] // 2
-    m, r0 = jnp.split(sources, 2, axis=-1)
+    m, r0, size = jnp.split(sources, 3, axis=-1)
+    dim = m.shape[-1]
     if shape == "sphere":
         size = 1.0
         return _sphere(m, r0, r, size, dim)
     elif shape == "prism":
-        size = jnp.array([1.0, 1.0, 1.0])
-        return _prism(m, r0, r, size)
+        if dim == 2:
+            phi = _prism2(m, r0, r, size)
+        else:
+            phi = _prism(m, r0, r, size)
+        return phi
     else:
         raise ValueError(f"Unknown source shape: {shape}")
 
@@ -95,15 +125,18 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"
     """
 
     key = jr.PRNGKey(seed)
-    r0key, mkey, rkey = jr.split(key, 3)
+    r0key, mkey, rkey, skey = jr.split(key, 4)
     r0 = (lim / 3) * jr.normal(shape=(n_samples, n_sources, dim), key=r0key)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
+    size = jr.uniform(
+        key=skey, shape=(n_samples, n_sources, dim), minval=0.25, maxval=1.0
+    )
 
     range = jnp.linspace(-lim, lim, res)
     grids = jnp.meshgrid(*[range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
     r = sample_grid(rkey, lim, res, dim)
-    sources = jnp.concatenate([m, r0], axis=-1)
+    sources = jnp.concatenate([m, r0, size], axis=-1)
     return {
         "sources": sources,
         "r": r,

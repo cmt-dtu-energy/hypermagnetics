@@ -60,7 +60,7 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
     axes[1].set_ylim(ylims)
 
 
-def plots(sources, model, idx=0, prefix="", output="show"):
+def plots(sources, model=None, idx=0, prefix="", output="show"):
     """Plots the sources and field/potential of a single sample."""
     mr = sources["sources"][idx : idx + 1]
     m, r0 = jnp.split(mr, 2, axis=-1)

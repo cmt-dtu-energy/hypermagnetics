@@ -4,6 +4,20 @@ import jax.numpy as jnp
 import optax
 
 
+def replace_inf_nan(x):
+    x = jnp.where(jnp.isinf(x), 0.0, x)
+    x = jnp.where(jnp.isnan(x), 0.0, x)
+    return x
+
+
+def huber_loss(target, pred, delta=1.0):
+    abs_diff = jnp.abs(target - pred)
+    abs_diff = replace_inf_nan(abs_diff)
+    return jnp.where(
+        abs_diff > delta, delta * (abs_diff - 0.5 * delta), 0.5 * abs_diff**2
+    )
+
+
 @eqx.filter_jit
 def loss(model, data):
     """
@@ -19,10 +33,10 @@ def loss(model, data):
     sources, r, P, F = data["sources"], data["r"], data["potential"], data["field"]
 
     pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    potential_loss = jnp.mean(optax.huber_loss(pred, P))
+    potential_loss = jnp.mean(huber_loss(pred, P))
 
     pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
-    field_loss = jnp.mean(optax.huber_loss(pred, F))
+    field_loss = jnp.mean(huber_loss(pred, F))
 
     return potential_loss + field_loss
 
@@ -60,5 +74,10 @@ def accuracy(model, data):
     """
     sources, r, target = data["sources"], data["r"], data["potential"]
     pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    diff = jnp.linalg.norm(target - pred)
-    return jnp.median(diff / jnp.linalg.norm(target) * 100)
+
+    diff = target - pred
+    diff = replace_inf_nan(diff)
+    target = replace_inf_nan(target)
+
+    acc = jnp.linalg.norm(diff) / jnp.linalg.norm(target) * 100
+    return jnp.median(acc)
