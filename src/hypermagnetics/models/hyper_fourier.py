@@ -30,10 +30,10 @@ class FourierHyperModel(eqx.Module):
     w: eqx.nn.MLP
 
     def __init__(self, out: int, width: int, depth: int, key: jax.Array):
-        self.w = eqx.nn.MLP(6, out, width, depth, jax.nn.gelu, key=key)
+        self.w = eqx.nn.MLP(4, out, width, depth, jax.nn.gelu, key=key)
 
     def __call__(self, sources):
-        return self.w(sources)
+        return self.w(sources[:4])
 
 
 class FourierModel(HyperModel):

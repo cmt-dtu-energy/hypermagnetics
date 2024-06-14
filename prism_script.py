@@ -6,21 +6,21 @@ from hypermagnetics.runner import fit
 if __name__ == "__main__":
     source_config = {
         "shape": "prism",
-        "n_samples": 100,
+        "n_samples": 10000,
         "lim": 3,
-        "res": 96,
+        "res": 32,
         "dim": 2,
     }
     train = configure(**source_config, n_sources=1, seed=100)
     val = configure(**source_config, n_sources=4, seed=101)
 
-    model = FourierModel(64, seed=42)
+    model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
 
     schedule = [
-        # {"optim": optax.adam, "epochs": 10000, "params": {"learning_rate": 1e-2}},
-        {"optim": optax.adam, "epochs": 20000, "params": {"learning_rate": 1e-3}},
-        {"optim": optax.adam, "epochs": 20000, "params": {"learning_rate": 1e-4}},
-        # {"optim": optax.adam, "epochs": 50000, "params": {"learning_rate": 1e-5}},
+        {"optim": optax.adam, "epochs": 5000, "params": {"learning_rate": 1e-2}},
+        {"optim": optax.adam, "epochs": 5000, "params": {"learning_rate": 1e-3}},
+        {"optim": optax.adam, "epochs": 5000, "params": {"learning_rate": 1e-4}},
+        {"optim": optax.adam, "epochs": 5000, "params": {"learning_rate": 1e-5}},
     ]
 
     for trainer_config in schedule:

@@ -63,7 +63,7 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
 def plots(sources, model=None, idx=0, prefix="", output="show"):
     """Plots the sources and field/potential of a single sample."""
     mr = sources["sources"][idx : idx + 1]
-    m, r0 = jnp.split(mr, 2, axis=-1)
+    m, r0, size = jnp.split(mr, 3, axis=-1)
     grid = sources["grid"]
 
     res = int(jnp.sqrt(len(grid)))
@@ -77,7 +77,17 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
 
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
-        _plot(axes, x_grid, y_grid, target_potential, target_field, m, r0, idx, prefix)
+        _plot(
+            axes,
+            x_grid,
+            y_grid,
+            target_potential,
+            target_field,
+            m,
+            r0,
+            idx,
+            prefix,
+        )
     else:
         model_potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape(
             (N, res, res)
@@ -88,9 +98,27 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
 
         _, axes = plt.subplots(2, 2, figsize=(8, 8))
         _plot(
-            axes[0], x_grid, y_grid, target_potential, target_field, m, r0, idx, prefix
+            axes[0],
+            x_grid,
+            y_grid,
+            target_potential,
+            target_field,
+            m,
+            r0,
+            idx,
+            prefix,
         )
-        _plot(axes[1], x_grid, y_grid, model_potential, model_field, m, r0, idx, prefix)
+        _plot(
+            axes[1],
+            x_grid,
+            y_grid,
+            model_potential,
+            model_field,
+            m,
+            r0,
+            idx,
+            prefix,
+        )
 
     plt.tight_layout()
     if output == "show":
