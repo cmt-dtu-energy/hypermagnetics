@@ -195,7 +195,9 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
     if dim == 3:
         m = m.at[:, :, 2].set(0.0)
-    size = jr.uniform(key=skey, shape=(n_samples, n_sources, 1), minval=0.25, maxval=1)
+    size = jr.uniform(
+        key=skey, shape=(n_samples, n_sources, 1), minval=0.25, maxval=0.25
+    )
     size = jnp.concatenate([size, size], axis=-1)
     if dim == 3:
         size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)

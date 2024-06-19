@@ -35,7 +35,7 @@ class FourierHyperModel(eqx.Module):
     def __call__(self, sources):
         # mx, my, rx, ry, a
         inputs = jnp.concatenate(
-            [sources[..., :2], sources[..., 3:5], sources[..., 6]], axis=-1
+            [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
         )
         return self.w(inputs)
 
