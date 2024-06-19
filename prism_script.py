@@ -9,7 +9,7 @@ if __name__ == "__main__":
         "n_samples": 10000,
         "lim": 3,
         "res": 32,
-        "dim": 2,
+        "dim": 3,
     }
     train = configure(**source_config, n_sources=1, seed=100)
     val = configure(**source_config, n_sources=4, seed=101)
@@ -26,4 +26,4 @@ if __name__ == "__main__":
     for trainer_config in schedule:
         optim = trainer_config["optim"](**trainer_config["params"])
         model = fit(trainer_config, optim, model, train, val, every=1000)
-        print(model.k)
+        # print(model.k)

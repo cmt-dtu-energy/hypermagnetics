@@ -5,7 +5,7 @@ import sys
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-from magtense import magstatics
+# from magtense import magstatics
 
 from hypermagnetics import plots
 
@@ -61,7 +61,7 @@ def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
     value = -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
     value = jax.lax.select(jnp.isinf(value), 0.0, value)
     value = jax.lax.select(jnp.isnan(value), 0.0, value)
-    return value
+    return -value
 
 
 @jax.jit
@@ -113,59 +113,57 @@ def _field(sources, r, shape):
     return -jax.grad(_potential_with_shape, argnums=1)(sources, r)
 
 
-def _field_mt(sources, r, shape):
-    """Finite field in two or three dimensions with MagTense."""
-    mu0 = 4 * jnp.pi * 1e-7
-    # Shapes: n_samples, n_sources, dim
-    m, r0, size = jnp.split(sources, 3, axis=-1)
-    n_samples, n_sources, dim = r0.shape
+# def _field_mt(sources, r, shape):
+#     """Finite field in two or three dimensions with MagTense."""
+#     mu0 = 4 * jnp.pi * 1e-7
+#     # Shapes: n_samples, n_sources, dim
+#     m, r0, size = jnp.split(sources, 3, axis=-1)
+#     n_samples, n_sources, dim = r0.shape
 
-    if shape == "sphere":
-        tile_type = 7
-    elif shape == "prism":
-        tile_type = 2
-    else:
-        raise ValueError(f"Unknown source shape: {shape}")
+#     if shape == "sphere":
+#         tile_type = 7
+#     elif shape == "prism":
+#         tile_type = 2
+#     else:
+#         raise ValueError(f"Unknown source shape: {shape}")
 
-    size = size * 2
-    if dim == 2:
-        r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-        size = jnp.concatenate(
-            [size, jnp.ones((n_samples, n_sources, 1)) * 2.5e-5], axis=-1
-        )
-        m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-        r = jnp.concatenate([r, jnp.zeros((r.shape[0], 1))], axis=-1)
+#     size = size * 2
+#     if dim == 2:
+#         r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+#         size = jnp.concatenate([size, jnp.ones((n_samples, n_sources, 1))], axis=-1)
+#         m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+#         r = jnp.concatenate([r, jnp.zeros((r.shape[0], 1))], axis=-1)
 
-    m_norm = jnp.linalg.norm(m, axis=-1, keepdims=True)
-    mag_angles = jnp.concatenate(
-        [
-            jnp.arccos(m[..., 2] / m_norm[..., 0]).reshape(n_samples, n_sources, 1),
-            jnp.arctan2(m[..., 1], m[..., 0]).reshape(n_samples, n_sources, 1),
-        ],
-        axis=-1,
-    )
+#     m_norm = jnp.linalg.norm(m, axis=-1, keepdims=True)
+#     mag_angles = jnp.concatenate(
+#         [
+#             jnp.arccos(m[..., 2] / m_norm[..., 0]).reshape(n_samples, n_sources, 1),
+#             jnp.arctan2(m[..., 1], m[..., 0]).reshape(n_samples, n_sources, 1),
+#         ],
+#         axis=-1,
+#     )
 
-    field = jnp.zeros((n_samples, r.shape[0], dim))
-    for i in range(n_samples):
-        tiles = magstatics.Tiles(
-            n=n_sources,
-            M_rem=m_norm[i] / mu0,
-            mag_angle=mag_angles[i],
-            tile_type=tile_type,
-            size=size[i],
-            offset=r0[i],
-        )
-        # it_tiles = magstatics.iterate_magnetization(tiles)
-        # demag_tensor = magstatics.get_demag_tensor(it_tiles, r)
-        # H_out = magstatics.get_H_field(it_tiles, r, demag_tensor)
-        devnull = open("/dev/null", "w")
-        oldstdout_fno = os.dup(sys.stdout.fileno())
-        os.dup2(devnull.fileno(), 1)
-        _, H_out = magstatics.run_simulation(tiles, r)
-        os.dup2(oldstdout_fno, 1)
-        field = field.at[i].set(jnp.array(H_out[:, :dim]))
+#     field = jnp.zeros((n_samples, r.shape[0], dim))
+#     for i in range(n_samples):
+#         tiles = magstatics.Tiles(
+#             n=n_sources,
+#             M_rem=m_norm[i] / mu0,
+#             mag_angle=mag_angles[i],
+#             tile_type=tile_type,
+#             size=size[i],
+#             offset=r0[i],
+#         )
+#         # it_tiles = magstatics.iterate_magnetization(tiles)
+#         # demag_tensor = magstatics.get_demag_tensor(it_tiles, r)
+#         # H_out = magstatics.get_H_field(it_tiles, r, demag_tensor)
+#         devnull = open("/dev/null", "w")
+#         oldstdout_fno = os.dup(sys.stdout.fileno())
+#         os.dup2(devnull.fileno(), 1)
+#         _, H_out = magstatics.run_simulation(tiles, r)
+#         os.dup2(oldstdout_fno, 1)
+#         field = field.at[i].set(jnp.array(H_out[:, :dim]) * mu0)
 
-    return field
+#     return field
 
 
 def _total(fun, sources, r, shape):
@@ -192,22 +190,31 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey, skey = jr.split(key, 4)
     r0 = (lim / 3) * jr.normal(key=r0key, shape=(n_samples, n_sources, dim))
+    if dim == 3:
+        r0 = r0.at[:, :, 2].set(0.0)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
-    size = jr.uniform(
-        key=skey, shape=(n_samples, n_sources, dim), minval=0.5, maxval=0.5
-    )
+    if dim == 3:
+        m = m.at[:, :, 2].set(0.0)
+    size = jr.uniform(key=skey, shape=(n_samples, n_sources, 1), minval=0.25, maxval=1)
+    size = jnp.concatenate([size, size], axis=-1)
+    if dim == 3:
+        size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
+        size = size.at[:, :, 2].set(1.0)
 
     range = jnp.linspace(-lim, lim, res)
-    grids = jnp.meshgrid(*[range] * dim)
+    if dim == 3:
+        grids = jnp.meshgrid(range, range, jnp.linspace(0, 0, 1))
+    else:
+        grids = jnp.meshgrid(*[range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
-    r = sample_grid(rkey, lim, res, r0, size, dim, masking=True)
+    r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
     sources = jnp.concatenate([m, r0, size], axis=-1)
     return {
         "sources": sources,
         "r": r,
         "potential": _total(_potential, sources, r, shape),
         "field": _total(_field, sources, r, shape),
-        "field_mt": _field_mt(sources, r, shape),
+        # "field_mt": _field_mt(sources, r, shape),
         "grid": grid,
         "potential_grid": _total(_potential, sources, grid, shape),
         "field_grid": _total(_field, sources, grid, shape),
@@ -216,8 +223,10 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"
 
 def sample_grid(key, lim, res, r0, size, dim=2, n=None, masking=False):
     if n is None:
-        n = res**dim
+        n = res**2
     r = jr.uniform(minval=-lim, maxval=lim, shape=(n, dim), key=key)
+    if dim == 3:
+        r = r.at[:, 2].set(0.0)
 
     if masking:
         idx_sample = 0
@@ -225,8 +234,8 @@ def sample_grid(key, lim, res, r0, size, dim=2, n=None, masking=False):
         for i in range(r0.shape[1]):
             # r = _remove_sources(r, r0[:, i], size[:, i])
             mask = jnp.logical_or(
-                r[:, 0] < r0[idx_sample, i, 0] - size[idx_sample, i, 0],
-                r[:, 0] > r0[idx_sample, i, 0] + size[idx_sample, i, 0],
+                r[:, 0] < r0[idx_sample, i, 0] - 1.1 * size[idx_sample, i, 0],
+                r[:, 0] > r0[idx_sample, i, 0] + 1.1 * size[idx_sample, i, 0],
             )
             mask = jnp.logical_or(
                 mask,

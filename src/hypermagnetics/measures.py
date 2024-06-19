@@ -19,6 +19,18 @@ def huber_loss(target, pred, delta=1.0):
 
 
 @eqx.filter_jit
+def cosine_similarity(model, data):
+    sources, r, F = (data["sources"], data["r"], data["field"])
+    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    cos_sim = replace_inf_nan(
+        1
+        - jnp.einsum("...i,...i->...", pred, F[..., :2])
+        / (jnp.linalg.norm(pred, axis=-1) * jnp.linalg.norm(F[..., :2], axis=-1))
+    )
+    return jnp.mean(cos_sim)
+
+
+@eqx.filter_jit
 def loss(model, data):
     """
     Calculates the loss function for the given model and data.
@@ -30,27 +42,20 @@ def loss(model, data):
     Returns:
     - The mean loss value calculated using the Huber loss function.
     """
-    sources, r, P, F, F_mt = (
+    sources, r, P, F = (
         data["sources"],
         data["r"],
         data["potential"],
         data["field"],
-        data["field_mt"],
     )
 
-    # pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    # res = jnp.mean((P - pred) ** 2)
-
-    # potential_loss = jnp.mean(optax.huber_loss(pred, P))
+    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
+    potential_loss = jnp.mean(optax.huber_loss(pred, P))
 
     pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
-    # field_loss = jnp.mean(optax.huber_loss(pred, F))
-    field_loss = jnp.mean(optax.huber_loss(pred, F_mt))
+    field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
 
-    # potential_loss = jnp.mean(huber_loss(pred, P))
-    # field_loss = jnp.mean(huber_loss(pred, F))
-
-    res = field_loss
+    res = potential_loss + 0.25 * field_loss
 
     return res
 
@@ -86,13 +91,32 @@ def accuracy(model, data):
     float: The median relative error of the model, as a percentage.
 
     """
-    sources, r, target = data["sources"], data["r"], data["field_mt"]
-    # pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
-
+    sources, r, target = data["sources"], data["r"], data["potential"]
+    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
     diff = target - pred
-    diff = replace_inf_nan(diff)
-    target = replace_inf_nan(target)
+
+    acc = jnp.linalg.norm(diff) / jnp.linalg.norm(target) * 100
+    acc = replace_inf_nan(acc)
+    return jnp.median(acc)
+
+
+@eqx.filter_jit
+def accuracy_field(model, data):
+    """
+    Calculate the median relative error of the model given the data.
+
+    Parameters:
+    - model (callable): The model function that takes in sources and grid as inputs and returns predictions.
+    - data (dict): A dictionary containing the input data, including sources, grid, and target potential.
+
+    Returns:
+    float: The median relative error of the model, as a percentage.
+
+    """
+    sources, r, target = data["sources"], data["r"], data["field"]
+    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    diff = target[..., :2] - pred
 
     acc = jnp.linalg.norm(diff, axis=-1) / jnp.linalg.norm(target, axis=-1) * 100
+    acc = replace_inf_nan(acc)
     return jnp.median(acc)

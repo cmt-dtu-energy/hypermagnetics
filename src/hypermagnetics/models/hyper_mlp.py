@@ -111,11 +111,14 @@ class HyperMLP(MLPHyperModel):
         p = self.nweights + self.nbiases
         q = int(self.hwidth * p)
         self.hypermodel = eqx.nn.MLP(
-            2 * self.in_size, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
+            2 * self.in_size + 1, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
         )
 
     def prepare_weights(self, sources):
-        wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
+        inputs = jnp.concatenate(
+            [sources[..., :2], sources[..., 3:5], sources[..., 6]], axis=-1
+        )
+        wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
         weights, biases = wb[: self.nweights], wb[self.nweights :]
         return weights, biases
 

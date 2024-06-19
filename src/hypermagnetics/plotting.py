@@ -73,7 +73,9 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
     y_grid = np.array(grid[:, 1].reshape((res, res)))
 
     target_potential = sources["potential_grid"][idx : idx + 1].reshape((N, res, res))
-    target_field = sources["field_grid"][idx : idx + 1].reshape((N, res, res, 2))
+    target_field = sources["field_grid"][idx : idx + 1][..., :2].reshape(
+        (N, res, res, 2)
+    )
 
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
@@ -92,9 +94,9 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
         model_potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape(
             (N, res, res)
         )
-        model_field = jax.vmap(model.field, in_axes=(0, None))(mr, grid).reshape(
-            (N, res, res, 2)
-        )
+        model_field = jax.vmap(model.field, in_axes=(0, None))(mr, grid)[
+            ..., :2
+        ].reshape((N, res, res, 2))
 
         _, axes = plt.subplots(2, 2, figsize=(8, 8))
         _plot(

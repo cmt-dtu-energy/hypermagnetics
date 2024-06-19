@@ -6,7 +6,7 @@ import yaml
 
 import hypermagnetics.sources as sources
 import wandb
-from hypermagnetics.measures import accuracy, loss
+from hypermagnetics.measures import accuracy, accuracy_field, loss
 from hypermagnetics.models.hyper_fourier import FourierModel  # noqa
 from hypermagnetics.models.hyper_mlp import HyperLayer, HyperMLP  # noqa
 
@@ -26,12 +26,14 @@ def fit(trainer_config, optim, model, train, test, log=print, every=1):
     for epoch in range(trainer_config["epochs"]):
         model, opt_state, train_loss = step(model, opt_state, train)
         train_err = accuracy(model, train)
+        train_err_field = accuracy_field(model, train)
         test_err = accuracy(model, test)
         log(
             {
                 "epoch": epoch,
                 "train_loss": train_loss.item(),
                 "train_err": train_err.item(),
+                "field_err": train_err_field.item(),
                 "test_err": test_err.item(),
             }
         ) if (epoch % every == 0) else None

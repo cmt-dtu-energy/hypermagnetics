@@ -8,7 +8,6 @@ __pycache__/
 
 # Weights and biases
 wandb/
-models/
 
 # Distribution / packaging
 .Python
@@ -74,5 +73,5 @@ venv.bak/
 # VSCode & MacOS
 .vscode/
 .DS_Store
-data/magfield_symm_256.h5
+data/
 nohup.out

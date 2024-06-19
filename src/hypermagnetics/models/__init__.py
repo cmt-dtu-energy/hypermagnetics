@@ -96,13 +96,13 @@ class HyperModel(eqx.Module):
         """Evaluate the field given sources (sources) and evaluation points (r)."""
         weights, bias = self.prepare_weights(sources)
         model = self.prepare_model(weights, bias)
-        return -jax.vmap(jax.grad(model))(r)
+        return -jax.vmap(jax.grad(model))(r[..., :2])
 
     def __call__(self, sources, r):
         """Evaluate the potential given sources (sources) and evaluation points (r)."""
         weights, bias = self.prepare_weights(sources)
         model = self.prepare_model(weights, bias)
-        return jax.vmap(model)(r)
+        return jax.vmap(model)(r[..., :2])
 
 
 class MLPHyperModel(HyperModel):
