@@ -75,3 +75,4 @@ venv.bak/
 .DS_Store
 data/
 nohup.out
+*.eqx

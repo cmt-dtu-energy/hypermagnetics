@@ -9,7 +9,6 @@ import wandb
 def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
-
     # Subplot 1: Magnetic Scalar Potential
     _ = axes[0].contourf(x_grid, y_grid, potential[idx])
     # plt.colorbar(cp, ax=axes[0])

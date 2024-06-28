@@ -1,7 +1,9 @@
 from functools import partial
+from pathlib import Path
 
 import os
 import sys
+import h5py
 import jax
 import jax.numpy as jnp
 import jax.random as jr
@@ -175,7 +177,9 @@ def _total(fun, sources, r, shape):
     return jnp.sum(components, axis=0)
 
 
-def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"):
+def configure(
+    n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere", save_data=False
+):
     """
     Configures samples of sources.
 
@@ -195,30 +199,71 @@ def configure(n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
     if dim == 3:
         m = m.at[:, :, 2].set(0.0)
-    size = jr.uniform(key=skey, shape=(n_samples, n_sources, 1), minval=0.1, maxval=0.1)
+    size = jr.uniform(key=skey, shape=(n_samples, n_sources, 1), minval=0.25, maxval=1)
     size = jnp.concatenate([size, size], axis=-1)
     if dim == 3:
         size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
         size = size.at[:, :, 2].set(1.0)
 
-    range = jnp.linspace(-lim, lim, res)
+    lim_range = jnp.linspace(-lim, lim, res)
     if dim == 3:
-        grids = jnp.meshgrid(range, range, jnp.linspace(0, 0, 1))
+        grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
     else:
-        grids = jnp.meshgrid(*[range] * dim)
+        grids = jnp.meshgrid(*[lim_range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
     r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
     sources = jnp.concatenate([m, r0, size], axis=-1)
-    return {
-        "sources": sources,
-        "r": r,
-        "potential": _total(_potential, sources, r, shape),
-        "field": _total(_field, sources, r, shape),
-        # "field_mt": _field_mt(sources, r, shape),
-        "grid": grid,
-        "potential_grid": _total(_potential, sources, grid, shape),
-        "field_grid": _total(_field, sources, grid, shape),
-    }
+
+    if save_data:
+        datapath = Path(__file__).parent / ".." / ".." / "data"
+        datapath.mkdir(parents=True, exist_ok=True)
+
+        db = h5py.File(datapath / f"{seed}_{n_samples}.h5", "w")
+        db.create_dataset("m", shape=(n_samples, n_sources, dim), dtype="float32")
+        db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
+        db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
+        db.create_dataset("r", shape=(res**2, dim), dtype="float32")
+        db.create_dataset("potential", shape=(n_samples, res**2), dtype="float32")
+        db.create_dataset("field", shape=(n_samples, res**2, dim), dtype="float32")
+        db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
+        db.create_dataset("potential_grid", shape=(n_samples, res**2), dtype="float32")
+        db.create_dataset("field_grid", shape=(n_samples, res**2, dim), dtype="float32")
+
+        db["r"][:] = r
+        db["grid"][:] = grid
+
+        step = 1000
+        for i in range(n_samples // step):
+            db["m"][i * step : (i + 1) * step] = m[i * step : (i + 1) * step]
+            db["r0"][i * step : (i + 1) * step] = r0[i * step : (i + 1) * step]
+            db["size"][i * step : (i + 1) * step] = size[i * step : (i + 1) * step]
+            db["potential"][i * step : (i + 1) * step] = _total(
+                _potential, sources[i * step : (i + 1) * step], r, shape
+            )
+            db["field"][i * step : (i + 1) * step] = _total(
+                _field, sources[i * step : (i + 1) * step], r, shape
+            )
+            db["potential_grid"][i * step : (i + 1) * step] = _total(
+                _potential, sources[i * step : (i + 1) * step], grid, shape
+            )
+            db["field_grid"][i * step : (i + 1) * step] = _total(
+                _field, sources[i * step : (i + 1) * step], grid, shape
+            )
+
+        db.close()
+        return None
+
+    else:
+        return {
+            "sources": sources,
+            "r": r,
+            "potential": _total(_potential, sources, r, shape),
+            "field": _total(_field, sources, r, shape),
+            # "field_mt": _field_mt(sources, r, shape),
+            "grid": grid,
+            "potential_grid": _total(_potential, sources, grid, shape),
+            "field_grid": _total(_field, sources, grid, shape),
+        }
 
 
 def sample_grid(key, lim, res, r0, size, dim=2, n=None, masking=False):
