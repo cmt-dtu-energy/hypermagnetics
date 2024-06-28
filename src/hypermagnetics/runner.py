@@ -23,17 +23,37 @@ def fit(trainer_config, optim, model, train, test, log=print, every=1):
         model = eqx.apply_updates(model, updates)
         return model, opt_state, loss_value
 
+    batch_size = 500
     for epoch in range(trainer_config["epochs"]):
-        model, opt_state, train_loss = step(model, opt_state, train)
-        train_err = accuracy(model, train)
-        train_err_field = accuracy_field(model, train)
+        n_steps = train["sources"].shape[0] // batch_size
+        for i in range(n_steps):
+            batch = {}
+            batch["sources"] = train["sources"][i * batch_size : (i + 1) * batch_size]
+            batch["potential"] = train["potential"][
+                i * batch_size : (i + 1) * batch_size
+            ]
+            batch["field"] = train["field"][i * batch_size : (i + 1) * batch_size]
+            batch["potential_grid"] = train["potential_grid"][
+                i * batch_size : (i + 1) * batch_size
+            ]
+            batch["field_grid"] = train["field_grid"][
+                i * batch_size : (i + 1) * batch_size
+            ]
+            batch["grid"] = train["grid"]
+            batch["r"] = train["r"]
+
+            model, opt_state, train_loss = step(model, opt_state, batch)
+
+        # Logging
+        train_err = accuracy(model, batch)
+        train_err_field = accuracy_field(model, batch)
         test_err = accuracy(model, test)
         log(
             {
                 "epoch": epoch,
                 "train_loss": train_loss.item(),
                 "train_err": train_err.item(),
-                "field_err": train_err_field.item(),
+                "train_field_err": train_err_field.item(),
                 "test_err": test_err.item(),
             }
         ) if (epoch % every == 0) else None
