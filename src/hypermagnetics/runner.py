@@ -13,7 +13,7 @@ from hypermagnetics.models.hyper_mlp import HyperLayer, HyperMLP  # noqa
 plt.style.use(["science", "ieee"])
 
 
-def fit(trainer_config, optim, model, train, test, log=print, every=1):
+def fit(trainer_config, optim, model, train, test, log=print, every=1, batch_size=500):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
     @eqx.filter_jit
@@ -23,9 +23,8 @@ def fit(trainer_config, optim, model, train, test, log=print, every=1):
         model = eqx.apply_updates(model, updates)
         return model, opt_state, loss_value
 
-    batch_size = 500
     for epoch in range(trainer_config["epochs"]):
-        n_steps = train["sources"].shape[0] // batch_size
+        n_steps = max(1, train["sources"].shape[0] // batch_size)
         for i in range(n_steps):
             batch = {}
             batch["sources"] = train["sources"][i * batch_size : (i + 1) * batch_size]
@@ -44,19 +43,20 @@ def fit(trainer_config, optim, model, train, test, log=print, every=1):
 
             model, opt_state, train_loss = step(model, opt_state, batch)
 
-        # Logging
-        train_err = accuracy(model, batch)
-        train_err_field = accuracy_field(model, batch)
-        test_err = accuracy(model, test)
-        log(
-            {
-                "epoch": epoch,
-                "train_loss": train_loss.item(),
-                "train_err": train_err.item(),
-                "train_field_err": train_err_field.item(),
-                "test_err": test_err.item(),
-            }
-        ) if (epoch % every == 0) else None
+            # Logging
+            train_err = accuracy(model, batch)
+            train_err_field = accuracy_field(model, batch)
+            test_err = accuracy(model, test)
+            steps = epoch * n_steps + i
+            log(
+                {
+                    "epoch": epoch,
+                    "train_loss": train_loss.item(),
+                    "train_err": train_err.item(),
+                    "train_field_err": train_err_field.item(),
+                    "test_err": test_err.item(),
+                }
+            ) if (steps % every == 0) else None
 
     return model
 

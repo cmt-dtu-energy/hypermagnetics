@@ -250,6 +250,17 @@ def configure(
                 _field, sources[i * step : (i + 1) * step], grid, shape
             )
 
+        # Remove fields with nan values
+        nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
+        for i, idx in enumerate(nan_idx):
+            db["m"][idx] = db["m"][n_samples - 1000 + i]
+            db["r0"][idx] = db["r0"][n_samples - 1000 + i]
+            db["size"][idx] = db["size"][n_samples - 1000 + i]
+            db["potential"][idx] = db["potential"][n_samples - 1000 + i]
+            db["field"][idx] = db["field"][n_samples - 1000 + i]
+            db["potential_grid"][idx] = db["potential_grid"][n_samples - 1000 + i]
+            db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
+
         db.close()
         return None
 
