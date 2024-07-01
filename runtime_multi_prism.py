@@ -6,13 +6,13 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 
 
-from hypermagnetics.sources import read_db, _field_mt, configure
+from hypermagnetics.sources import read_db, _field_mt, configure_eval
 from hypermagnetics.models.hyper_mlp import HyperLayer
 from hypermagnetics.measures import replace_inf_nan
 
 from_db = False
-n_eval = 800
-config = {"width": 400, "depth": 3, "hwidth": 1.5, "hdepth": 3, "seed": 42}
+n_eval = 2500
+config = {"width": 400, "depth": 3, "hwidth": 2, "hdepth": 3, "seed": 42}
 
 model_orig = HyperLayer(
     width=config["width"],
@@ -22,7 +22,7 @@ model_orig = HyperLayer(
     seed=config["seed"],
 )
 
-filename = "/home/spol/Documents/repos/hypermagnetics/models/ic_inr_400_50k_fcinr_lim_uniform.eqx"
+filename = "/home/spol/Documents/repos/hypermagnetics/models/ic_inr_400_hwidth_2_50k_fcinr_lim_uniform.eqx"
 model = eqx.tree_deserialise_leaves(filename, model_orig)
 
 mt_time = []
@@ -31,7 +31,7 @@ model_time = []
 model_acc = []
 x_axis_ticks = []
 
-for test_idx in range(0, n_eval, max(1, 100)):
+for test_idx in range(0, n_eval, max(1, 500)):
     if from_db:
         test = read_db(f"squares_1_{test_idx}.h5")
     else:
@@ -39,27 +39,21 @@ for test_idx in range(0, n_eval, max(1, 100)):
             "shape": "prism",
             "n_samples": 1,
             "lim": 1.2,
-            "res": 100,
             "dim": 3,
-            "save_data": False,
         }
-        test = configure(**source_config, n_sources=max(1, test_idx), seed=101)
+        test = configure_eval(**source_config, n_sources=max(1, test_idx), seed=101)
 
     mr = test["sources"][0:1]
     m, r0, size = jnp.split(mr, 3, axis=-1)
-    grid = test["grid"]
-
-    res = int(jnp.sqrt(len(grid)))
-    N = len(mr)
 
     start_time = time.time()
-    field_model = jax.vmap(model.field, in_axes=(0, None))(mr, test["grid"])
+    field_model = jax.vmap(model.field, in_axes=(0, None))(mr, test["r"])
     model_time.append(time.time() - start_time)
 
-    field_mt, mt_dur = _field_mt(mr, test["grid"], "prism")
+    field_mt, mt_dur = _field_mt(mr, test["r"], "prism")
     mt_time.append(mt_dur)
 
-    sources, r, target = test["sources"], test["r"], test["field_grid"]
+    sources, r, target = test["sources"], test["r"], test["field"]
     diff_mt = target[..., :2] - field_mt[..., :2] * jnp.pi**2
     mt_acc.append(
         jnp.median(

@@ -2,7 +2,6 @@ import wandb
 import optax
 import equinox as eqx
 from pathlib import Path
-import h5py
 import jax.numpy as jnp
 from hypermagnetics.sources import configure, read_db
 from hypermagnetics.models.hyper_fourier import FourierModel
@@ -18,13 +17,13 @@ if __name__ == "__main__":
         "lim": 1.2,
         "res": 32,
         "dim": 3,
-        "epochs": 80,
+        "epochs": 100,
         "width": 400,
         "depth": 3,
         "hwidth": 2,
         "hdepth": 3,
         "seed": 42,
-        "lambda_field": 0.3,
+        "lambda_field": 0.25,
         "batch_size": 500,
     }
 
@@ -68,11 +67,11 @@ if __name__ == "__main__":
             "epochs": config["epochs"],
             "params": {"learning_rate": 1e-4},
         },
-        {
-            "optim": optax.adam,
-            "epochs": config["epochs"],
-            "params": {"learning_rate": 1e-5},
-        },
+        # {
+        #     "optim": optax.adam,
+        #     "epochs": config["epochs"],
+        #     "params": {"learning_rate": 1e-5},
+        # },
     ]
 
     for trainer_config in schedule:

@@ -297,6 +297,59 @@ def configure(
         }
 
 
+def configure_eval(
+    n_samples,
+    n_sources,
+    dim=2,
+    lim=3,
+    seed=0,
+    min_size=0.12,
+    max_size=0.48,
+    shape="sphere",
+):
+    """
+    Configures samples of sources.
+
+    Args:
+        n_samples (int): Number of samples to generate.
+        n_sources (int): Number of sources in each sample.
+        lim (int, optional): Domain range, in units of source radius. Defaults to 3.
+        res (int, optional): Resolution of the field grid. Defaults to 32.
+        key (jr.PRNGKey): Random number generator key.
+    """
+
+    key = jr.PRNGKey(seed)
+    r0key, mkey, skey = jr.split(key, 3)
+    r0 = jr.uniform(
+        key=r0key,
+        shape=(n_samples, n_sources, dim),
+        minval=-lim + min_size,
+        maxval=lim - min_size,
+    )
+    if dim == 3:
+        r0 = r0.at[:, :, 2].set(0.0)
+    m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
+    if dim == 3:
+        m = m.at[:, :, 2].set(0.0)
+    size = jr.uniform(
+        key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+    )
+    size = jnp.concatenate([size, size], axis=-1)
+    if dim == 3:
+        size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
+        size = size.at[:, :, 2].set(1.0)
+
+    sources = jnp.concatenate([m, r0, size], axis=-1)
+    r = r0[0]
+
+    return {
+        "sources": sources,
+        "r": r,
+        "potential": _total(_potential, sources, r, shape),
+        "field": _total(_field, sources, r, shape),
+    }
+
+
 def sample_grid(key, lim, res, r0, size, dim=2, n=None, masking=False):
     if n is None:
         n = res**2
