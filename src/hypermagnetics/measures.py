@@ -31,7 +31,7 @@ def cosine_similarity(model, data):
 
 
 @eqx.filter_jit
-def loss(model, data):
+def loss(model, data, lambda_field=0.25):
     """
     Calculates the loss function for the given model and data.
 
@@ -55,7 +55,7 @@ def loss(model, data):
     pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
     field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
 
-    res = potential_loss + 0.25 * field_loss
+    res = potential_loss + lambda_field * field_loss
 
     return res
 

@@ -74,5 +74,6 @@ venv.bak/
 .vscode/
 .DS_Store
 data/
+figs/
 nohup.out
 *.eqx

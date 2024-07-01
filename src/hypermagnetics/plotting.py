@@ -1,12 +1,13 @@
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 
 import wandb
 
 
-def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
+def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix):
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
     # Subplot 1: Magnetic Scalar Potential
@@ -20,9 +21,20 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
         m[idx, :, 1],
         angles="xy",
         scale_units="xy",
-        scale=1,
+        scale=5,
         color="red",
     )
+    # PLot rectangles
+    for i in range(r0.shape[1]):
+        rect = Rectangle(
+            (r0[idx, i, 0] - size[idx, i, 0] / 2, r0[idx, i, 1] - size[idx, i, 1] / 2),
+            size[idx, i, 0],
+            size[idx, i, 1],
+            fill=False,
+            edgecolor="red",
+        )
+        axes[0].add_patch(rect)
+
     axes[0].set_title(prefix + " " + "Magnetic Scalar Potential")
     units_str = ", in units of source radius"
     axes[0].set_xlabel("$x$" + units_str)
@@ -49,9 +61,21 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
         m[idx, :, 1],
         angles="xy",
         scale_units="xy",
-        scale=1,
+        scale=5,
         color="red",
     )
+
+    # Plot rectangles
+    for i in range(r0.shape[1]):
+        rect = Rectangle(
+            (r0[idx, i, 0] - size[idx, i, 0] / 2, r0[idx, i, 1] - size[idx, i, 1] / 2),
+            size[idx, i, 0],
+            size[idx, i, 1],
+            fill=False,
+            edgecolor="red",
+        )
+        axes[1].add_patch(rect)
+
     axes[1].set_title(prefix + " " + "Magnetic Field")
     axes[1].set_xlabel("x" + units_str)
     axes[1].set_ylabel("y" + units_str)
@@ -86,6 +110,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
             target_field,
             m,
             r0,
+            size,
             idx,
             prefix,
         )
@@ -106,6 +131,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
             target_field,
             m,
             r0,
+            size,
             idx,
             prefix,
         )
@@ -117,6 +143,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
             model_field,
             m,
             r0,
+            size,
             idx,
             prefix,
         )

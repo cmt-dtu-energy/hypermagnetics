@@ -13,12 +13,22 @@ from hypermagnetics.models.hyper_mlp import HyperLayer, HyperMLP  # noqa
 plt.style.use(["science", "ieee"])
 
 
-def fit(trainer_config, optim, model, train, test, log=print, every=1, batch_size=500):
+def fit(
+    trainer_config,
+    optim,
+    model,
+    train,
+    test,
+    log=print,
+    every=1,
+    batch_size=500,
+    lambda_field=0.25,
+):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
     @eqx.filter_jit
     def step(model, opt_state, data):
-        loss_value, grads = eqx.filter_value_and_grad(loss)(model, data)
+        loss_value, grads = eqx.filter_value_and_grad(loss)(model, data, lambda_field)
         updates, opt_state = optim.update(grads, opt_state, model)
         model = eqx.apply_updates(model, updates)
         return model, opt_state, loss_value

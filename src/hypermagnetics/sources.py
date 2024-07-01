@@ -1,5 +1,6 @@
 from functools import partial
 from pathlib import Path
+import time
 
 import os
 import sys
@@ -7,7 +8,7 @@ import h5py
 import jax
 import jax.numpy as jnp
 import jax.random as jr
-# from magtense import magstatics
+from magtense import magstatics
 
 from hypermagnetics import plots
 
@@ -115,57 +116,59 @@ def _field(sources, r, shape):
     return -jax.grad(_potential_with_shape, argnums=1)(sources, r)
 
 
-# def _field_mt(sources, r, shape):
-#     """Finite field in two or three dimensions with MagTense."""
-#     mu0 = 4 * jnp.pi * 1e-7
-#     # Shapes: n_samples, n_sources, dim
-#     m, r0, size = jnp.split(sources, 3, axis=-1)
-#     n_samples, n_sources, dim = r0.shape
+def _field_mt(sources, r, shape):
+    """Finite field in two or three dimensions with MagTense."""
+    mu0 = 4 * jnp.pi * 1e-7
+    # Shapes: n_samples, n_sources, dim
+    m, r0, size = jnp.split(sources, 3, axis=-1)
+    n_samples, n_sources, dim = r0.shape
 
-#     if shape == "sphere":
-#         tile_type = 7
-#     elif shape == "prism":
-#         tile_type = 2
-#     else:
-#         raise ValueError(f"Unknown source shape: {shape}")
+    if shape == "sphere":
+        tile_type = 7
+    elif shape == "prism":
+        tile_type = 2
+    else:
+        raise ValueError(f"Unknown source shape: {shape}")
 
-#     size = size * 2
-#     if dim == 2:
-#         r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-#         size = jnp.concatenate([size, jnp.ones((n_samples, n_sources, 1))], axis=-1)
-#         m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-#         r = jnp.concatenate([r, jnp.zeros((r.shape[0], 1))], axis=-1)
+    size = size * 2
+    if dim == 2:
+        r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+        size = jnp.concatenate([size, jnp.ones((n_samples, n_sources, 1))], axis=-1)
+        m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+        r = jnp.concatenate([r, jnp.zeros((r.shape[0], 1))], axis=-1)
 
-#     m_norm = jnp.linalg.norm(m, axis=-1, keepdims=True)
-#     mag_angles = jnp.concatenate(
-#         [
-#             jnp.arccos(m[..., 2] / m_norm[..., 0]).reshape(n_samples, n_sources, 1),
-#             jnp.arctan2(m[..., 1], m[..., 0]).reshape(n_samples, n_sources, 1),
-#         ],
-#         axis=-1,
-#     )
+    m_norm = jnp.linalg.norm(m, axis=-1, keepdims=True)
+    mag_angles = jnp.concatenate(
+        [
+            jnp.arccos(m[..., 2] / m_norm[..., 0]).reshape(n_samples, n_sources, 1),
+            jnp.arctan2(m[..., 1], m[..., 0]).reshape(n_samples, n_sources, 1),
+        ],
+        axis=-1,
+    )
 
-#     field = jnp.zeros((n_samples, r.shape[0], dim))
-#     for i in range(n_samples):
-#         tiles = magstatics.Tiles(
-#             n=n_sources,
-#             M_rem=m_norm[i] / mu0,
-#             mag_angle=mag_angles[i],
-#             tile_type=tile_type,
-#             size=size[i],
-#             offset=r0[i],
-#         )
-#         # it_tiles = magstatics.iterate_magnetization(tiles)
-#         # demag_tensor = magstatics.get_demag_tensor(it_tiles, r)
-#         # H_out = magstatics.get_H_field(it_tiles, r, demag_tensor)
-#         devnull = open("/dev/null", "w")
-#         oldstdout_fno = os.dup(sys.stdout.fileno())
-#         os.dup2(devnull.fileno(), 1)
-#         _, H_out = magstatics.run_simulation(tiles, r)
-#         os.dup2(oldstdout_fno, 1)
-#         field = field.at[i].set(jnp.array(H_out[:, :dim]) * mu0)
+    field = jnp.zeros((n_samples, r.shape[0], dim))
+    for i in range(n_samples):
+        tiles = magstatics.Tiles(
+            n=n_sources,
+            M_rem=m_norm[i] / mu0,
+            mag_angle=mag_angles[i],
+            tile_type=tile_type,
+            size=size[i],
+            offset=r0[i],
+        )
+        # it_tiles = magstatics.iterate_magnetization(tiles)
+        # demag_tensor = magstatics.get_demag_tensor(it_tiles, r)
+        # H_out = magstatics.get_H_field(it_tiles, r, demag_tensor)
+        devnull = open("/dev/null", "w")
+        oldstdout_fno = os.dup(sys.stdout.fileno())
+        os.dup2(devnull.fileno(), 1)
+        start_time = time.time()
+        _, H_out = magstatics.run_simulation(tiles, r)
+        duration = time.time() - start_time
+        os.dup2(oldstdout_fno, 1)
+        field = field.at[i].set(jnp.array(H_out[:, :dim]) * mu0)
 
-#     return field
+    return field, duration
 
 
 def _total(fun, sources, r, shape):
@@ -178,7 +181,16 @@ def _total(fun, sources, r, shape):
 
 
 def configure(
-    n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere", save_data=False
+    n_samples,
+    n_sources,
+    dim=2,
+    lim=3,
+    res=32,
+    seed=0,
+    min_size=0.12,
+    max_size=0.48,
+    shape="sphere",
+    save_data=False,
 ):
     """
     Configures samples of sources.
@@ -193,13 +205,21 @@ def configure(
 
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey, skey = jr.split(key, 4)
-    r0 = (lim / 3) * jr.normal(key=r0key, shape=(n_samples, n_sources, dim))
+    # r0 = (lim / 3) * jr.normal(key=r0key, shape=(n_samples, n_sources, dim))
+    r0 = jr.uniform(
+        key=r0key,
+        shape=(n_samples, n_sources, dim),
+        minval=-lim + min_size,
+        maxval=lim - min_size,
+    )
     if dim == 3:
         r0 = r0.at[:, :, 2].set(0.0)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
     if dim == 3:
         m = m.at[:, :, 2].set(0.0)
-    size = jr.uniform(key=skey, shape=(n_samples, n_sources, 1), minval=0.25, maxval=1)
+    size = jr.uniform(
+        key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+    )
     size = jnp.concatenate([size, size], axis=-1)
     if dim == 3:
         size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
@@ -344,6 +364,23 @@ def fourier_decomposition(
     # plt.show()
 
     return magnitudes
+
+
+def read_db(filename: str):
+    datapath = Path("/home/spol/Documents/repos/hypermagnetics/data")
+    db = h5py.File(datapath / filename, "r")
+    data = {
+        "sources": jnp.concatenate([db["m"][:], db["r0"][:], db["size"][:]], axis=-1),
+        "r": jnp.array(db["r"][:]),
+        "potential": jnp.array(db["potential"][:]),
+        "field": jnp.array(db["field"][:]),
+        "grid": jnp.array(db["grid"][:]),
+        "potential_grid": jnp.array(db["potential_grid"][:]),
+        "field_grid": jnp.array(db["field_grid"][:]),
+    }
+    db.close()
+
+    return data
 
 
 if __name__ == "__main__":
