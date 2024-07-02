@@ -42,13 +42,13 @@ def fit(
                 i * batch_size : (i + 1) * batch_size
             ]
             batch["field"] = train["field"][i * batch_size : (i + 1) * batch_size]
-            batch["potential_grid"] = train["potential_grid"][
-                i * batch_size : (i + 1) * batch_size
-            ]
-            batch["field_grid"] = train["field_grid"][
-                i * batch_size : (i + 1) * batch_size
-            ]
-            batch["grid"] = train["grid"]
+            # batch["potential_grid"] = train["potential_grid"][
+            #     i * batch_size : (i + 1) * batch_size
+            # ]
+            # batch["field_grid"] = train["field_grid"][
+            #     i * batch_size : (i + 1) * batch_size
+            # ]
+            # batch["grid"] = train["grid"]
             batch["r"] = train["r"]
 
             model, opt_state, train_loss = step(model, opt_state, batch)

@@ -13,18 +13,18 @@ from hypermagnetics.runner import fit
 if __name__ == "__main__":
     config = {
         "shape": "prism",
-        "n_samples": 50100,
-        "lim": 1.2,
+        "n_samples": 200200,
+        "lim": 2.4,
         "res": 32,
         "dim": 3,
-        "epochs": 100,
+        "epochs": 75,
         "width": 400,
         "depth": 3,
         "hwidth": 2,
         "hdepth": 3,
         "seed": 42,
         "lambda_field": 0.25,
-        "batch_size": 500,
+        "batch_size": 800,
     }
 
     # train = configure(**source_config, n_sources=3, seed=110)
@@ -59,12 +59,12 @@ if __name__ == "__main__":
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"],
+            "epochs": config["epochs"] * 2,
             "params": {"learning_rate": 1e-3},
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"],
+            "epochs": config["epochs"] * 2,
             "params": {"learning_rate": 1e-4},
         },
         # {
@@ -103,5 +103,5 @@ if __name__ == "__main__":
 
     filepath = Path("/home/spol/Documents/repos/hypermagnetics/")
     eqx.tree_serialise_leaves(
-        filepath / "models" / "ic_inr_400_2_50k_fcinr_lim_uniform.eqx", model
+        filepath / "models" / "ic_inr_400_200k_fcinr_lim_uniform.eqx", model
     )

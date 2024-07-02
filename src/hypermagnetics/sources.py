@@ -427,9 +427,9 @@ def read_db(filename: str):
         "r": jnp.array(db["r"][:]),
         "potential": jnp.array(db["potential"][:]),
         "field": jnp.array(db["field"][:]),
-        "grid": jnp.array(db["grid"][:]),
-        "potential_grid": jnp.array(db["potential_grid"][:]),
-        "field_grid": jnp.array(db["field_grid"][:]),
+        # "grid": jnp.array(db["grid"][:]),
+        # "potential_grid": jnp.array(db["potential_grid"][:]),
+        # "field_grid": jnp.array(db["field_grid"][:]),
     }
     db.close()
 
