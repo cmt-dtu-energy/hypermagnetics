@@ -419,18 +419,30 @@ def fourier_decomposition(
     return magnitudes
 
 
-def read_db(filename: str):
+def read_db(filename: str, read_grid=False):
     datapath = Path("/home/spol/Documents/repos/hypermagnetics/data")
     db = h5py.File(datapath / filename, "r")
-    data = {
-        "sources": jnp.concatenate([db["m"][:], db["r0"][:], db["size"][:]], axis=-1),
-        "r": jnp.array(db["r"][:]),
-        "potential": jnp.array(db["potential"][:]),
-        "field": jnp.array(db["field"][:]),
-        # "grid": jnp.array(db["grid"][:]),
-        # "potential_grid": jnp.array(db["potential_grid"][:]),
-        # "field_grid": jnp.array(db["field_grid"][:]),
-    }
+    if read_grid:
+        data = {
+            "sources": jnp.concatenate(
+                [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
+            ),
+            "r": jnp.array(db["r"][:]),
+            "potential": jnp.array(db["potential"][:]),
+            "field": jnp.array(db["field"][:]),
+            "grid": jnp.array(db["grid"][:]),
+            "potential_grid": jnp.array(db["potential_grid"][:]),
+            "field_grid": jnp.array(db["field_grid"][:]),
+        }
+    else:
+        data = {
+            "sources": jnp.concatenate(
+                [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
+            ),
+            "r": jnp.array(db["r"][:]),
+            "potential": jnp.array(db["potential"][:]),
+            "field": jnp.array(db["field"][:]),
+        }
     db.close()
 
     return data

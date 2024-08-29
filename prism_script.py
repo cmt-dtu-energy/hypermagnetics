@@ -17,7 +17,7 @@ if __name__ == "__main__":
         "lim": 2.4,
         "res": 32,
         "dim": 3,
-        "epochs": 75,
+        "epochs": 80,
         "width": 400,
         "depth": 3,
         "hwidth": 2,
@@ -32,8 +32,8 @@ if __name__ == "__main__":
     # val_single = configure(**source_config, n_sources=1, seed=102)
 
     train = read_db(f"100_{config['n_samples']}_train.h5")
-    val = read_db("101_1010_val_lim.h5")
-    val_single = read_db("102_1010_val_lim_single.h5")
+    val = read_db("101_1020_val_lim.h5")
+    val_single = read_db("102_1020_val_lim_single.h5")
 
     # model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
     model = HyperLayer(
@@ -59,12 +59,12 @@ if __name__ == "__main__":
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"] * 2,
+            "epochs": config["epochs"],
             "params": {"learning_rate": 1e-3},
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"] * 2,
+            "epochs": config["epochs"],
             "params": {"learning_rate": 1e-4},
         },
         # {

@@ -101,13 +101,13 @@ plt.xticks(range(len(x_axis_ticks)), x_axis_ticks)
 # Custom legend
 legend_elements = [
     Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
-    Line2D([0], [0], color="black", lw=2, linestyle="-", label="Model"),
+    Line2D([0], [0], color="black", lw=2, linestyle="-", label="Our model"),
 ]
 plt.legend(handles=legend_elements, loc="upper left")
 fig.tight_layout()  # To ensure there's no overlap
 
 # Save the plot to the 'figs' directory
-plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/metrics.png")
+plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/metrics.svg")
 
 # Clear the current figure after saving to avoid conflicts with future plots
 plt.clf()

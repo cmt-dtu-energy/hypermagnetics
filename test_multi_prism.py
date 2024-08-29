@@ -38,7 +38,7 @@ for file_idx in range(10):
 
     n_sources = file_len - skip_cnt
 
-    db = h5py.File(datapath / f"squares_{n_samples}_{file_idx}.h5", "w")
+    db = h5py.File(datapath / f"squares_{n_samples}_{file_idx}_enlarged.h5", "w")
     db.create_dataset("m", shape=(n_samples, n_sources, dim), dtype="float32")
     db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
     db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
@@ -65,8 +65,8 @@ for file_idx in range(10):
                 continue
 
             # Convert the coordinates and size to integers
-            r0[0, idx, :] = [float(coord) * 1e7 - lim for coord in r0_file]
-            size[0, idx, :] = [float(a) * 1e7 for a in size_file]
+            r0[0, idx, :] = [(float(coord) * 1e7 - lim) * 2 for coord in r0_file]
+            size[0, idx, :] = [(float(a) * 1e7) * 2 for a in size_file]
             idx += 1
 
     if dim == 3:
@@ -81,7 +81,7 @@ for file_idx in range(10):
     if dim == 3:
         m = m.at[:, :, 2].set(0.0)
 
-    lim_range = jnp.linspace(-lim, lim, res)
+    lim_range = jnp.linspace(-lim * 2, lim * 2, res)
     if dim == 3:
         grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
     else:
