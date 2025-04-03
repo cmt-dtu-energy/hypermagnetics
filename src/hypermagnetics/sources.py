@@ -302,6 +302,7 @@ def configure_eval(
     n_sources,
     dim=2,
     lim=3,
+    res=32,
     seed=0,
     min_size=0.12,
     max_size=0.48,
@@ -319,7 +320,7 @@ def configure_eval(
     """
 
     key = jr.PRNGKey(seed)
-    r0key, mkey, skey = jr.split(key, 3)
+    r0key, mkey, rkey, skey = jr.split(key, 4)
     r0 = jr.uniform(
         key=r0key,
         shape=(n_samples, n_sources, dim),
@@ -340,13 +341,34 @@ def configure_eval(
         size = size.at[:, :, 2].set(1.0)
 
     sources = jnp.concatenate([m, r0, size], axis=-1)
-    r = r0[0]
+    # r_grid = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
+    r = r0
+
+    lim_range = jnp.linspace(-lim, lim, res)
+    if dim == 3:
+        grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
+    else:
+        grids = jnp.meshgrid(*[lim_range] * dim)
+    grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
 
     return {
         "sources": sources,
         "r": r,
-        "potential": _total(_potential, sources, r, shape),
-        "field": _total(_field, sources, r, shape),
+        "potential": jnp.array(
+            [
+                _total(_potential, sources[i : i + 1], r_sample, shape)[0]
+                for i, r_sample in enumerate(r)
+            ]
+        ),
+        "field": jnp.array(
+            [
+                _total(_field, sources[i : i + 1], r_sample, shape)[0]
+                for i, r_sample in enumerate(r)
+            ]
+        ),
+        "grid": grid,
+        "potential_grid": _total(_potential, sources, grid, shape),
+        "field_grid": _total(_field, sources, grid, shape),
     }
 
 

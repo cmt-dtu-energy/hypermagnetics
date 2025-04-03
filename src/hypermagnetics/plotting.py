@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import jax
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
@@ -151,5 +153,9 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
     plt.tight_layout()
     if output == "show":
         plt.show()
+    elif output == "save":
+        plt.savefig(
+            Path(__file__).parent / ".." / ".." / "figs" / f"{prefix}_plot_{idx}.png"
+        )
     elif output == "wandb":
         wandb.log({"chart": wandb.Image(plt)})
