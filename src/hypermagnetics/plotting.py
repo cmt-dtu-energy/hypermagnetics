@@ -155,7 +155,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
         plt.show()
     elif output == "save":
         plt.savefig(
-            Path(__file__).parent / ".." / ".." / "figs" / f"{prefix}_plot_{idx}.png"
+            Path(__file__).parent / ".." / ".." / "figs" / f"{prefix}_plot_{idx}.svg"
         )
     elif output == "wandb":
         wandb.log({"chart": wandb.Image(plt)})

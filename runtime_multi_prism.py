@@ -8,7 +8,6 @@ import prettytable
 
 from hypermagnetics.sources import _field_mt, configure_eval
 from hypermagnetics.models.hyper_mlp import HyperLayer
-from hypermagnetics import plots
 
 n_eval = 2500
 n_ensemble = 10
@@ -110,7 +109,8 @@ for test_sources in range(0, n_eval, max(min_sources, 250)):
     pot_acc.append(jnp.mean(median_pot) * 100)
     pot_acc_std.append(jnp.std(median_pot) * 100)
 
-    plots(test, idx=0, model=model, prefix=f"{n_sources}", output="save")
+    # Plotting takes long time for a large number of sources
+    # plots(test, idx=0, model=model, prefix=f"{n_sources}", output="save")
 
     res_table = prettytable.PrettyTable()
     res_table.field_names = [
@@ -142,22 +142,22 @@ color = "tab:red"
 ax1.set_xlabel("Number of sources")
 ax1.set_ylabel("Relative median error (%)", color=color)
 # Plot mean and standard deviation for errors
-ax1.errorbar(
-    range(len(x_axis_ticks)),
-    mt_acc,
-    yerr=mt_acc_std,
-    fmt="o",
-    color=color,
-    linestyle="--",
-)
-ax1.errorbar(
-    range(len(x_axis_ticks)),
-    field_acc,
-    yerr=field_acc_std,
-    fmt="o",
-    color=color,
-    linestyle="dotted",
-)
+# ax1.errorbar(
+#     range(len(x_axis_ticks)),
+#     mt_acc,
+#     yerr=mt_acc_std,
+#     fmt="o",
+#     color=color,
+#     linestyle="--",
+# )
+# ax1.errorbar(
+#     range(len(x_axis_ticks)),
+#     field_acc,
+#     yerr=field_acc_std,
+#     fmt="o",
+#     color=color,
+#     linestyle="dotted",
+# )
 ax1.errorbar(
     range(len(x_axis_ticks)),
     pot_acc,
@@ -165,9 +165,10 @@ ax1.errorbar(
     fmt="o",
     color=color,
 )
-ax1.plot(mt_acc, color=color, linestyle="--")
-ax1.plot(field_acc, color=color, linestyle="dotted")
+# ax1.plot(mt_acc, color=color, linestyle="--")
+# ax1.plot(field_acc, color=color, linestyle="dotted")
 ax1.plot(pot_acc, color=color)
+ax1.set_ylim(0, 11)
 ax1.tick_params(axis="y", labelcolor=color)
 # Instantiate a second y-axis that shares the same x-axis
 ax2 = ax1.twinx()
@@ -175,22 +176,24 @@ ax2 = ax1.twinx()
 color = "tab:blue"
 ax2.set_ylabel("Runtime (s)", color=color)  # we already handled the x-label with ax1
 ax2.plot(mt_t_avg, color=color, linestyle="--")
-ax2.plot(field_t_avg, color=color, linestyle="dotted")
+# ax2.plot(field_t_avg, color=color, linestyle="dotted")
 ax2.plot(pot_t_avg, color=color)
 ax2.tick_params(axis="y", labelcolor=color)
 
 plt.xticks(range(len(x_axis_ticks)), x_axis_ticks)
 # Custom legend
 legend_elements = [
-    Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
-    Line2D([0], [0], color="black", lw=2, linestyle="dotted", label="Field - Model"),
-    Line2D([0], [0], color="black", lw=2, linestyle="-", label="Potential - Model"),
+    Line2D([0], [0], color="black", lw=2, linestyle="--", label="Exact"),
+    # Line2D([0], [0], color="black", lw=2, linestyle="dotted", label="Field - Model"),
+    Line2D([0], [0], color="black", lw=2, linestyle="-", label="FC + ILR"),
 ]
 plt.legend(handles=legend_elements, loc="upper left")
 fig.tight_layout()  # To ensure there's no overlap
 
 # Save the plot to the 'figs' directory
-plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/metrics_potential.svg")
+plt.savefig(
+    "/home/spol/Documents/repos/hypermagnetics/figs/metrics_potential_mean_paper.svg"
+)
 
 # Clear the current figure after saving to avoid conflicts with future plots
 plt.clf()
