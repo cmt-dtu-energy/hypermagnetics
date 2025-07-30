@@ -9,7 +9,7 @@ import numpy as np
 import wandb
 
 
-def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix):
+def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix, shapes):
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
     # Subplot 1: Magnetic Scalar Potential
@@ -26,16 +26,20 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix):
         scale=5,
         color="red",
     )
-    # PLot rectangles
-    for i in range(r0.shape[1]):
-        rect = Rectangle(
-            (r0[idx, i, 0] - size[idx, i, 0] / 2, r0[idx, i, 1] - size[idx, i, 1] / 2),
-            size[idx, i, 0],
-            size[idx, i, 1],
-            fill=False,
-            edgecolor="red",
-        )
-        axes[0].add_patch(rect)
+    # Plot rectangles
+    if shapes:
+        for i in range(r0.shape[1]):
+            rect = Rectangle(
+                (
+                    r0[idx, i, 0] - size[idx, i, 0] / 2,
+                    r0[idx, i, 1] - size[idx, i, 1] / 2,
+                ),
+                size[idx, i, 0],
+                size[idx, i, 1],
+                fill=False,
+                edgecolor="red",
+            )
+            axes[0].add_patch(rect)
 
     axes[0].set_title(prefix + " " + "Magnetic Scalar Potential")
     units_str = ", in units of source radius"
@@ -68,15 +72,19 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix):
     )
 
     # Plot rectangles
-    for i in range(r0.shape[1]):
-        rect = Rectangle(
-            (r0[idx, i, 0] - size[idx, i, 0] / 2, r0[idx, i, 1] - size[idx, i, 1] / 2),
-            size[idx, i, 0],
-            size[idx, i, 1],
-            fill=False,
-            edgecolor="red",
-        )
-        axes[1].add_patch(rect)
+    if shapes:
+        for i in range(r0.shape[1]):
+            rect = Rectangle(
+                (
+                    r0[idx, i, 0] - size[idx, i, 0] / 2,
+                    r0[idx, i, 1] - size[idx, i, 1] / 2,
+                ),
+                size[idx, i, 0],
+                size[idx, i, 1],
+                fill=False,
+                edgecolor="red",
+            )
+            axes[1].add_patch(rect)
 
     axes[1].set_title(prefix + " " + "Magnetic Field")
     axes[1].set_xlabel("x" + units_str)
@@ -85,7 +93,7 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix):
     axes[1].set_ylim(ylims)
 
 
-def plots(sources, model=None, idx=0, prefix="", output="show"):
+def plots(sources, model=None, shapes=False, idx=0, prefix="", output="show"):
     """Plots the sources and field/potential of a single sample."""
     mr = sources["sources"][idx : idx + 1]
     m, r0, size = jnp.split(mr, 3, axis=-1)
@@ -115,6 +123,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
             size,
             idx,
             prefix,
+            shapes,
         )
     else:
         model_potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape(
@@ -136,6 +145,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
             size,
             idx,
             prefix,
+            shapes,
         )
         _plot(
             axes[1],
@@ -148,6 +158,7 @@ def plots(sources, model=None, idx=0, prefix="", output="show"):
             size,
             idx,
             prefix,
+            shapes,
         )
 
     plt.tight_layout()
