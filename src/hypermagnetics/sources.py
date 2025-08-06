@@ -98,8 +98,7 @@ def _potential(sources, r, shape):
     m, r0, size = jnp.split(sources, 3, axis=-1)
     dim = m.shape[-1]
     if shape == "sphere":
-        size = 1.0
-        return _sphere(m, r0, r, size, dim)
+        return _sphere(m, r0, r, size[..., 0], dim)
     elif shape == "prism":
         if dim == 2:
             phi = _prism2(m, r0, r, size)
@@ -217,13 +216,16 @@ def configure(
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
     if dim == 3:
         m = m.at[:, :, 2].set(0.0)
-    size = jr.uniform(
-        key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
-    )
-    size = jnp.concatenate([size, size], axis=-1)
-    if dim == 3:
-        size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
-        size = size.at[:, :, 2].set(1.0)
+    if shape == "sphere":
+        size = jnp.ones((n_samples, n_sources, dim))
+    else:
+        size = jr.uniform(
+            key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+        )
+        size = jnp.concatenate([size, size], axis=-1)
+        if dim == 3:
+            size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
+            size = size.at[:, :, 2].set(1.0)
 
     lim_range = jnp.linspace(-lim, lim, res)
     if dim == 3:
