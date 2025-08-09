@@ -61,23 +61,13 @@ def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
     fy = _faces(y, z, x, b, c, a)
     fz = _faces(z, x, y, c, a, b)
 
-    value = -(1 / 4 * jnp.pi) * m @ jnp.array([fx, fy, fz])
+    # To be consistent with dipolar potential implementation
+    # Convert magnetic moment to magnetization
+    M = m / (2 * a * 2 * b)
+
+    value = M @ jnp.array([fx, fy, fz]) / (4 * jnp.pi)
     value = jax.lax.select(jnp.isinf(value), 0.0, value)
     value = jax.lax.select(jnp.isnan(value), 0.0, value)
-    return -value
-
-
-@jax.jit
-def _prism2(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
-    x, y = r - r0
-    a, b = size[:2]
-
-    ex = _edges(x, y, a, b)
-    ey = _edges(y, x, b, a)
-
-    value = -(1 / 2 * jnp.pi) * m @ jnp.array([ex, ey])
-    # value = jax.lax.select(jnp.isinf(value), 0.0, value)
-    # value = jax.lax.select(jnp.isnan(value), 0.0, value)
     return value
 
 
@@ -100,11 +90,7 @@ def _potential(sources, r, shape):
     if shape == "sphere":
         return _sphere(m, r0, r, size[..., 0], dim)
     elif shape == "prism":
-        if dim == 2:
-            phi = _prism2(m, r0, r, size)
-        else:
-            phi = _prism(m, r0, r, size)
-        return phi
+        return _prism(m, r0, r, size)
     else:
         raise ValueError(f"Unknown source shape: {shape}")
 
@@ -122,17 +108,57 @@ def _field_mt(sources, r, shape):
     m, r0, size = jnp.split(sources, 3, axis=-1)
     n_samples, n_sources, dim = r0.shape
 
+    center_pos = jnp.zeros(shape=(n_samples, n_sources, 3))
+    dev_center = jnp.zeros(shape=(n_samples, n_sources, 3))
+
     if shape == "sphere":
-        tile_type = 7
+        # Magnetization is used in MagTense
+        # Magnetic moment is used for dipole formula
+        m = m / (jnp.pi * size[0, 0, 0] ** 2)
+
+        # 2D is simulated with an elongated cylinder
+        if dim == 2:
+            tile_type = 1
+            center_pos = jnp.concatenate(
+                [
+                    size[..., 0].reshape((n_samples, n_sources, 1)) / 2,
+                    jnp.zeros((n_samples, n_sources, 2)),
+                ],
+                axis=-1,
+            )
+            dev_center = jnp.concatenate(
+                [
+                    size[..., 0].reshape((n_samples, n_sources, 1)),
+                    jnp.ones((n_samples, n_sources, 1)) * 1.9999 * jnp.pi,
+                    jnp.ones((n_samples, n_sources, 1)) * 100,
+                ],
+                axis=-1,
+            )
+            size = jnp.concatenate([size, jnp.ones((n_samples, n_sources, 1))], axis=-1)
+
+        else:
+            tile_type = 7
     elif shape == "prism":
         tile_type = 2
+        # Prism with side lengths [2a, 2b] defined in this repo
+        size = size * 2
+        # Magnetization is used in MagTense
+        # Magnetic moment is used for dipole formula
+        m = m / (size[0, 0, 0] * size[0, 0, 1])
+
+        if dim == 2:
+            size = jnp.concatenate(
+                [
+                    size,
+                    jnp.ones((n_samples, n_sources, 1)) * 100,
+                ],
+                axis=-1,
+            )
     else:
         raise ValueError(f"Unknown source shape: {shape}")
 
-    size = size * 2
     if dim == 2:
         r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-        size = jnp.concatenate([size, jnp.ones((n_samples, n_sources, 1))], axis=-1)
         m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
         r = jnp.concatenate([r, jnp.zeros((r.shape[0], 1))], axis=-1)
 
@@ -154,6 +180,8 @@ def _field_mt(sources, r, shape):
             tile_type=tile_type,
             size=size[i],
             offset=r0[i],
+            center_pos=center_pos[i],
+            dev_center=dev_center[i],
         )
         # it_tiles = magstatics.iterate_magnetization(tiles)
         # demag_tensor = magstatics.get_demag_tensor(it_tiles, r)
@@ -211,28 +239,44 @@ def configure(
         minval=-lim + min_size,
         maxval=lim - min_size,
     )
-    if dim == 3:
-        r0 = r0.at[:, :, 2].set(0.0)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
-    if dim == 3:
-        m = m.at[:, :, 2].set(0.0)
+    size = jr.uniform(
+        key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+    )
+
     if shape == "sphere":
-        size = jnp.ones((n_samples, n_sources, dim))
-    else:
-        size = jr.uniform(
-            key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
-        )
-        size = jnp.concatenate([size, size], axis=-1)
-        if dim == 3:
-            size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
-            size = size.at[:, :, 2].set(1.0)
+        if dim == 2:
+            size = jnp.concatenate([size, size], axis=-1)
+        elif dim == 3:
+            size = jnp.concatenate([size, size, size], axis=-1)
+
+    elif shape == "prism":
+        if dim == 2:
+            r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+            m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+            size = jnp.concatenate(
+                [size, size, jnp.ones((n_samples, n_sources, 1)) * 100], axis=-1
+            )
+        elif dim == 3:
+            size = jnp.concatenate([size, size, size], axis=-1)
 
     lim_range = jnp.linspace(-lim, lim, res)
-    if dim == 3:
-        grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
+
+    if dim == 2 and shape == "sphere":
+        # grids = jnp.meshgrid(*[lim_range] * dim)
+        grids = jnp.meshgrid(
+            jnp.linspace(0, lim, res), jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1)
+        )
     else:
-        grids = jnp.meshgrid(*[lim_range] * dim)
+        dim = 3
+        # grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
+        grids = jnp.meshgrid(
+            jnp.linspace(0, lim, res),
+            jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1),
+            jnp.linspace(r0[0, 0, 2], r0[0, 0, 2], 1),
+        )
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
+
     r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
     sources = jnp.concatenate([m, r0, size], axis=-1)
 

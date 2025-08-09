@@ -31,11 +31,11 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix, shap
         for i in range(r0.shape[1]):
             rect = Rectangle(
                 (
-                    r0[idx, i, 0] - size[idx, i, 0] / 2,
-                    r0[idx, i, 1] - size[idx, i, 1] / 2,
+                    r0[idx, i, 0] - size[idx, i, 0],
+                    r0[idx, i, 1] - size[idx, i, 1],
                 ),
-                size[idx, i, 0],
-                size[idx, i, 1],
+                size[idx, i, 0] * 2,
+                size[idx, i, 1] * 2,
                 fill=False,
                 edgecolor="red",
             )
@@ -76,11 +76,11 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix, shap
         for i in range(r0.shape[1]):
             rect = Rectangle(
                 (
-                    r0[idx, i, 0] - size[idx, i, 0] / 2,
-                    r0[idx, i, 1] - size[idx, i, 1] / 2,
+                    r0[idx, i, 0] - size[idx, i, 0],
+                    r0[idx, i, 1] - size[idx, i, 1],
                 ),
-                size[idx, i, 0],
-                size[idx, i, 1],
+                size[idx, i, 0] * 2,
+                size[idx, i, 1] * 2,
                 fill=False,
                 edgecolor="red",
             )
