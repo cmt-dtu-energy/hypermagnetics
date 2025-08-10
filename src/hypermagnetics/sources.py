@@ -218,6 +218,7 @@ def configure(
     max_size=0.48,
     shape="sphere",
     save_data=False,
+    line=False,
 ):
     """
     Configures samples of sources.
@@ -263,18 +264,23 @@ def configure(
     lim_range = jnp.linspace(-lim, lim, res)
 
     if dim == 2 and shape == "sphere":
-        # grids = jnp.meshgrid(*[lim_range] * dim)
-        grids = jnp.meshgrid(
-            jnp.linspace(0, lim, res), jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1)
-        )
+        if line:
+            grids = jnp.meshgrid(
+                jnp.linspace(0, lim, res), jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1)
+            )
+        else:
+            grids = jnp.meshgrid(*[lim_range] * dim)
     else:
         dim = 3
-        # grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
-        grids = jnp.meshgrid(
-            jnp.linspace(0, lim, res),
-            jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1),
-            jnp.linspace(r0[0, 0, 2], r0[0, 0, 2], 1),
-        )
+        if line:
+            grids = jnp.meshgrid(
+                jnp.linspace(0, lim, res),
+                jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1),
+                jnp.linspace(r0[0, 0, 2], r0[0, 0, 2], 1),
+            )
+        else:
+            grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
+            
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
 
     r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)

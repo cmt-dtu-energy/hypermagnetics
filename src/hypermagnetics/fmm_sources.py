@@ -41,14 +41,14 @@ def potential2D(sources, grid, shape):
             eps=10 ** (-5),
             sources=r0[n].swapaxes(0, 1),
             charges=None,
-            dipstr=np.ones_like([n_sources]),
+            dipstr=np.ones(shape=(n_sources,)),
             dipvec=-m[n].swapaxes(0, 1),
             targets=grid.swapaxes(0, 1),
-            nd=n_sources,
+            nd=1,
             pg=0,
             pgt=1,
         )
-
+        # Prefactor is missing in FMM
         msp[n] = out.pottarg / (2 * np.pi)
 
         # Correction for physical dipole
@@ -64,10 +64,14 @@ def potential2D(sources, grid, shape):
                     & (np.abs(grid[:, 1] - r0[n][i, 1]) <= size[n, i, 1])
                 )[0]
 
-            msp[n, inside_idx] = (
+            msp[n, inside_idx] += (
                 np.dot(m[n][i], (grid[inside_idx] - r0[n][i]).T)
                 / size[n, i, 0]
                 / (2 * np.pi * size[n, i, 0])
+            ) - (
+                np.dot(m[n][i], (grid[inside_idx] - r0[n][i]).T)
+                / np.linalg.norm(grid[inside_idx] - r0[n][i], axis=1)
+                / (2 * np.pi * np.linalg.norm(grid[inside_idx] - r0[n][i], axis=1))
             )
 
     return msp
