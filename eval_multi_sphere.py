@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+import numpy as np
 import time
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -7,10 +8,10 @@ import prettytable
 from hypermagnetics.sources import configure_eval
 from hypermagnetics.fmm_sources import potential2D_sources
 
-n_eval = 1000000
-n_ensemble = 1
+n_eval = 9.5e6
+n_ensemble = 5
 min_sources = 10
-step_sources = 50000
+step_sources = 5e4
 
 mt_acc = []
 mt_acc_std = []
@@ -24,14 +25,13 @@ pot_t_avg = []
 x_axis_ticks = []
 
 # Ensure the endpoint is included in the range
-for test_sources in range(0, n_eval, step_sources):
+for test_sources in range(0, int(n_eval), int(step_sources)):
     n_sources = max(min_sources, test_sources)
     t_mt = []
     mt_out = []
     t_field = []
     field_out = []
     t_pot = []
-    pot_out = []
     x_axis_ticks.append(n_sources)
 
     source_config = {
@@ -49,6 +49,8 @@ for test_sources in range(0, n_eval, step_sources):
     }
     test = configure_eval(**source_config, n_sources=n_sources, seed=0)
 
+    pot_out = np.zeros((n_ensemble, n_sources))
+    t_pot = np.zeros(n_ensemble)
     for i in range(n_ensemble):
         # Function once to eliminate any overhead for first call
         if i == 0:
@@ -57,9 +59,9 @@ for test_sources in range(0, n_eval, step_sources):
         start_time_pot = time.time()
         msp, field_fmm = potential2D_sources(test["sources"][i : i + 1], "sphere")
         # msp, field_fmm = potential2D(test["sources"][i : i + 1], test["r"], "sphere")
-        pot_out.append(msp)
+        pot_out[i] = msp
         # field_out.append(field_fmm)
-        t_pot.append(time.time() - start_time_pot)
+        t_pot[i] = time.time() - start_time_pot
         # t_field.append(time.time() - start_time_pot)
 
         # # Run MagTense
@@ -73,7 +75,7 @@ for test_sources in range(0, n_eval, step_sources):
 
     # mt_t_avg.append(sum(t_mt) / len(t_mt))
     # field_t_avg.append(sum(t_field) / len(t_field))
-    pot_t_avg.append(sum(t_pot) / len(t_pot))
+    pot_t_avg.append(np.mean(t_pot))
 
     sources, r, target, target_pot = (
         test["sources"],
@@ -141,10 +143,8 @@ for test_sources in range(0, n_eval, step_sources):
 fig, ax1 = plt.subplots()
 
 color = "tab:red"
-ax1.set_xlabel("Number of sources")
-# Only display every fourth x tick
-xtick_indices = list(range(0, len(x_axis_ticks), 4))
-plt.xticks(xtick_indices, [x_axis_ticks[i] for i in xtick_indices])
+ax1.set_xlabel("Number of sources (*1e3)")
+
 if source_config["eval"]:
     ax1.set_ylabel("Relative median error (%)", color=color)
     # Plot mean and standard deviation for errors
@@ -174,7 +174,7 @@ if source_config["eval"]:
     # ax1.plot(mt_acc, color=color, linestyle="--")
     # ax1.plot(field_acc, color=color, linestyle="dotted")
     ax1.plot(pot_acc, color=color)
-    ax1.set_ylim(0, 11)
+    # ax1.set_ylim(0, 11)
     ax1.tick_params(axis="y", labelcolor=color)
 # Instantiate a second y-axis that shares the same x-axis
 ax2 = ax1.twinx()
@@ -186,7 +186,9 @@ ax2.set_ylabel("Runtime (s)", color=color)  # we already handled the x-label wit
 ax2.plot(pot_t_avg, color=color)
 ax2.tick_params(axis="y", labelcolor=color)
 
-plt.xticks(range(len(x_axis_ticks)), x_axis_ticks)
+# Only display every fourth x tick
+xtick_indices = list(range(0, len(x_axis_ticks), 4))
+plt.xticks(xtick_indices, [x_axis_ticks[i] // 1000 for i in xtick_indices])
 # Custom legend
 legend_elements = [
     Line2D([0], [0], color="black", lw=2, linestyle="--", label="Exact"),
