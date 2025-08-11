@@ -280,7 +280,7 @@ def configure(
             )
         else:
             grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
-            
+
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
 
     r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
@@ -359,6 +359,9 @@ def configure_eval(
     min_size=0.12,
     max_size=0.48,
     shape="sphere",
+    source_val=False,
+    eps=1e-5,
+    eval=True,
 ):
     """
     Configures samples of sources.
@@ -382,19 +385,32 @@ def configure_eval(
     if dim == 3:
         r0 = r0.at[:, :, 2].set(0.0)
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
-    if dim == 3:
-        m = m.at[:, :, 2].set(0.0)
     size = jr.uniform(
         key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
     )
-    size = jnp.concatenate([size, size], axis=-1)
-    if dim == 3:
-        size = jnp.concatenate([size, size[:, :, 0:1]], axis=-1)
-        size = size.at[:, :, 2].set(1.0)
+
+    if shape == "sphere":
+        if dim == 2:
+            size = jnp.concatenate([size, size], axis=-1)
+        elif dim == 3:
+            size = jnp.concatenate([size, size, size], axis=-1)
+    elif shape == "prism":
+        if dim == 2:
+            r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+            m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
+            size = jnp.concatenate(
+                [size, size, jnp.ones((n_samples, n_sources, 1)) * 100], axis=-1
+            )
+        elif dim == 3:
+            size = jnp.concatenate([size, size, size], axis=-1)
 
     sources = jnp.concatenate([m, r0, size], axis=-1)
-    # r_grid = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
-    r = r0
+
+    if source_val:
+        # Add a small value to r0 to avoid singularities for gradient evaluation
+        r = r0 + eps
+    else:
+        r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
 
     lim_range = jnp.linspace(-lim, lim, res)
     if dim == 3:
@@ -406,30 +422,44 @@ def configure_eval(
     return {
         "sources": sources,
         "r": r,
-        "potential": jnp.array(
-            [
-                _total(_potential, sources[i : i + 1], r_sample, shape)[0]
-                for i, r_sample in enumerate(r)
-            ]
-        ),
-        "field": jnp.array(
-            [
-                _total(_field, sources[i : i + 1], r_sample, shape)[0]
-                for i, r_sample in enumerate(r)
-            ]
-        ),
+        "potential": (
+            _total(_potential, sources, r, shape)
+            if not source_val
+            else jnp.array(
+                [
+                    _total(_potential, sources[i : i + 1], r_sample, shape)[0]
+                    for i, r_sample in enumerate(r)
+                ]
+            )
+        )
+        if eval
+        else None,
+        "field": (
+            _total(_field, sources, r, shape)
+            if eval
+            else None
+            if not source_val
+            else jnp.array(
+                [
+                    _total(_field, sources[i : i + 1], r_sample, shape)[0]
+                    for i, r_sample in enumerate(r)
+                ]
+            )
+        )
+        if eval
+        else None,
         "grid": grid,
-        "potential_grid": _total(_potential, sources, grid, shape),
-        "field_grid": _total(_field, sources, grid, shape),
+        "potential_grid": _total(_potential, sources, grid, shape) if eval else None,
+        "field_grid": _total(_field, sources, grid, shape) if eval else None,
     }
 
 
 def sample_grid(key, lim, res, r0, size, dim=2, n=None, masking=False):
     if n is None:
         n = res**2
-    r = jr.uniform(minval=-lim, maxval=lim, shape=(n, dim), key=key)
+    r = jr.uniform(minval=-lim, maxval=lim, shape=(n, 2), key=key)
     if dim == 3:
-        r = r.at[:, 2].set(0.0)
+        r = jnp.concatenate([r, jnp.zeros((n, 1))], axis=-1)
 
     if masking:
         idx_sample = 0
