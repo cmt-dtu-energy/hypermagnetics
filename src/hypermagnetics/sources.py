@@ -12,6 +12,7 @@ import numpy as np
 from magtense import magstatics
 
 from hypermagnetics import plots
+from hypermagnetics.quadtree import random_quadtree
 
 
 def replace_inf_nan(x):
@@ -220,6 +221,7 @@ def configure(
     shape="sphere",
     save_data=False,
     line=False,
+    quadtree=False,
 ):
     """
     Configures samples of sources.
@@ -234,17 +236,29 @@ def configure(
 
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey, skey = jr.split(key, 4)
-    # r0 = (lim / 3) * jr.normal(key=r0key, shape=(n_samples, n_sources, dim))
-    r0 = jr.uniform(
-        key=r0key,
-        shape=(n_samples, n_sources, dim),
-        minval=-lim + min_size,
-        maxval=lim - min_size,
-    )
+
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
-    size = jr.uniform(
-        key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
-    )
+
+    if quadtree:
+        r0 = np.zeros((n_samples, n_sources, dim))
+        size = np.zeros((n_samples, n_sources, 1))
+
+        for i in range(n_samples):
+            # Generate random quadtree
+            cells = random_quadtree(*(-lim, -lim, lim, lim), n_sources, r0key)
+            # Collect centers
+            r0[i] = jnp.array([c.center() for c in cells][:n_sources])
+            size[i, :, 0] = jnp.array([c.width / 2 for c in cells][:n_sources])
+    else:
+        r0 = jr.uniform(
+            key=r0key,
+            shape=(n_samples, n_sources, dim),
+            minval=-lim + min_size,
+            maxval=lim - min_size,
+        )
+        size = jr.uniform(
+            key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+        )
 
     if shape == "sphere":
         if dim == 2:
@@ -283,7 +297,6 @@ def configure(
             grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
 
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
-
     r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
     sources = jnp.concatenate([m, r0, size], axis=-1)
 
@@ -364,6 +377,7 @@ def configure_eval(
     eps=1e-5,
     eval=True,
     grid_eval=True,
+    quadtree=False,
 ):
     """
     Configures samples of sources.
@@ -378,18 +392,31 @@ def configure_eval(
 
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey, skey = jr.split(key, 4)
-    r0 = jr.uniform(
-        key=r0key,
-        shape=(n_samples, n_sources, dim),
-        minval=-lim + min_size,
-        maxval=lim - min_size,
-    )
-    if dim == 3:
-        r0 = r0.at[:, :, 2].set(0.0)
+
     m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
-    size = jr.uniform(
-        key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
-    )
+
+    if quadtree:
+        r0 = np.zeros((n_samples, n_sources, dim))
+        size = np.zeros((n_samples, n_sources, 1))
+
+        for i in range(n_samples):
+            # Generate random quadtree
+            cells = random_quadtree(*(-lim, -lim, lim, lim), n_sources, r0key)
+            # Collect centers
+            r0[i] = jnp.array([c.center() for c in cells][:n_sources])
+            size[i, :, 0] = jnp.array([c.width / 2 for c in cells][:n_sources])
+    else:
+        r0 = jr.uniform(
+            key=r0key,
+            shape=(n_samples, n_sources, dim),
+            minval=-lim + min_size,
+            maxval=lim - min_size,
+        )
+        if dim == 3:
+            r0 = r0.at[:, :, 2].set(0.0)
+        size = jr.uniform(
+            key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+        )
 
     if shape == "sphere":
         if dim == 2:
