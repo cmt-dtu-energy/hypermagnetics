@@ -8,6 +8,7 @@ import h5py
 import jax
 import jax.numpy as jnp
 import jax.random as jr
+import numpy as np
 from magtense import magstatics
 
 from hypermagnetics import plots
@@ -362,6 +363,7 @@ def configure_eval(
     source_val=False,
     eps=1e-5,
     eval=True,
+    grid_eval=True,
 ):
     """
     Configures samples of sources.
@@ -419,38 +421,56 @@ def configure_eval(
         grids = jnp.meshgrid(*[lim_range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
 
+    # Potential calculation
+    if eval:
+        if source_val:
+            msp = np.zeros((n_samples, r.shape[1]))
+            for i, r_sample in enumerate(r):
+                # Memory constraints above 10k sources
+                # N_sources ** 2 has to be below 100M
+                if sources[i].shape[0] > 1e4:
+                    n_sources_per_sim = int(1e8 // sources[i].shape[0])
+                    for j in range(0, sources[i].shape[0], n_sources_per_sim):
+                        msp[i : i + 1] += _total(
+                            _potential,
+                            sources[
+                                i : i + 1,
+                                j : j + n_sources_per_sim,
+                            ],
+                            r_sample,
+                            shape,
+                        )
+                else:
+                    msp[i] = _total(_potential, sources[i : i + 1], r_sample, shape)[0]
+        else:
+            msp = _total(_potential, sources, r, shape)
+
+        field = None
+        # field = (
+        #     _total(_field, sources, r, shape)
+        #     if not source_val
+        #     else jnp.array(
+        #         [
+        #             _total(_field, sources[i : i + 1], r_sample, shape)[0]
+        #             for i, r_sample in enumerate(r)
+        #         ]
+        #     )
+        # )
+
+    else:
+        msp = None
+        field = None
+
     return {
         "sources": sources,
         "r": r,
-        "potential": (
-            _total(_potential, sources, r, shape)
-            if not source_val
-            else jnp.array(
-                [
-                    _total(_potential, sources[i : i + 1], r_sample, shape)[0]
-                    for i, r_sample in enumerate(r)
-                ]
-            )
-        )
-        if eval
-        else None,
-        "field": (
-            _total(_field, sources, r, shape)
-            if eval
-            else None
-            if not source_val
-            else jnp.array(
-                [
-                    _total(_field, sources[i : i + 1], r_sample, shape)[0]
-                    for i, r_sample in enumerate(r)
-                ]
-            )
-        )
-        if eval
-        else None,
+        "potential": msp,
+        "field": field,
         "grid": grid,
-        "potential_grid": _total(_potential, sources, grid, shape) if eval else None,
-        "field_grid": _total(_field, sources, grid, shape) if eval else None,
+        "potential_grid": _total(_potential, sources, grid, shape)
+        if grid_eval
+        else None,
+        "field_grid": _total(_field, sources, grid, shape) if grid_eval else None,
     }
 
 

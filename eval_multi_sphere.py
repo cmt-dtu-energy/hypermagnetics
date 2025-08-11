@@ -9,7 +9,8 @@ from hypermagnetics.fmm_sources import potential2D_sources
 
 n_eval = 1000000
 n_ensemble = 1
-min_sources = 10000
+min_sources = 10
+step_sources = 50000
 
 mt_acc = []
 mt_acc_std = []
@@ -22,7 +23,8 @@ pot_acc_std = []
 pot_t_avg = []
 x_axis_ticks = []
 
-for test_sources in range(0, n_eval, max(min_sources, 10)):
+# Ensure the endpoint is included in the range
+for test_sources in range(0, n_eval, step_sources):
     n_sources = max(min_sources, test_sources)
     t_mt = []
     mt_out = []
@@ -35,18 +37,22 @@ for test_sources in range(0, n_eval, max(min_sources, 10)):
     source_config = {
         "shape": "sphere",
         "n_samples": n_ensemble,
-        "lim": 100,
+        "lim": 1000,
         "res": 10,
         "dim": 2,
         "min_size": 0.25,
         "max_size": 1,
         "source_val": True,
         "eps": 0,
-        "eval": False,
+        "eval": True,
+        "grid_eval": False,
     }
     test = configure_eval(**source_config, n_sources=n_sources, seed=0)
 
     for i in range(n_ensemble):
+        # Function once to eliminate any overhead for first call
+        if i == 0:
+            msp, field_fmm = potential2D_sources(test["sources"][i : i + 1], "sphere")
         # Run model for potential
         start_time_pot = time.time()
         msp, field_fmm = potential2D_sources(test["sources"][i : i + 1], "sphere")
@@ -129,13 +135,16 @@ for test_sources in range(0, n_eval, max(min_sources, 10)):
             float(pot_acc[-1]) if source_config["eval"] else None,
         ]
     )
-    res_table.float_format = "5.3"
+    res_table.float_format = "5.4"
     print(res_table)
 
 fig, ax1 = plt.subplots()
 
 color = "tab:red"
 ax1.set_xlabel("Number of sources")
+# Only display every fourth x tick
+xtick_indices = list(range(0, len(x_axis_ticks), 4))
+plt.xticks(xtick_indices, [x_axis_ticks[i] for i in xtick_indices])
 if source_config["eval"]:
     ax1.set_ylabel("Relative median error (%)", color=color)
     # Plot mean and standard deviation for errors
