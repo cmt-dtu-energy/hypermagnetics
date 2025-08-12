@@ -10,7 +10,18 @@ import wandb
 
 
 def _plot(
-    axes, x_grid, y_grid, potential, field, m, r0, size, idx, prefix, shapes, source
+    axes,
+    x_grid,
+    y_grid,
+    potential,
+    field,
+    m,
+    r0,
+    size,
+    idx,
+    prefix,
+    shapes,
+    source,
 ):
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
@@ -63,6 +74,7 @@ def _plot(
         arrowsize=1.5,
         arrowstyle="->",
     )
+
     if source:
         axes[1].scatter(r0[idx, :, 0], r0[idx, :, 1], color="red")
         axes[1].quiver(
@@ -99,7 +111,13 @@ def _plot(
 
 
 def plots(
-    sources, model=None, shapes=False, source=True, idx=0, prefix="", output="show"
+    sources,
+    model=None,
+    shapes=False,
+    source=True,
+    idx=0,
+    prefix="",
+    output="show",
 ):
     """Plots the sources and field/potential of a single sample."""
     mr = sources["sources"][idx : idx + 1]

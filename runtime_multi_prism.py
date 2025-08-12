@@ -9,8 +9,8 @@ import prettytable
 from hypermagnetics.sources import _field_mt, configure_eval
 from hypermagnetics.models.hyper_mlp import HyperLayer
 
-n_eval = 2500
-n_ensemble = 10
+n_eval = 500
+n_ensemble = 1
 min_sources = 10
 config = {"width": 400, "depth": 3, "hwidth": 2, "hdepth": 3, "seed": 42}
 
@@ -51,7 +51,9 @@ for test_sources in range(0, n_eval, max(min_sources, 250)):
         "n_samples": n_ensemble,
         "lim": 1.2,
         "res": 16,
-        "dim": 3,
+        "dim": 2,
+        "source_val": True,
+        # "calc_2d": True,
     }
     test = configure_eval(**source_config, n_sources=n_sources, seed=0)
 
@@ -191,9 +193,7 @@ plt.legend(handles=legend_elements, loc="upper left")
 fig.tight_layout()  # To ensure there's no overlap
 
 # Save the plot to the 'figs' directory
-plt.savefig(
-    "/home/spol/Documents/repos/hypermagnetics/figs/metrics_potential_mean_paper.svg"
-)
+plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/metrics_prism2d_check.svg")
 
 # Clear the current figure after saving to avoid conflicts with future plots
 plt.clf()

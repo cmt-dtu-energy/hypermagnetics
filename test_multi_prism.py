@@ -18,7 +18,7 @@ dim = 3
 lim = 1.2
 shape = "prism"
 
-for file_idx in range(10):
+for file_idx in range(5):
     seed = 10 + file_idx
 
     with open(list(folder.iterdir())[file_idx], "r") as file:

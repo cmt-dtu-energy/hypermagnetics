@@ -8,7 +8,7 @@ import prettytable
 from hypermagnetics.sources import configure_eval
 from hypermagnetics.fmm_sources import potential2D_sources
 
-n_eval = 7.5e5
+n_eval = 5.5e5
 n_ensemble = 5
 min_sources = 10
 step_sources = 5e4
@@ -189,6 +189,7 @@ ax2.tick_params(axis="y", labelcolor=color)
 # Only display every fourth x tick
 xtick_indices = list(range(0, len(x_axis_ticks), 4))
 plt.xticks(xtick_indices, [x_axis_ticks[i] // 1000 for i in xtick_indices])
+
 # Custom legend
 legend_elements = [
     Line2D([0], [0], color="black", lw=2, linestyle="--", label="Exact"),
@@ -198,8 +199,5 @@ legend_elements = [
 plt.legend(handles=legend_elements, loc="upper left")
 fig.tight_layout()  # To ensure there's no overlap
 
-# Save the plot to the 'figs' directory
 plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/metrics_fmm.svg")
-
-# Clear the current figure after saving to avoid conflicts with future plots
 plt.clf()
