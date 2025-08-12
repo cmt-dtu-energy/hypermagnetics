@@ -28,11 +28,6 @@ def _F(x, y, z):
     return jnp.array(terms) @ r
 
 
-def _F2(X, Y):
-    d = jnp.array([X, Y])
-    return Y + jnp.linalg.norm(d)
-
-
 def _faces(x, y, z, a, b, c):
     return (
         +_F(x + a, y + b, z + c)
@@ -44,14 +39,6 @@ def _faces(x, y, z, a, b, c):
         + _F(x - a, y - b, z + c)
         - _F(x - a, y - b, z - c)
     )
-
-
-def _edges(x, y, a, b):
-    e = replace_inf_nan(jnp.log(_F2(x - a, y + b)))
-    e += replace_inf_nan(jnp.log(_F2(x + a, y - b)))
-    e -= replace_inf_nan(jnp.log(_F2(x - a, y - b)))
-    e -= replace_inf_nan(jnp.log(_F2(x + a, y + b)))
-    return -e
 
 
 @jax.jit
@@ -152,7 +139,7 @@ def _field_mt(sources, r, shape):
             size = jnp.concatenate(
                 [
                     size,
-                    jnp.ones((n_samples, n_sources, 1)) * 100,
+                    jnp.ones((n_samples, n_sources, 1)) * 100 * 2,
                 ],
                 axis=-1,
             )
@@ -221,6 +208,7 @@ def configure(
     shape="sphere",
     save_data=False,
     line=False,
+    eps=1e-5,
     quadtree=False,
 ):
     """
@@ -245,7 +233,7 @@ def configure(
 
         for i in range(n_samples):
             # Generate random quadtree
-            cells = random_quadtree(*(-lim, -lim, lim, lim), n_sources, r0key)
+            cells, r0key = random_quadtree(*(-lim, -lim, lim, lim), n_sources, r0key)
             # Collect centers
             r0[i] = jnp.array([c.center() for c in cells][:n_sources])
             size[i, :, 0] = jnp.array([c.width / 2 for c in cells][:n_sources])
@@ -281,20 +269,25 @@ def configure(
     if dim == 2 and shape == "sphere":
         if line:
             grids = jnp.meshgrid(
-                jnp.linspace(0, lim, res), jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1)
+                jnp.linspace(0, lim, res),
+                jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1) + eps,
+                indexing="ij",
             )
         else:
-            grids = jnp.meshgrid(*[lim_range] * dim)
+            grids = jnp.meshgrid(*[lim_range] * dim, indexing="ij")
     else:
         dim = 3
         if line:
             grids = jnp.meshgrid(
                 jnp.linspace(0, lim, res),
-                jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1),
+                jnp.linspace(r0[0, 0, 1], r0[0, 0, 1], 1) + eps,
                 jnp.linspace(r0[0, 0, 2], r0[0, 0, 2], 1),
+                indexing="ij",
             )
         else:
-            grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
+            grids = jnp.meshgrid(
+                lim_range, lim_range, jnp.linspace(0, 0, 1), indexing="ij"
+            )
 
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
     r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
@@ -443,15 +436,16 @@ def configure_eval(
 
     lim_range = jnp.linspace(-lim, lim, res)
     if dim == 3:
-        grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1))
+        grids = jnp.meshgrid(lim_range, lim_range, jnp.linspace(0, 0, 1), indexing="ij")
     else:
-        grids = jnp.meshgrid(*[lim_range] * dim)
+        grids = jnp.meshgrid(*[lim_range] * dim, indexing="ij")
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
 
     # Potential calculation
     if eval:
         if source_val:
             msp = np.zeros((n_samples, r.shape[1]))
+            field = np.zeros((n_samples, r.shape[1], dim))
             for i, r_sample in enumerate(r):
                 # Memory constraints above 10k sources
                 # N_sources ** 2 has to be below 100M
@@ -467,22 +461,23 @@ def configure_eval(
                             r_sample,
                             shape,
                         )
+                        field[i : i + 1] += _total(
+                            _field,
+                            sources[
+                                i : i + 1,
+                                j : j + n_sources_per_sim,
+                            ],
+                            r_sample,
+                            shape,
+                        )
                 else:
                     msp[i] = _total(_potential, sources[i : i + 1], r_sample, shape)[0]
+                    field[i] = _total(_field, sources[i : i + 1], r_sample, shape)[0][
+                        :, :dim
+                    ]
         else:
             msp = _total(_potential, sources, r, shape)
-
-        field = None
-        # field = (
-        #     _total(_field, sources, r, shape)
-        #     if not source_val
-        #     else jnp.array(
-        #         [
-        #             _total(_field, sources[i : i + 1], r_sample, shape)[0]
-        #             for i, r_sample in enumerate(r)
-        #         ]
-        #     )
-        # )
+            field = _total(_field, sources, r, shape)
 
     else:
         msp = None

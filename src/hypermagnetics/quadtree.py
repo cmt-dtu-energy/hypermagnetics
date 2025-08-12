@@ -25,14 +25,15 @@ class Cell:
 
 def random_quadtree(x0, y0, x1, y1, n_cells, r0key):
     """Generate a random quadtree until about n_cells are reached."""
+    key, new_key = jr.split(r0key, 2)
     cells = [Cell(x0, y0, x1, y1)]
     while len(cells) < n_cells:
         # Pick a random cell to split
         # idx = random.randrange(len(cells))
         # Pick a random cell to split weighted by area
         areas = jnp.array([c.width * c.height for c in cells])
-        idx = jr.choice(r0key, jnp.array(range(len(cells))), p=areas / jnp.sum(areas))
+        idx = jr.choice(key, jnp.array(range(len(cells))), p=areas / jnp.sum(areas))
         chosen = cells.pop(idx)
         new_cells = chosen.split()
         cells.extend(new_cells)
-    return cells
+    return cells, new_key
