@@ -1,15 +1,11 @@
 from functools import partial
 from pathlib import Path
-import time
 
-import os
-import sys
 import h5py
 import jax
 import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
-from magtense import magstatics
 
 from hypermagnetics import plots
 from hypermagnetics.quadtree import random_quadtree
@@ -72,9 +68,8 @@ def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
 def _potential(sources, r, shape):
     """Dispatcher for source potential calculation."""
     m, r0, size = jnp.split(sources, 3, axis=-1)
-    dim = m.shape[-1]
     if shape == "sphere":
-        return _sphere(m, r0, r, size[..., 0], dim)
+        return _sphere(m, r0, r, size[..., 0], dim=r0.shape[-1])
     elif shape == "prism":
         return _prism(m, r0, r, size)
     else:
@@ -87,95 +82,6 @@ def _field(sources, r, shape):
     return -jax.grad(_potential_with_shape, argnums=1)(sources, r)
 
 
-def _field_mt(sources, r, shape):
-    """Finite field in two or three dimensions with MagTense."""
-    mu0 = 4 * jnp.pi * 1e-7
-    # Shapes: n_samples, n_sources, dim
-    m, r0, size = jnp.split(sources, 3, axis=-1)
-    n_samples, n_sources, dim = r0.shape
-
-    center_pos = jnp.zeros(shape=(n_samples, n_sources, 3))
-    dev_center = jnp.zeros(shape=(n_samples, n_sources, 3))
-
-    if shape == "sphere":
-        # Magnetization is used in MagTense
-        # Magnetic moment is used for dipole formula
-        m = m / (jnp.pi * size[..., 0:1] ** 2)
-
-        # 2D is simulated with an elongated cylinder
-        if dim == 2:
-            tile_type = 1
-            center_pos = jnp.concatenate(
-                [
-                    size[..., 0].reshape((n_samples, n_sources, 1)) / 2,
-                    jnp.zeros((n_samples, n_sources, 2)),
-                ],
-                axis=-1,
-            )
-            dev_center = jnp.concatenate(
-                [
-                    size[..., 0].reshape((n_samples, n_sources, 1)),
-                    jnp.ones((n_samples, n_sources, 1)) * 1.9999 * jnp.pi,
-                    jnp.ones((n_samples, n_sources, 1)) * 100,
-                ],
-                axis=-1,
-            )
-
-        else:
-            tile_type = 7
-
-    elif shape == "prism":
-        tile_type = 2
-        # Prism with side lengths [2a, 2b] defined in this repo
-        size = size * 2
-        # Magnetization is used in MagTense
-        # Magnetic moment is used for dipole formula
-        m = m / (size[..., 0:1] * size[..., 1:2])
-    else:
-        raise ValueError(f"Unknown source shape: {shape}")
-
-    if dim == 2:
-        r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-        m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-        r = jnp.concatenate([r, jnp.zeros((r.shape[0], 1))], axis=-1)
-        size = jnp.concatenate([size, jnp.ones((n_samples, n_sources, 1))], axis=-1)
-
-    m_norm = jnp.linalg.norm(m, axis=-1, keepdims=True)
-    mag_angles = jnp.concatenate(
-        [
-            jnp.arccos(m[..., 2] / m_norm[..., 0]).reshape(n_samples, n_sources, 1),
-            jnp.arctan2(m[..., 1], m[..., 0]).reshape(n_samples, n_sources, 1),
-        ],
-        axis=-1,
-    )
-
-    field = jnp.zeros((n_samples, r.shape[0], dim))
-    for i in range(n_samples):
-        tiles = magstatics.Tiles(
-            n=n_sources,
-            M_rem=m_norm[i] / mu0,
-            mag_angle=mag_angles[i],
-            tile_type=tile_type,
-            size=size[i],
-            offset=r0[i],
-            center_pos=center_pos[i],
-            dev_center=dev_center[i],
-        )
-        # it_tiles = magstatics.iterate_magnetization(tiles)
-        # demag_tensor = magstatics.get_demag_tensor(it_tiles, r)
-        # H_out = magstatics.get_H_field(it_tiles, r, demag_tensor)
-        devnull = open("/dev/null", "w")
-        oldstdout_fno = os.dup(sys.stdout.fileno())
-        os.dup2(devnull.fileno(), 1)
-        start_time = time.time()
-        _, H_out = magstatics.run_simulation(tiles, r)
-        duration = time.time() - start_time
-        os.dup2(oldstdout_fno, 1)
-        field = field.at[i].set(jnp.array(H_out[:, :dim]) * mu0)
-
-    return field, duration
-
-
 def _total(fun, sources, r, shape):
     """Aggregate the field or potential of all sources."""
     fun_with_shape = partial(fun, shape=shape)
@@ -186,29 +92,43 @@ def _total(fun, sources, r, shape):
 
 
 def configure(
-    n_samples,
-    n_sources,
-    dim=2,
-    lim=3,
-    res=32,
-    seed=0,
-    min_size=0.12,
-    max_size=0.48,
-    shape="sphere",
-    save_data=False,
-    line=False,
-    eps=1e-5,
-    quadtree=False,
+    n_samples: int,
+    n_sources: int,
+    dim: int = 2,
+    lim: int = 3,
+    res: int = 32,
+    min_size: float = 0.12,
+    max_size: float = 0.48,
+    shape: str = "sphere",
+    save_data: bool = False,
+    line: bool = False,
+    eps: float = 1e-5,
+    quadtree: bool = False,
+    source_val: bool = False,
+    field_eval: bool = True,
+    grid_eval: bool = True,
+    seed: int = 0,
 ):
     """
     Configures samples of sources.
 
-    Args:
+    Parameters:
         n_samples (int): Number of samples to generate.
         n_sources (int): Number of sources in each sample.
-        lim (int, optional): Domain range, in units of source radius. Defaults to 3.
-        res (int, optional): Resolution of the field grid. Defaults to 32.
-        key (jr.PRNGKey): Random number generator key.
+        dim (int): Dimension of the sources.
+        lim (int): Domain range, in units of source radius.
+        res (int): Resolution of the field grid.
+        min_size (float): Minimum side length / radius of the sources.
+        max_size (float): Maximum side length / radius of the sources.
+        shape (str): Shape of the sources. Can be "sphere" or "prism".
+        save_data (bool): Whether to save the generated data in a database.
+        line (bool): Whether to evaluate along a line. Otherwise a uniform grid is used.
+        eps (float): Small value to avoid singularities.
+        quadtree (bool): Whether to use a quadtree for source placement.
+        source_val (bool): Whether to evaluate in the center point of the sources.
+        field_eval (bool): Whether to evaluate the field.
+        grid_eval (bool): Whether to evaluate the grid.
+        seed (int): Random seed for reproducibility.
     """
 
     key = jr.PRNGKey(seed)
@@ -255,9 +175,9 @@ def configure(
         elif dim == 3:
             size = jnp.concatenate([size, size, size], axis=-1)
 
-    lim_range = jnp.linspace(-lim, lim, res)
+    sources = jnp.concatenate([m, r0, size], axis=-1)
 
-    if dim == 2 and shape == "sphere" or shape == "prism2d":
+    if dim == 2 and shape == "sphere":
         if line:
             grids = jnp.meshgrid(
                 jnp.linspace(0, lim, res),
@@ -265,7 +185,7 @@ def configure(
                 indexing="xy",
             )
         else:
-            grids = jnp.meshgrid(*[lim_range] * dim, indexing="xy")
+            grids = jnp.meshgrid(*[jnp.linspace(-lim, lim, res)] * dim, indexing="xy")
     else:
         dim = 3
         if line:
@@ -277,14 +197,20 @@ def configure(
             )
         else:
             grids = jnp.meshgrid(
-                lim_range, lim_range, jnp.linspace(0, 0, 1), indexing="xy"
+                jnp.linspace(-lim, lim, res),
+                jnp.linspace(-lim, lim, res),
+                jnp.linspace(0, 0, 1),
+                indexing="xy",
             )
-
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
-    r = jr.uniform(minval=-lim, maxval=lim, shape=(res**2, 2), key=rkey)
-    if dim == 3:
-        r = jnp.concatenate([r, jnp.zeros((res**2, 1))], axis=-1)
-    sources = jnp.concatenate([m, r0, size], axis=-1)
+
+    if source_val:
+        # Add a small value to r0 to avoid singularities for gradient evaluation
+        r = r0 + eps
+    else:
+        r = jr.uniform(minval=-lim, maxval=lim, shape=(res**2, 2), key=rkey)
+        if dim == 3:
+            r = jnp.concatenate([r, jnp.zeros((res**2, 1))], axis=-1)
 
     if save_data:
         datapath = Path(__file__).parent / ".." / ".." / "data"
@@ -337,115 +263,7 @@ def configure(
         return None
 
     else:
-        return {
-            "sources": sources,
-            "r": r,
-            "potential": _total(_potential, sources, r, shape),
-            "field": _total(_field, sources, r, shape),
-            # "field_mt": _field_mt(sources, r, shape),
-            "grid": grid,
-            "potential_grid": _total(_potential, sources, grid, shape),
-            "field_grid": _total(_field, sources, grid, shape),
-        }
-
-
-def configure_eval(
-    n_samples,
-    n_sources,
-    dim=2,
-    lim=3,
-    res=32,
-    seed=0,
-    min_size=0.12,
-    max_size=0.48,
-    shape="sphere",
-    source_val=False,
-    eps=1e-5,
-    eval=True,
-    grid_eval=True,
-    field_eval=False,
-    quadtree=False,
-):
-    """
-    Configures samples of sources.
-
-    Args:
-        n_samples (int): Number of samples to generate.
-        n_sources (int): Number of sources in each sample.
-        lim (int, optional): Domain range, in units of source radius. Defaults to 3.
-        res (int, optional): Resolution of the field grid. Defaults to 32.
-        key (jr.PRNGKey): Random number generator key.
-    """
-
-    key = jr.PRNGKey(seed)
-    r0key, mkey, rkey, skey = jr.split(key, 4)
-
-    m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2))
-
-    if quadtree:
-        r0 = np.zeros((n_samples, n_sources, 2))
-        size = np.zeros((n_samples, n_sources, 1))
-
-        for i in range(n_samples):
-            # Generate random quadtree
-            cells, r0key = random_quadtree(*(-lim, -lim, lim, lim), n_sources, r0key)
-            # Collect centers
-            r0[i] = jnp.array([c.center() for c in cells][:n_sources])
-            size[i, :, 0] = jnp.array([c.width / 2 for c in cells][:n_sources])
-    else:
-        r0 = jr.uniform(
-            key=r0key,
-            shape=(n_samples, n_sources, 2),
-            minval=-lim + min_size,
-            maxval=lim - min_size,
-        )
-        size = jr.uniform(
-            key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
-        )
-
-    if shape == "sphere":
-        if dim == 2:
-            size = jnp.concatenate([size, size], axis=-1)
-        elif dim == 3:
-            size = jnp.concatenate([size, size, size], axis=-1)
-            r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-            m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-
-    elif shape == "prism":
-        if dim == 2:
-            r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-            m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
-            size = jnp.concatenate(
-                [size, size, jnp.ones((n_samples, n_sources, 1)) * 100], axis=-1
-            )
-        elif dim == 3:
-            size = jnp.concatenate([size, size, size], axis=-1)
-
-    sources = jnp.concatenate([m, r0, size], axis=-1)
-
-    if dim == 2 and shape == "sphere" or shape == "prism2d":
-        grids = jnp.meshgrid(*[jnp.linspace(-lim, lim, res)] * dim, indexing="xy")
-    else:
-        dim = 3
-        grids = jnp.meshgrid(
-            jnp.linspace(-lim, lim, res),
-            jnp.linspace(-lim, lim, res),
-            jnp.linspace(0, 0, 1),
-            indexing="xy",
-        )
-
-    grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
-
-    if source_val:
-        # Add a small value to r0 to avoid singularities for gradient evaluation
-        r = r0 + eps
-    else:
-        r = jr.uniform(minval=-lim, maxval=lim, shape=(res**2, 2), key=rkey)
-        if dim == 3:
-            r = jnp.concatenate([r, jnp.zeros((res**2, 1))], axis=-1)
-
-    # Potential calculation
-    if eval:
+        # Potential calculation
         if source_val:
             msp = np.zeros((n_samples, r.shape[1]))
             field = np.zeros((n_samples, r.shape[1], dim))
@@ -480,68 +298,23 @@ def configure_eval(
                         field[i] = _total(_field, sources[i : i + 1], r_sample, shape)[
                             0
                         ][:, :dim]
+
         else:
             msp = _total(_potential, sources, r, shape)
             if field_eval:
                 field = _total(_field, sources, r, shape)
-
-    else:
-        msp = None
-        field = None
-
-    return {
-        "sources": sources,
-        "r": r,
-        "potential": msp,
-        "field": field,
-        "grid": grid,
-        "potential_grid": _total(_potential, sources, grid, shape)
-        if grid_eval
-        else None,
-        "field_grid": _total(_field, sources, grid, shape) if grid_eval else None,
-    }
-
-
-def fourier_decomposition(
-    n_samples, n_sources, dim=2, lim=3, res=32, seed=0, shape="sphere"
-):
-    # Create a 2D signal for demonstration
-    x = jnp.linspace(-lim, lim, res)
-    y = jnp.linspace(-lim, lim, res)
-    X, Y = jnp.meshgrid(x, y)
-
-    key = jr.PRNGKey(seed)
-    r0key, mkey, rkey, skey = jr.split(key, 4)
-    r0 = (lim / 3) * jr.normal(key=r0key, shape=(n_samples, n_sources, dim))
-    m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim))
-    size = jr.uniform(
-        key=skey, shape=(n_samples, n_sources, dim), minval=1.0, maxval=1.0
-    )
-    sources = jnp.concatenate([m, r0, size], axis=-1)
-    r = jnp.stack([X.flatten(), Y.flatten()], axis=-1)
-    potential = _total(_potential, sources, r, shape)
-
-    # Perform the 2D Fourier Transform
-    F = jnp.fft.fft2(potential)
-
-    # Shift the zero-frequency component to the center
-    F_shifted = jnp.fft.fftshift(F)
-
-    # Compute the magnitudes (absolute values) of the complex numbers
-    magnitudes = jnp.abs(F_shifted)
-
-    # Reconstructing signal
-    # Z_reconstructed = jnp.fft.ifft2(potential)
-
-    # # The reconstructed data is complex, take only the real part
-    # Z_reconstructed = jnp.real(Z_reconstructed)
-
-    # # Display the reconstructed data
-    # plt.imshow(Z_reconstructed, extent=(-3, 3, -3, 3))
-    # plt.colorbar()
-    # plt.show()
-
-    return magnitudes
+        return {
+            "sources": sources,
+            "r": r,
+            "potential": msp,
+            "field": field,
+            "grid": grid,
+            "potential_grid": _total(_potential, sources, grid, shape)
+            if grid_eval
+            else None,
+            "field_grid": _total(_field, sources, grid, shape) if grid_eval else None,
+            "shape": shape,
+        }
 
 
 def read_db(filename: str, read_grid=False):
@@ -582,10 +355,12 @@ if __name__ == "__main__":
         "seed": 40,
         "lim": 3,
         "res": 128,
+        "dim": 2,
     }
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)
-    plots(train_data, model=None, idx=0)
+    plots(train_data, edge=True, idx=0, prefix="test", output="save")
+    plots(train_data, edge=True, idx=1, prefix="test1", output="save")
 
     # Three dimensions
     config = {
@@ -599,6 +374,7 @@ if __name__ == "__main__":
     }
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)
+    plots(train_data, edge=True, idx=0, prefix="test3d", output="save")
 
     # Prism
     config = {
@@ -608,7 +384,8 @@ if __name__ == "__main__":
         "seed": 40,
         "lim": 3,
         "res": 16,
-        "dim": 3,
+        "dim": 2,
     }
     train_data = configure(**config)
     print(train_data["potential"].shape, train_data["field"].shape)
+    plots(train_data, edge=True, idx=0, prefix="test_prism2d", output="save")

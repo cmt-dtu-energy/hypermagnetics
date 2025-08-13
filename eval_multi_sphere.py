@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import prettytable
 
-from hypermagnetics.sources import configure_eval
+from hypermagnetics.sources import configure
 from hypermagnetics.fmm_sources import potential2D_sources
 
 n_eval = 5.5e5
@@ -47,7 +47,7 @@ for test_sources in range(0, int(n_eval), int(step_sources)):
         "eval": True,
         "grid_eval": False,
     }
-    test = configure_eval(**source_config, n_sources=n_sources, seed=0)
+    test = configure(**source_config, n_sources=n_sources, seed=0)
 
     pot_out = np.zeros((n_ensemble, n_sources))
     t_pot = np.zeros(n_ensemble)
@@ -65,7 +65,7 @@ for test_sources in range(0, int(n_eval), int(step_sources)):
         # t_field.append(time.time() - start_time_pot)
 
         # # Run MagTense
-        # mt_h, mt_dur = _field_mt(
+        # mt_h, mt_dur = field_mt(
         #     test["sources"][i : i + 1],
         #     test["r"][i] if source_config["source_val"] else test["r"],
         #     "sphere",

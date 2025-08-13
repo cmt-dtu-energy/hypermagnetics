@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import prettytable
 
-from hypermagnetics.sources import _field_mt, configure_eval
+from hypermagnetics.sources import configure
+from hypermagnetics.mt_eval import field_mt
 from hypermagnetics.models.hyper_mlp import HyperLayer
 
 n_eval = 500
@@ -55,7 +56,7 @@ for test_sources in range(0, n_eval, max(min_sources, 250)):
         "source_val": True,
         # "calc_2d": True,
     }
-    test = configure_eval(**source_config, n_sources=n_sources, seed=0)
+    test = configure(**source_config, n_sources=n_sources, seed=0)
 
     for i in range(n_ensemble):
         mr = test["sources"][i : i + 1]
@@ -72,7 +73,7 @@ for test_sources in range(0, n_eval, max(min_sources, 250)):
         t_pot.append(time.time() - start_time_pot)
 
         # Run MagTense
-        mt_h, mt_dur = _field_mt(mr, test["r"][i], "prism")
+        mt_h, mt_dur = field_mt(mr, test["r"][i], "prism")
         mt_out.append(mt_h[0])
         t_mt.append(mt_dur)
 
