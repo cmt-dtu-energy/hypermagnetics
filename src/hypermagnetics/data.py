@@ -3,7 +3,7 @@ from hypermagnetics.sources import configure
 
 def create_data(
     n_eval: int = 8,
-    n_ensemble: int = 10,
+    n_ensemble: int = 5,
     min_sources: int = 10,
     step_sources: int = 250,
     field_eval: bool = False,

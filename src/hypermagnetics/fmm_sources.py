@@ -8,7 +8,7 @@ def replace_inf_nan(x):
     return x
 
 
-def potential2D(sources, grid, shape):
+def potential2D(sources, grid, shape, correction=True):
     """
     Compute the potential at the grid points due to the sources.
     The package fmm2dpy calculates the dipolar potential from a magnetic moment.
@@ -61,26 +61,27 @@ def potential2D(sources, grid, shape):
 
         # Correction for physical dipole - Adds an M in the complexity
         # This works only if sources do not overlap
-        for i in range(n_sources):
-            if shape == "sphere":
-                inside_idx = np.where(
-                    np.linalg.norm(grid - r0[n][i], axis=1) <= size[n, i, 0]
-                )[0]
-            elif shape == "prism":
-                inside_idx = np.where(
-                    (np.abs(grid[:, 0] - r0[n][i, 0]) <= size[n, i, 0])
-                    & (np.abs(grid[:, 1] - r0[n][i, 1]) <= size[n, i, 1])
-                )[0]
+        if correction:
+            for i in range(n_sources):
+                if shape == "sphere":
+                    inside_idx = np.where(
+                        np.linalg.norm(grid - r0[n][i], axis=1) <= size[n, i, 0]
+                    )[0]
+                elif shape == "prism":
+                    inside_idx = np.where(
+                        (np.abs(grid[:, 0] - r0[n][i, 0]) <= size[n, i, 0])
+                        & (np.abs(grid[:, 1] - r0[n][i, 1]) <= size[n, i, 1])
+                    )[0]
 
-            msp[n, inside_idx] += (
-                np.dot(m[n][i], (grid[inside_idx] - r0[n][i]).T)
-                / size[n, i, 0]
-                / (2 * np.pi * size[n, i, 0])
-            ) - replace_inf_nan(
-                np.dot(m[n][i], (grid[inside_idx] - r0[n][i]).T)
-                / np.linalg.norm(grid[inside_idx] - r0[n][i], axis=1)
-                / (2 * np.pi * np.linalg.norm(grid[inside_idx] - r0[n][i], axis=1))
-            )
+                msp[n, inside_idx] += (
+                    np.dot(m[n][i], (grid[inside_idx] - r0[n][i]).T)
+                    / size[n, i, 0]
+                    / (2 * np.pi * size[n, i, 0])
+                ) - replace_inf_nan(
+                    np.dot(m[n][i], (grid[inside_idx] - r0[n][i]).T)
+                    / np.linalg.norm(grid[inside_idx] - r0[n][i], axis=1)
+                    / (2 * np.pi * np.linalg.norm(grid[inside_idx] - r0[n][i], axis=1))
+                )
 
     return msp, field
 

@@ -193,10 +193,20 @@ def configure(
         db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset(
-            "r", shape=r0.shape if t_source else (res**2, dim), dtype="float32"
+            "r",
+            shape=(n_samples, n_sources, dim) if t_source else (res**2, dim),
+            dtype="float32",
         )
-        db.create_dataset("msp", shape=(n_samples, res**2), dtype="float32")
-        db.create_dataset("field", shape=(n_samples, res**2, dim), dtype="float32")
+        db.create_dataset(
+            "msp",
+            shape=(n_samples, n_sources) if t_source else (n_samples, res**2),
+            dtype="float32",
+        )
+        db.create_dataset(
+            "field",
+            shape=(n_samples, n_sources, dim) if t_source else (n_samples, res**2, dim),
+            dtype="float32",
+        )
         db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
         db.create_dataset("msp_grid", shape=(n_samples, res**2), dtype="float32")
         db.create_dataset("field_grid", shape=(n_samples, res**2, dim), dtype="float32")
@@ -258,14 +268,14 @@ def configure(
         db["grid"][:] = grid
 
     ### Calculation for r
-    for i in range(max(1, n_samples // batch_size + 1)):
-        batch = min(batch_size, n_samples - i * batch_size)
-        b_sources = sources[i * batch : (i + 1) * batch]
+    for k in range(max(1, n_samples // batch_size + 1)):
+        batch = min(batch_size, n_samples - k * batch_size)
+        b_sources = sources[k * batch : (k + 1) * batch]
 
         if save_data:
-            db["m"][i * batch : (i + 1) * batch] = m[i * batch : (i + 1) * batch]
-            db["r0"][i * batch : (i + 1) * batch] = r0[i * batch : (i + 1) * batch]
-            db["size"][i * batch : (i + 1) * batch] = size[i * batch : (i + 1) * batch]
+            db["m"][k * batch : (k + 1) * batch] = m[k * batch : (k + 1) * batch]
+            db["r0"][k * batch : (k + 1) * batch] = r0[k * batch : (k + 1) * batch]
+            db["size"][k * batch : (k + 1) * batch] = size[k * batch : (k + 1) * batch]
 
         if t_source:
             msp = np.zeros((batch, r.shape[1]))
@@ -314,11 +324,11 @@ def configure(
                 field = None
 
         if save_data:
-            db["msp"][i * batch : (i + 1) * batch] = msp
-            db["field"][i * batch : (i + 1) * batch] = field
+            db["msp"][k * batch : (k + 1) * batch] = msp
+            db["field"][k * batch : (k + 1) * batch] = field
 
     # Postprocessing - Remove fields with nan values
-    if save_data:
+    if save_data and n_samples > 1000:
         nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
         for i, idx in enumerate(nan_idx):
             db["m"][idx] = db["m"][n_samples - 1000 + i]
@@ -346,6 +356,8 @@ def configure(
 def read_db(filename: str, read_grid=False):
     datapath = Path("/home/spol/Documents/repos/hypermagnetics/data")
     db = h5py.File(datapath / filename, "r")
+    field_eval = db.attrs["field_eval"]
+    t_source = db.attrs["t_source"]
     if read_grid:
         data = {
             "sources": jnp.concatenate(
@@ -369,7 +381,7 @@ def read_db(filename: str, read_grid=False):
         }
     db.close()
 
-    return data
+    return data, field_eval, t_source
 
 
 if __name__ == "__main__":

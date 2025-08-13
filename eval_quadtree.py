@@ -1,6 +1,4 @@
-import h5py
 import jax.numpy as jnp
-from pathlib import Path
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -9,9 +7,10 @@ import prettytable
 
 from hypermagnetics.fmm_sources import potential2D_sources
 from hypermagnetics.mt_eval import field_mt
+from hypermagnetics.sources import read_db
 
-n_eval = 8
-n_ensemble = 10
+n_eval = 4
+n_ensemble = 5
 min_sources = 10
 step_sources = 250
 
@@ -31,10 +30,7 @@ for n in range(n_eval + 1):
     mt_out = []
     field_out = []
 
-    db_test = h5py.File(
-        Path(__file__).parent / ".." / ".." / "data" / f"eval_{n_sources}.h5", "r"
-    )
-    sources = np.concatenate([db_test["m"], db_test["ro"], db_test["size"]], axis=-1)
+    data, field_eval, t_source = read_db(f"eval_42_{n_ensemble}_{n_sources}.h5")
 
     pot_out = np.zeros((n_ensemble, n_sources))
     t_pot = np.zeros(n_ensemble)
@@ -42,19 +38,21 @@ for n in range(n_eval + 1):
     for i in range(n_ensemble):
         # Function once to eliminate any overhead for first call
         if i == 0:
-            msp_fmm, field_fmm = potential2D_sources(sources[i : i + 1], "prism")
+            msp_fmm, field_fmm = potential2D_sources(
+                data["sources"][i : i + 1], "prism"
+            )
         # Run model for potential
         start_time_pot = time.time()
-        msp_fmm, field_fmm = potential2D_sources(sources[i : i + 1], "prism")
+        msp_fmm, field_fmm = potential2D_sources(data["sources"][i : i + 1], "prism")
         pot_out[i] = msp_fmm
         t_pot[i] = time.time() - start_time_pot
-        if db_test.attrs["field_eval"]:
+        if field_eval:
             field_out.append(field_fmm)
 
             # Run MagTense
             mt_h, mt_dur = field_mt(
-                sources[i : i + 1],
-                db_test["r"][i] if db_test.attrs["t_source"] else db_test["r"],
+                data["sources"][i : i + 1],
+                data["r"][i] if t_source else data["r"],
                 "prism",
             )
             mt_out.append(mt_h[0])
@@ -63,35 +61,35 @@ for n in range(n_eval + 1):
     pot_t_avg.append(np.mean(t_pot))
 
     # Potential
-    diff_model_pot = db_test["msp"] - jnp.array(pot_out)
-    rel_err_pot = jnp.abs(diff_model_pot / db_test["msp"])
+    diff_model_pot = data["msp"] - jnp.array(pot_out)
+    rel_err_pot = jnp.abs(diff_model_pot / data["msp"])
     median_pot = jnp.nanmedian(rel_err_pot, axis=-1)
     pot_acc.append(jnp.mean(median_pot) * 100)
     pot_acc_std.append(jnp.std(median_pot) * 100)
 
-    if db_test.attrs["field_eval"]:
+    if field_eval:
         mt_t_avg.append(np.mean(t_mt))
 
         # Eval MagTense
-        diff_mt = db_test["field"][..., :2] - jnp.array(mt_out)[..., :2]  # * jnp.pi**2
+        diff_mt = data["field"][..., :2] - jnp.array(mt_out)[..., :2]  # * jnp.pi**2
         rel_err_mt = jnp.linalg.norm(diff_mt, axis=-1) / jnp.linalg.norm(
-            db_test["field"][..., :2], axis=-1
+            data["field"][..., :2], axis=-1
         )
         median_mt = jnp.nanmedian(rel_err_mt, axis=-1)
         mt_acc.append(jnp.mean(median_mt) * 100)
         mt_acc_std.append(jnp.std(median_mt) * 100)
 
         # Field
-        diff_model = db_test["field"][..., :2] - jnp.array(field_out)[..., :2]
+        diff_model = data["field"][..., :2] - jnp.array(field_out)[..., :2]
         rel_err_field = jnp.linalg.norm(diff_model, axis=-1) / jnp.linalg.norm(
-            db_test["field"][..., :2], axis=-1
+            data["field"][..., :2], axis=-1
         )
         median_field = jnp.nanmedian(rel_err_field, axis=-1)
         field_acc.append(jnp.mean(median_field) * 100)
         field_acc_std.append(jnp.std(median_field) * 100)
 
     res_table = prettytable.PrettyTable()
-    if db_test.attrs["field_eval"]:
+    if field_eval:
         res_table.field_names = [
             "#Sources",
             "MagTense time [s]",
@@ -127,7 +125,6 @@ for n in range(n_eval + 1):
         )
     res_table.float_format = "5.4"
     print(res_table)
-    db_test.close()
 
 
 fig, ax1 = plt.subplots()
