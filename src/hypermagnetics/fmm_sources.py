@@ -121,10 +121,18 @@ def potential2D_sources(sources, shape):
     return msp, field
 
 
-def field2d(config, msp):
+def field2d_grid(config, msp):
     """
-    Requires potential evaluation to be a meshgrid
+    Requires potential evaluation to be as a meshgrid.
+    Take care of numpy's convention for gradient direction.
     """
     msp_grid = msp.reshape((msp.shape[0], config["res"], config["res"]))
-    field = np.gradient(msp_grid, config["lim"] / config["res"], axis=1)
-    return field
+    field = np.zeros((*msp_grid.shape, 2))
+    for n in range(msp_grid.shape[0]):
+        field[n, ..., 0] = np.gradient(
+            msp_grid[n], 2 * config["lim"] / config["res"], axis=1
+        )
+        field[n, ..., 1] = np.gradient(
+            msp_grid[n], 2 * config["lim"] / config["res"], axis=0
+        )
+    return (-1) * field

@@ -88,6 +88,6 @@ def field_mt(sources, r, shape):
         _, H_out = magstatics.run_simulation(tiles, r)
         duration = time.time() - start_time
         os.dup2(oldstdout_fno, 1)
-        field = field.at[i].set(np.array(H_out[:, :dim]) * mu0)
+        field[i] = np.array(H_out[:, :dim]) * mu0
 
     return field, duration
