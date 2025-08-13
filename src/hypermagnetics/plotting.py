@@ -66,7 +66,7 @@ def _plot(
     y_grid = np.array(data["grid"][:, 1].reshape((res, res)))
 
     if model is None:
-        msp = data["potential_grid"][idx]
+        msp = data["msp_grid"][idx]
         field = data["field_grid"][idx][..., :2]
     else:
         msp = jax.vmap(model, in_axes=(0, None))(mr, data["grid"])[idx]

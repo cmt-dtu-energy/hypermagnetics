@@ -36,7 +36,7 @@ def field_mt(sources, r, shape):
                 [
                     size[..., 0].reshape((n_samples, n_sources, 1)),
                     np.ones((n_samples, n_sources, 1)) * 1.9999 * np.pi,
-                    np.ones((n_samples, n_sources, 1)) * 100,
+                    np.ones((n_samples, n_sources, 1)) * 10,
                 ],
                 axis=-1,
             )
