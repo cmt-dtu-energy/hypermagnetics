@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import prettytable
 
-from hypermagnetics.fmm_sources import potential2D_sources
+from hypermagnetics.fmm_sources import potential2D, potential2D_loop
 from hypermagnetics.mt_eval import field_mt
 from hypermagnetics.sources import read_db
 
-n_eval = 4
+n_eval = 4  # 8
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
@@ -30,7 +30,7 @@ for n in range(n_eval + 1):
     mt_out = []
     field_out = []
 
-    data, field_eval, t_source = read_db(f"eval_42_{n_ensemble}_{n_sources}.h5")
+    data = read_db(f"eval_42_{n_ensemble}_{n_sources}.h5")
 
     pot_out = np.zeros((n_ensemble, n_sources))
     t_pot = np.zeros(n_ensemble)
@@ -38,22 +38,23 @@ for n in range(n_eval + 1):
     for i in range(n_ensemble):
         # Function once to eliminate any overhead for first call
         if i == 0:
-            msp_fmm, field_fmm = potential2D_sources(
-                data["sources"][i : i + 1], "prism"
-            )
+            msp_fmm, field_fmm = potential2D(data["sources"][i : i + 1], data["shape"])
         # Run model for potential
         start_time_pot = time.time()
-        msp_fmm, field_fmm = potential2D_sources(data["sources"][i : i + 1], "prism")
+        # msp_fmm, field_fmm = potential2D(data["sources"][i : i + 1], data["shape"])
+        msp_fmm, field_fmm = potential2D_loop(
+            data["sources"][i : i + 1], data["shape"], correction=True
+        )
         pot_out[i] = msp_fmm
         t_pot[i] = time.time() - start_time_pot
-        if field_eval:
-            field_out.append(field_fmm)
+        if data["field_eval"]:
+            field_out.append(field_fmm[0])
 
             # Run MagTense
             mt_h, mt_dur = field_mt(
                 data["sources"][i : i + 1],
-                data["r"][i] if t_source else data["r"],
-                "prism",
+                data["r"][i] if data["t_source"] else data["r"],
+                data["shape"],
             )
             mt_out.append(mt_h[0])
             t_mt[i] = mt_dur
@@ -67,11 +68,11 @@ for n in range(n_eval + 1):
     pot_acc.append(jnp.mean(median_pot) * 100)
     pot_acc_std.append(jnp.std(median_pot) * 100)
 
-    if field_eval:
+    if data["field_eval"]:
         mt_t_avg.append(np.mean(t_mt))
 
         # Eval MagTense
-        diff_mt = data["field"][..., :2] - jnp.array(mt_out)[..., :2]  # * jnp.pi**2
+        diff_mt = data["field"][..., :2] - jnp.array(mt_out)[..., :2]
         rel_err_mt = jnp.linalg.norm(diff_mt, axis=-1) / jnp.linalg.norm(
             data["field"][..., :2], axis=-1
         )
@@ -89,12 +90,12 @@ for n in range(n_eval + 1):
         field_acc_std.append(jnp.std(median_field) * 100)
 
     res_table = prettytable.PrettyTable()
-    if field_eval:
+    if data["field_eval"]:
         res_table.field_names = [
             "#Sources",
             "MagTense time [s]",
             "Potential time [s]",
-            "MagTense error [%]",
+            "MagTense field error [%]",
             "Field error [%]",
             "Potential error [%]",
         ]
@@ -162,7 +163,7 @@ if len(mt_acc_std) > 0:
     )
 
     ax1.plot(mt_acc, color=color, linestyle="--")
-    ax1.plot(field_acc, color=color, linestyle="dotted")
+    # ax1.plot(field_acc, color=color, linestyle="dotted")
 
 ax1.tick_params(axis="y", labelcolor=color)
 
@@ -173,16 +174,23 @@ color = "tab:blue"
 ax2.set_ylabel("Runtime (s)", color=color)
 if len(mt_t_avg) > 0:
     ax2.plot(mt_t_avg, color=color, linestyle="--")
-
-ax2.plot(pot_t_avg, color=color)
 ax2.tick_params(axis="y", labelcolor=color)
+
+# Instantiate a third y-axis that shares the same x-axis
+ax3 = ax1.twinx()
+ax3.spines["right"].set_position(("axes", 1.16))
+ax3.spines["right"].set_visible(True)
+color = "tab:green"
+ax3.set_ylabel("Runtime (s)", color=color)
+ax3.plot(pot_t_avg, color=color)
+ax3.tick_params(axis="y", labelcolor=color)
 
 # Only display every second x tick
 xtick_indices = list(range(0, len(x_axis_ticks), 2))
 plt.xticks(xtick_indices, [x_axis_ticks[i] for i in xtick_indices])
 # Custom legend
 legend_elements = [
-    # Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
+    Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
     # Line2D([0], [0], color="black", lw=2, linestyle="dotted", label="Field - Model"),
     Line2D([0], [0], color="black", lw=2, linestyle="-", label="FMM"),
 ]

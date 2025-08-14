@@ -1,12 +1,12 @@
 import numpy as np
 import prettytable
 
-from hypermagnetics.fmm_sources import potential2D, potential2D_sources
+from hypermagnetics.fmm_sources import potential2D
 from hypermagnetics.sources import _total, _potential, read_db
 
 n_ensemble = 5
 n_sources = 500
-data = read_db(f"eval_42_5_{n_sources}.h5")
+data = read_db(f"eval_42_{n_ensemble}_{n_sources}.h5")
 m, r0, size = np.split(data["sources"], 3, axis=-1)
 
 pot_out = np.zeros((n_ensemble, n_sources))
@@ -15,14 +15,14 @@ target_single_out = np.zeros((n_ensemble, n_sources, n_sources))
 
 for i in range(n_ensemble):
     # Run model for potential
-    msp_fmm, _ = potential2D_sources(data["sources"][i : i + 1], "prism")
+    msp_fmm, _ = potential2D(data["sources"][i : i + 1], "prism")
     pot_out[i] = msp_fmm
 
     for n in range(n_sources):
         msp_fmm, _ = potential2D(
             data["sources"][i : i + 1, n : n + 1],
-            r0[i, ..., :2],
             "prism",
+            r0[i, ..., :2],
             correction=False,
         )
         pot_single_out[i, n] = msp_fmm

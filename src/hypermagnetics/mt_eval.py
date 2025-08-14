@@ -275,7 +275,7 @@ def cylindrical_magnet_field(m, R, length, r):
     return Bx, By, Bz
 
 
-def field_exact(sources, r, shape, length=10):
+def field_cylinder_exact(sources, r, length=100):
     """
     Finite field in two or three dimensions with excact implementation for cylindrical tiles
     """
@@ -284,12 +284,9 @@ def field_exact(sources, r, shape, length=10):
     m, r0, size = np.split(sources, 3, axis=-1)
     n_samples, n_sources, dim = r0.shape
 
-    if shape == "sphere":
-        # Magnetization is used in MagTense
-        # Magnetic moment is used for dipole formula
-        m = m / (np.pi * size[..., 0:1] ** 2)
-    else:
-        raise ValueError(f"Unknown source shape: {shape}")
+    # Magnetization is used in MagTense
+    # Magnetic moment is used for dipole formula
+    m = m / (np.pi * size[..., 0:1] ** 2)
 
     if dim == 2:
         r0 = np.concatenate([r0, np.zeros((n_samples, n_sources, 1))], axis=-1)
@@ -323,7 +320,7 @@ def field_exact(sources, r, shape, length=10):
     return field, duration
 
 
-def field_mt(sources, r, shape, length=10):
+def field_mt(sources, r, shape, length=100):
     """Finite field in two or three dimensions with MagTense."""
     mu0 = 4 * np.pi * 1e-7
     # Shapes: n_samples, n_sources, dim
@@ -374,7 +371,9 @@ def field_mt(sources, r, shape, length=10):
         r0 = np.concatenate([r0, np.zeros((n_samples, n_sources, 1))], axis=-1)
         m = np.concatenate([m, np.zeros((n_samples, n_sources, 1))], axis=-1)
         r = np.concatenate([r, np.zeros((r.shape[0], 1))], axis=-1)
-        size = np.concatenate([size, np.ones((n_samples, n_sources, 1))], axis=-1)
+        size = np.concatenate(
+            [size, np.ones((n_samples, n_sources, 1)) * length], axis=-1
+        )
 
     m_norm = np.linalg.norm(m, axis=-1, keepdims=True)
     mag_angles = np.concatenate(

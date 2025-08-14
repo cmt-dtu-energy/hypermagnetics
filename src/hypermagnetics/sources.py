@@ -62,7 +62,8 @@ def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
     close_to_source = d_norm <= size
     interior = m_dot_r / size / (2 * (dim - 1) * jnp.pi * size ** (dim - 1))
     exterior = m_dot_r / d_norm / (2 * (dim - 1) * jnp.pi * d_norm ** (dim - 1))
-    return jnp.where(close_to_source, interior, exterior)
+    value = jnp.where(close_to_source, interior, exterior)
+    return replace_inf_nan(value)
 
 
 def _potential(sources, r, shape):
@@ -97,8 +98,8 @@ def configure(
     dim: int = 2,
     lim: int = 3,
     res: int = 32,
-    min_size: float = 0.12,
-    max_size: float = 0.48,
+    min_size: float = 0.1,
+    max_size: float = 1,
     shape: str = "sphere",
     save_data: bool = False,
     line: bool = False,
@@ -326,6 +327,7 @@ def configure(
         if save_data:
             db["msp"][k * batch : (k + 1) * batch] = msp
             db["field"][k * batch : (k + 1) * batch] = field
+            print(f"Database '{db_prefix}{seed}_{n_samples}_{n_sources}.h5' created!")
 
     # Postprocessing - Remove fields with nan values
     if save_data and n_samples > 1000:
@@ -356,8 +358,6 @@ def configure(
 def read_db(filename: str, read_grid=False):
     datapath = Path("/home/spol/Documents/repos/hypermagnetics/data")
     db = h5py.File(datapath / filename, "r")
-    field_eval = db.attrs["field_eval"]
-    t_source = db.attrs["t_source"]
     if read_grid:
         data = {
             "sources": jnp.concatenate(
@@ -369,6 +369,9 @@ def read_db(filename: str, read_grid=False):
             "grid": jnp.array(db["grid"][:]),
             "msp_grid": jnp.array(db["msp_grid"][:]),
             "field_grid": jnp.array(db["field_grid"][:]),
+            "field_eval": db.attrs["field_eval"],
+            "t_source": db.attrs["t_source"],
+            "shape": db.attrs["shape"],
         }
     else:
         data = {
@@ -378,10 +381,13 @@ def read_db(filename: str, read_grid=False):
             "r": jnp.array(db["r"][:]),
             "msp": jnp.array(db["msp"][:]),
             "field": jnp.array(db["field"][:]),
+            "field_eval": db.attrs["field_eval"],
+            "t_source": db.attrs["t_source"],
+            "shape": db.attrs["shape"],
         }
     db.close()
 
-    return data, field_eval, t_source
+    return data
 
 
 if __name__ == "__main__":
