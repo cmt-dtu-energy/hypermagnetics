@@ -12,7 +12,9 @@ def potential2D(
     sources: np.ndarray,
     shape: str = "sphere",
     grid: np.ndarray | None = None,
-    correction: bool = True,
+    loop: bool = False,
+    correction: bool = False,
+    correction_source: bool = False,
 ):
     """
     Compute the potential at the grid points due to the sources.
@@ -46,19 +48,24 @@ def potential2D(
         r0 = r0[..., :2]
 
     if grid is None:
-        source_eval = 2
-        target_eval = 0
-        targets = None
         msp = np.zeros((n_samples, n_sources))
         field = np.zeros((n_samples, n_sources, 2))
+        if loop:
+            targets = r0[0].swapaxes(0, 1)
+            source_eval = 0
+            target_eval = 2
+        else:
+            source_eval = 2
+            target_eval = 0
+            targets = None
     else:
         if dim == 3 and shape == "prism":
             grid = grid[..., :2]
-        source_eval = 0
-        target_eval = 2
-        targets = grid.swapaxes(0, 1)
         msp = np.zeros((n_samples, grid.shape[0]))
         field = np.zeros((n_samples, grid.shape[0], 2))
+        targets = grid.swapaxes(0, 1)
+        source_eval = 0
+        target_eval = 2
 
     for i in range(n_samples):
         out = fmm.rfmm2d(
@@ -73,13 +80,11 @@ def potential2D(
             pgt=target_eval,
         )
         if grid is None:
+            # Prefactor is missing in FMM
             msp[i] = out.pot / (2 * np.pi)
             field[i] = (-1) * out.grad.swapaxes(0, 1) / (2 * np.pi)
-
-            if correction:
-                field[i] = -m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
+            field[i] -= m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
         else:
-            # Prefactor is missing in FMM
             msp[i] = out.pottarg / (2 * np.pi)
             field[i] = (-1) * out.gradtarg.swapaxes(0, 1) / (2 * np.pi)
 
@@ -88,32 +93,40 @@ def potential2D(
             if correction:
                 for n in range(n_sources):
                     if shape == "sphere":
-                        inside_idx = np.where(
+                        idx_in = np.where(
                             np.linalg.norm(grid - r0[i][n], axis=1) <= size[i, n, 0]
                         )[0]
                     elif shape == "prism":
-                        inside_idx = np.where(
+                        idx_in = np.where(
                             (np.abs(grid[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
                             & (np.abs(grid[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
                         )[0]
                     else:
                         raise ValueError("Unknown shape")
 
-                    msp[i, inside_idx] += (
-                        np.dot(m[i][n], (grid[inside_idx] - r0[i][n]).T)
+                    msp[i, idx_in] += (
+                        np.dot(m[i][n], (grid[idx_in] - r0[i][n]).T)
                         / size[i, n, 0]
                         / (2 * np.pi * size[i, n, 0])
                     ) - replace_inf_nan(
-                        np.dot(m[i][n], (grid[inside_idx] - r0[i][n]).T)
-                        / np.linalg.norm(grid[inside_idx] - r0[i][n], axis=1)
-                        / (
-                            2
-                            * np.pi
-                            * np.linalg.norm(grid[inside_idx] - r0[i][n], axis=1)
-                        )
+                        np.dot(m[i][n], (grid[idx_in] - r0[i][n]).T)
+                        / np.linalg.norm(grid[idx_in] - r0[i][n], axis=1)
+                        / (2 * np.pi * np.linalg.norm(grid[idx_in] - r0[i][n], axis=1))
                     )
 
-                    field[i, inside_idx] = -m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
+                    field[i, idx_in] = -m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
+
+            elif correction_source:
+                msp[i] += (
+                    np.einsum('ij,ij->i', m[i], grid - r0[i])
+                    / size[i, :, 0]
+                    / (2 * np.pi * size[i, :, 0])
+                ) - replace_inf_nan(
+                    np.einsum('ij,ij->i', m[i], grid - r0[i])
+                    / np.linalg.norm(grid - r0[i], axis=1)
+                    / (2 * np.pi * np.linalg.norm(grid - r0[i], axis=1))
+                )
+                field[i] = -m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
 
     return msp, field
 
@@ -122,7 +135,6 @@ def potential2D_loop(
     sources: np.ndarray,
     shape: str = "sphere",
     grid: np.ndarray | None = None,
-    correction: bool = True,
 ):
     """
     Compute the potential at the grid points due to the sources.
@@ -156,15 +168,15 @@ def potential2D_loop(
         r0 = r0[..., :2]
 
     if grid is None:
-        targets = r0[0]
         msp = np.zeros((n_samples, n_sources))
         field = np.zeros((n_samples, n_sources, 2))
+        targets = r0[0].swapaxes(0, 1)
     else:
         if dim == 3 and shape == "prism":
             grid = grid[..., :2]
-        targets = grid
         msp = np.zeros((n_samples, grid.shape[0]))
         field = np.zeros((n_samples, grid.shape[0], 2))
+        targets = grid.swapaxes(0, 1)
 
     for i in range(n_samples):
         for n in range(n_sources):
@@ -174,7 +186,7 @@ def potential2D_loop(
                 charges=None,
                 dipstr=np.ones(shape=(1,)),
                 dipvec=-m[i, n : n + 1].swapaxes(0, 1),
-                targets=targets.swapaxes(0, 1),
+                targets=targets,
                 nd=1,
                 pg=0,
                 pgt=2,
@@ -184,40 +196,32 @@ def potential2D_loop(
                 # Prefactor is missing in FMM
                 msp[i] += out.pottarg / (2 * np.pi)
                 field[i] -= out.gradtarg.swapaxes(0, 1) / (2 * np.pi)
-                if correction:
-                    field[i][n] -= m[i][n] / (np.pi * size[i, n, 0:1] ** 2) / 2
+                field[i][n] -= m[i][n] / (np.pi * size[i, n, 0:1] ** 2) / 2
             else:
                 # Correction for physical dipole - Adds an M in the complexity
-                # This works only if sources do not overlap
-                if correction:
-                    if shape == "sphere":
-                        inside_idx = np.where(
-                            np.linalg.norm(grid - r0[i][n], axis=1) <= size[i, n, 0]
-                        )[0]
-                    elif shape == "prism":
-                        inside_idx = np.where(
-                            (np.abs(grid[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
-                            & (np.abs(grid[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
-                        )[0]
-                    else:
-                        raise ValueError("Unknown shape")
-
-                    outside_idx = np.setdiff1d(np.arange(grid.shape[0]), inside_idx)
-
-                    msp[i, inside_idx] += (
-                        np.dot(m[i][n], (grid[inside_idx] - r0[i][n]).T)
-                        / size[i, n, 0]
-                        / (2 * np.pi * size[i, n, 0])
-                    )
-                    msp[i, outside_idx] += out.pottarg[outside_idx] / (2 * np.pi)
-
-                    field[i, inside_idx] -= m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
-                    field[i, outside_idx] -= out.gradtarg.swapaxes(0, 1)[
-                        outside_idx
-                    ] / (2 * np.pi)
+                if shape == "sphere":
+                    idx_in = np.where(
+                        np.linalg.norm(grid - r0[i][n], axis=1) <= size[i, n, 0]
+                    )[0]
+                elif shape == "prism":
+                    idx_in = np.where(
+                        (np.abs(grid[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
+                        & (np.abs(grid[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
+                    )[0]
                 else:
-                    msp[i] += out.pottarg / (2 * np.pi)
-                    field[i] -= out.gradtarg.swapaxes(0, 1) / (2 * np.pi)
+                    raise ValueError("Unknown shape")
+
+                idx_out = np.setdiff1d(np.arange(grid.shape[0]), idx_in)
+
+                msp[i, idx_in] += (
+                    np.dot(m[i][n], (grid[idx_in] - r0[i][n]).T)
+                    / size[i, n, 0]
+                    / (2 * np.pi * size[i, n, 0])
+                )
+                msp[i, idx_out] += out.pottarg[idx_out] / (2 * np.pi)
+
+                field[i, idx_in] -= m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
+                field[i, idx_out] -= out.gradtarg.swapaxes(0, 1)[idx_out] / (2 * np.pi)
 
     return msp, field
 

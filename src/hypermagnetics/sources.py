@@ -10,6 +10,8 @@ import numpy as np
 from hypermagnetics import plots
 from hypermagnetics.quadtree import random_quadtree
 
+jax.config.update("jax_enable_x64", True)
+
 
 def replace_inf_nan(x):
     x = jax.lax.select(jnp.isinf(x), 0.0, x)

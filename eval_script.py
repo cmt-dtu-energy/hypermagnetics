@@ -6,13 +6,17 @@ from matplotlib.lines import Line2D
 import prettytable
 
 from hypermagnetics.fmm_sources import potential2D, potential2D_loop
-from hypermagnetics.mt_eval import field_mt
+from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 
-n_eval = 4  # 8
+n_eval = 8
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
+db_name = "eval_qt_42"
+loop = False
+plot_t_fmm = False
+plot_err_mt = False
 
 mt_acc = []
 mt_acc_std = []
@@ -30,7 +34,7 @@ for n in range(n_eval + 1):
     mt_out = []
     field_out = []
 
-    data = read_db(f"eval_42_{n_ensemble}_{n_sources}.h5")
+    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
 
     pot_out = np.zeros((n_ensemble, n_sources))
     t_pot = np.zeros(n_ensemble)
@@ -38,24 +42,39 @@ for n in range(n_eval + 1):
     for i in range(n_ensemble):
         # Function once to eliminate any overhead for first call
         if i == 0:
-            msp_fmm, field_fmm = potential2D(data["sources"][i : i + 1], data["shape"])
+            potential2D(data["sources"][i : i + 1], data["shape"], data["r"][i])
         # Run model for potential
         start_time_pot = time.time()
-        # msp_fmm, field_fmm = potential2D(data["sources"][i : i + 1], data["shape"])
-        msp_fmm, field_fmm = potential2D_loop(
-            data["sources"][i : i + 1], data["shape"], correction=True
-        )
+
+        if loop:
+            msp_fmm, field_fmm = potential2D_loop(
+                data["sources"][i : i + 1], data["shape"], data["r"][i]
+            )
+        else:
+            msp_fmm, field_fmm = potential2D(
+                data["sources"][i : i + 1],
+                data["shape"],
+                data["r"][i],
+                correction=False,
+                correction_source=True,
+            )
+
         pot_out[i] = msp_fmm
         t_pot[i] = time.time() - start_time_pot
         if data["field_eval"]:
             field_out.append(field_fmm[0])
 
             # Run MagTense
-            mt_h, mt_dur = field_mt(
-                data["sources"][i : i + 1],
-                data["r"][i] if data["t_source"] else data["r"],
-                data["shape"],
-            )
+            if data["shape"] == "sphere":
+                mt_h, mt_dur = field_cylinder_exact(
+                    data["sources"][i : i + 1], data["r"][i], length=25
+                )
+            else:
+                mt_h, mt_dur = field_mt(
+                    data["sources"][i : i + 1],
+                    data["r"][i] if data["t_source"] else data["r"],
+                    data["shape"],
+                )
             mt_out.append(mt_h[0])
             t_mt[i] = mt_dur
 
@@ -129,8 +148,9 @@ for n in range(n_eval + 1):
 
 
 fig, ax1 = plt.subplots()
+fig.set_size_inches(12, 6)
 
-color = "tab:red"
+color = "tab:green"
 ax1.set_xlabel("Number of sources")
 ax1.set_ylabel("Relative median error (%)", color=color)
 # Plot mean and standard deviation for errors
@@ -142,18 +162,30 @@ ax1.errorbar(
     color=color,
 )
 ax1.plot(pot_acc, color=color)
+ax1.tick_params(axis="y", labelcolor=color)
 
+color = "tab:red"
 if len(mt_acc_std) > 0:
-    ax1.errorbar(
-        range(len(x_axis_ticks)),
-        mt_acc,
-        yerr=mt_acc_std,
-        fmt="o",
-        color=color,
-        linestyle="--",
-    )
+    if plot_err_mt:
+        ax1.errorbar(
+            range(len(x_axis_ticks)),
+            mt_acc,
+            yerr=mt_acc_std,
+            fmt="o",
+            color=color,
+            linestyle="--",
+        )
 
-    ax1.errorbar(
+    # Instantiate a third y-axis that shares the same x-axis
+    ax4 = ax1.twinx()
+    ax4.spines["left"].set_position(("axes", -0.1))
+    ax4.spines["left"].set_visible(True)
+    ax4.yaxis.set_label_position("left")
+    ax4.yaxis.set_ticks_position("left")
+    ax4.tick_params(axis="y", labelcolor=color)
+    ax4.set_ylabel("Relative median error (%) - FMM field", color=color)
+
+    ax4.errorbar(
         range(len(x_axis_ticks)),
         field_acc,
         yerr=field_acc_std,
@@ -162,28 +194,23 @@ if len(mt_acc_std) > 0:
         linestyle="dotted",
     )
 
-    ax1.plot(mt_acc, color=color, linestyle="--")
-    # ax1.plot(field_acc, color=color, linestyle="dotted")
-
-ax1.tick_params(axis="y", labelcolor=color)
-
 # Instantiate a second y-axis that shares the same x-axis
 ax2 = ax1.twinx()
 
 color = "tab:blue"
-ax2.set_ylabel("Runtime (s)", color=color)
+ax2.set_ylabel("Runtime - MagTense (s)", color=color)
 if len(mt_t_avg) > 0:
     ax2.plot(mt_t_avg, color=color, linestyle="--")
 ax2.tick_params(axis="y", labelcolor=color)
 
 # Instantiate a third y-axis that shares the same x-axis
-ax3 = ax1.twinx()
-ax3.spines["right"].set_position(("axes", 1.16))
-ax3.spines["right"].set_visible(True)
-color = "tab:green"
-ax3.set_ylabel("Runtime (s)", color=color)
-ax3.plot(pot_t_avg, color=color)
-ax3.tick_params(axis="y", labelcolor=color)
+if plot_t_fmm:
+    ax3 = ax1.twinx()
+    ax3.spines["right"].set_position(("axes", 1.1))
+    ax3.spines["right"].set_visible(True)
+    ax3.set_ylabel("Runtime - FMM (ms)", color=color)
+    ax3.plot([val_t * 1e3 for val_t in pot_t_avg], color=color)
+    ax3.tick_params(axis="y", labelcolor=color)
 
 # Only display every second x tick
 xtick_indices = list(range(0, len(x_axis_ticks), 2))
@@ -191,14 +218,16 @@ plt.xticks(xtick_indices, [x_axis_ticks[i] for i in xtick_indices])
 # Custom legend
 legend_elements = [
     Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
-    # Line2D([0], [0], color="black", lw=2, linestyle="dotted", label="Field - Model"),
-    Line2D([0], [0], color="black", lw=2, linestyle="-", label="FMM"),
+    Line2D([0], [0], color="black", lw=2, linestyle="dotted", label="FMM - Field"),
+    Line2D([0], [0], color="black", lw=2, linestyle="-", label="FMM - Potential"),
 ]
 plt.legend(handles=legend_elements, loc="upper left")
 fig.tight_layout()  # To ensure there's no overlap
 
 # Save the plot to the 'figs' directory
-plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/metrics_fmm_quadtree.svg")
+plt.savefig(
+    f"/home/spol/Documents/repos/hypermagnetics/figs/metrics_fmm_{data['shape']}.svg"
+)
 
 # Clear the current figure after saving to avoid conflicts with future plots
 plt.clf()

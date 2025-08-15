@@ -6,7 +6,7 @@ from hypermagnetics.sources import _total, _potential, read_db
 
 n_ensemble = 5
 n_sources = 500
-data = read_db(f"eval_42_{n_ensemble}_{n_sources}.h5")
+data = read_db(f"eval_qt_42_{n_ensemble}_{n_sources}.h5")
 m, r0, size = np.split(data["sources"], 3, axis=-1)
 
 pot_out = np.zeros((n_ensemble, n_sources))
@@ -29,10 +29,10 @@ for i in range(n_ensemble):
         target_single_out[i, n] = _total(
             _potential,
             data["sources"][
-                i : i + 1,
-                n : n + 1,
-            ],
-            r0[i],
+            i : i + 1,
+            n : n + 1,
+            ].astype(np.float64),
+            r0[i].astype(np.float64),
             "prism",
         )
 

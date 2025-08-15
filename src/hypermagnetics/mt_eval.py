@@ -307,13 +307,10 @@ def field_cylinder_exact(sources, r, length=100):
                 field[i, :, 2] += Bz / mu0
 
             # Convert to H-field
-            inside_idx = np.where(
-                np.linalg.norm(r - r0[i][n], axis=1) <= size[i, n, 0]
-            )[0]
-            field[i, :, 0][inside_idx] -= m[i, n, 0]
-            field[i, :, 1][inside_idx] -= m[i, n, 1]
+            idx_in = np.where(np.linalg.norm(r - r0[i][n], axis=1) <= size[i, n, 0])[0]
+            field[i, idx_in, :2] -= m[i, n, :2]
             if dim == 3:
-                field[i, :, 2][inside_idx] -= m[i, n, 2]
+                field[i, idx_in, 2] -= m[i, n, 2]
 
     duration = time.time() - start_time
 
