@@ -11,18 +11,19 @@ def create_data(
     seed: int = 42,
     shape: str = "prism",
     quadtree: bool = True,
-    name: str = "eval_",
+    name: str = "eval",
     lim: float = 1.0,
+    eps: float = 0.0,
 ):
-    for n in range(5, n_eval + 1):
+    for n in range(n_eval + 1):
         source_config = {
             "shape": shape,
             "n_samples": n_ensemble,
             "n_sources": max(min_sources, step_sources * n),
             "lim": lim,
             "res": 32,
-            "t_source": True,
-            "eps": 1e-6,
+            "target_source": True,
+            "eps": eps,
             "grid_eval": grid_eval,
             "field_eval": field_eval,
             "quadtree": quadtree,
@@ -37,12 +38,13 @@ def create_data(
 
 if __name__ == "__main__":
     create_data(
-        n_eval=8,
-        field_eval=True,
-        name="eval_qt_",
+        n_eval=6,
+        field_eval=False,
+        name="eval_qt_exact",
         shape="prism",
         quadtree=True,
-        grid_eval=False,
+        grid_eval=True,
         lim=1.0,
+        eps=0.0,
         seed=42,
     )

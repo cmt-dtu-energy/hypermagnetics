@@ -56,6 +56,7 @@ def _plot(
     prefix: str,
     loc: bool,
     edge: bool,
+    number: bool,
     model=None,
 ):
     mr = data["sources"][idx : idx + 1]
@@ -78,6 +79,18 @@ def _plot(
     # Subplot 1: Magnetic Scalar Potential
     axes[0].contourf(x_grid, y_grid, msp.reshape((res, res)))
     _plot_shape(axes[0], r0, m, size, data["shape"], idx, loc, edge)
+    if number:
+        for i in range(r0.shape[1]):
+            axes[0].text(
+                r0[idx, i, 0] + 0.05,
+                r0[idx, i, 1] + 0.05,
+                str(i),
+                color="black",
+                fontsize=12,
+                ha="center",
+                va="center",
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.7),
+            )
 
     axes[0].set_title(prefix + " " + "Magnetic Scalar Potential")
     units_str = ", in units of source radius"
@@ -110,6 +123,7 @@ def plots(
     data: dict,
     loc: bool = True,
     edge: bool = False,
+    number: bool = False,
     idx: int = 0,
     prefix: str = "",
     output: str = "show",
@@ -120,20 +134,21 @@ def plots(
 
     Parameters:
         sources (dict): The source data containing positions, magnetizations, and sizes.
-        model (HyperLayer): The trained model to use for predictions.
-        shapes (bool): Whether to plot the shapes of the sources.
-        source (bool): Whether to plot the source positions.
+        loc (bool): Whether to plot the source positions.
+        edge (bool): Whether to plot the shapes of the sources.
+        numbers (bool): Whether to plot the source numbers.
         idx (int): The index of the sample to plot.
         prefix (str): A prefix for the plot titles.
         output (str): The output mode for the plot (e.g., "show", "save").
+        model (HyperLayer): The trained model to use for predictions.
     """
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
-        _plot(axes, data, idx, prefix, loc, edge)
+        _plot(axes, data, idx, prefix, loc, edge, number)
     else:
         _, axes = plt.subplots(2, 2, figsize=(8, 8))
-        _plot(axes[0], data, idx, prefix, loc, edge)
-        _plot(axes[1], data, idx, prefix, loc, edge, model=model)
+        _plot(axes[0], data, idx, prefix, loc, edge, number)
+        _plot(axes[1], data, idx, prefix, loc, edge, number, model=model)
 
     plt.tight_layout()
 

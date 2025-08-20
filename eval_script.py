@@ -9,13 +9,13 @@ from hypermagnetics.fmm_sources import potential2D, potential2D_loop
 from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 
-n_eval = 8
+n_eval = 6  # 8
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
-db_name = "eval_qt_42"
+db_name = "eval_qt_exact_42"
 loop = False
-plot_t_fmm = False
+plot_t_fmm = True
 plot_err_mt = False
 
 mt_acc = []
@@ -61,22 +61,21 @@ for n in range(n_eval + 1):
 
         pot_out[i] = msp_fmm
         t_pot[i] = time.time() - start_time_pot
-        if data["field_eval"]:
-            field_out.append(field_fmm[0])
+        field_out.append(field_fmm[0])
 
-            # Run MagTense
-            if data["shape"] == "sphere":
-                mt_h, mt_dur = field_cylinder_exact(
-                    data["sources"][i : i + 1], data["r"][i], length=25
-                )
-            else:
-                mt_h, mt_dur = field_mt(
-                    data["sources"][i : i + 1],
-                    data["r"][i] if data["t_source"] else data["r"],
-                    data["shape"],
-                )
-            mt_out.append(mt_h[0])
-            t_mt[i] = mt_dur
+        # Run MagTense
+        if data["shape"] == "sphere":
+            mt_h, mt_dur = field_cylinder_exact(
+                data["sources"][i : i + 1], data["r"][i], length=25
+            )
+        else:
+            mt_h, mt_dur = field_mt(
+                data["sources"][i : i + 1],
+                data["r"][i] if data["target_source"] else data["r"],
+                data["shape"],
+            )
+        mt_out.append(mt_h[0])
+        t_mt[i] = mt_dur
 
     pot_t_avg.append(np.mean(t_pot))
 
@@ -87,9 +86,17 @@ for n in range(n_eval + 1):
     pot_acc.append(jnp.mean(median_pot) * 100)
     pot_acc_std.append(jnp.std(median_pot) * 100)
 
-    if data["field_eval"]:
-        mt_t_avg.append(np.mean(t_mt))
+    # Field
+    mt_t_avg.append(np.mean(t_mt))
+    diff_model = jnp.array(mt_out)[..., :2] - jnp.array(field_out)[..., :2]
+    rel_err_field = jnp.linalg.norm(diff_model, axis=-1) / jnp.linalg.norm(
+        jnp.array(mt_out)[..., :2], axis=-1
+    )
+    median_field = jnp.nanmedian(rel_err_field, axis=-1)
+    field_acc.append(jnp.mean(median_field) * 100)
+    field_acc_std.append(jnp.std(median_field) * 100)
 
+    if data["field_eval"]:
         # Eval MagTense
         diff_mt = data["field"][..., :2] - jnp.array(mt_out)[..., :2]
         rel_err_mt = jnp.linalg.norm(diff_mt, axis=-1) / jnp.linalg.norm(
@@ -99,50 +106,26 @@ for n in range(n_eval + 1):
         mt_acc.append(jnp.mean(median_mt) * 100)
         mt_acc_std.append(jnp.std(median_mt) * 100)
 
-        # Field
-        diff_model = data["field"][..., :2] - jnp.array(field_out)[..., :2]
-        rel_err_field = jnp.linalg.norm(diff_model, axis=-1) / jnp.linalg.norm(
-            data["field"][..., :2], axis=-1
-        )
-        median_field = jnp.nanmedian(rel_err_field, axis=-1)
-        field_acc.append(jnp.mean(median_field) * 100)
-        field_acc_std.append(jnp.std(median_field) * 100)
-
     res_table = prettytable.PrettyTable()
-    if data["field_eval"]:
-        res_table.field_names = [
-            "#Sources",
-            "MagTense time [s]",
-            "Potential time [s]",
-            "MagTense field error [%]",
-            "Field error [%]",
-            "Potential error [%]",
-        ]
+    res_table.field_names = [
+        "#Sources",
+        "MagTense time [s]",
+        "FMM2D time [s]",
+        "MSP error [%]",
+        "Field error [%]",
+        "MagTense error [%]",
+    ]
 
-        res_table.add_row(
-            [
-                int(n_sources),
-                float(mt_t_avg[-1]),
-                float(pot_t_avg[-1]),
-                float(mt_acc[-1]),
-                float(field_acc[-1]),
-                float(pot_acc[-1]),
-            ]
-        )
-    else:
-        res_table.field_names = [
-            "#Sources",
-            "Potential time [s]",
-            "Potential error [%]",
+    res_table.add_row(
+        [
+            int(n_sources),
+            float(mt_t_avg[-1]),
+            float(pot_t_avg[-1]),
+            float(pot_acc[-1]),
+            float(field_acc[-1]),
+            float(mt_acc[-1]) if data["field_eval"] else "-",
         ]
-
-        res_table.add_row(
-            [
-                int(n_sources),
-                float(pot_t_avg[-1]),
-                float(pot_acc[-1]),
-            ]
-        )
+    )
     res_table.float_format = "5.4"
     print(res_table)
 
@@ -165,34 +148,33 @@ ax1.plot(pot_acc, color=color)
 ax1.tick_params(axis="y", labelcolor=color)
 
 color = "tab:red"
-if len(mt_acc_std) > 0:
-    if plot_err_mt:
-        ax1.errorbar(
-            range(len(x_axis_ticks)),
-            mt_acc,
-            yerr=mt_acc_std,
-            fmt="o",
-            color=color,
-            linestyle="--",
-        )
-
-    # Instantiate a third y-axis that shares the same x-axis
-    ax4 = ax1.twinx()
-    ax4.spines["left"].set_position(("axes", -0.1))
-    ax4.spines["left"].set_visible(True)
-    ax4.yaxis.set_label_position("left")
-    ax4.yaxis.set_ticks_position("left")
-    ax4.tick_params(axis="y", labelcolor=color)
-    ax4.set_ylabel("Relative median error (%) - FMM field", color=color)
-
-    ax4.errorbar(
+if len(mt_acc_std) > 0 and plot_err_mt:
+    ax1.errorbar(
         range(len(x_axis_ticks)),
-        field_acc,
-        yerr=field_acc_std,
+        mt_acc,
+        yerr=mt_acc_std,
         fmt="o",
         color=color,
-        linestyle="dotted",
+        linestyle="--",
     )
+
+# Instantiate a third y-axis that shares the same x-axis
+ax4 = ax1.twinx()
+ax4.spines["left"].set_position(("axes", -0.1))
+ax4.spines["left"].set_visible(True)
+ax4.yaxis.set_label_position("left")
+ax4.yaxis.set_ticks_position("left")
+ax4.tick_params(axis="y", labelcolor=color)
+ax4.set_ylabel("Relative median error (%) - FMM field", color=color)
+
+ax4.errorbar(
+    range(len(x_axis_ticks)),
+    field_acc,
+    yerr=field_acc_std,
+    fmt="o",
+    color=color,
+    linestyle="dotted",
+)
 
 # Instantiate a second y-axis that shares the same x-axis
 ax2 = ax1.twinx()

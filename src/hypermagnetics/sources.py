@@ -107,7 +107,7 @@ def configure(
     line: bool = False,
     eps: float = 1e-5,
     quadtree: bool = False,
-    t_source: bool = False,
+    target_source: bool = False,
     field_eval: bool = True,
     grid_eval: bool = True,
     batch_size: int = 1000,
@@ -130,7 +130,7 @@ def configure(
         line (bool): Whether to evaluate along a line. Otherwise a uniform grid is used.
         eps (float): Small value to avoid singularities.
         quadtree (bool): Whether to use a quadtree for source placement.
-        t_source (bool): Whether to evaluate in the center point of the sources.
+        target_source (bool): Whether to evaluate in the center point of the sources.
         field_eval (bool): Whether to evaluate the field.
         grid_eval (bool): Whether to evaluate the grid.
         batch_size (int): Number of samples per batch.
@@ -187,27 +187,36 @@ def configure(
         datapath = Path(__file__).parent / ".." / ".." / "data"
         datapath.mkdir(parents=True, exist_ok=True)
 
-        db = h5py.File(datapath / f"{db_prefix}{seed}_{n_samples}_{n_sources}.h5", "w")
+        db = h5py.File(datapath / f"{db_prefix}_{seed}_{n_samples}_{n_sources}.h5", "w")
         db.attrs["shape"] = shape
         db.attrs["field_eval"] = field_eval
         db.attrs["grid_eval"] = grid_eval
-        db.attrs["t_source"] = t_source
+        db.attrs["target_source"] = target_source
+        db.attrs["lim"] = lim
+        db.attrs["eps"] = eps
+        db.attrs["quadtree"] = quadtree
+        db.attrs["seed"] = seed
+        if not quadtree:
+            db.attrs["min_size"] = min_size
+            db.attrs["max_size"] = max_size
         db.create_dataset("m", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset(
             "r",
-            shape=(n_samples, n_sources, dim) if t_source else (res**2, dim),
+            shape=(n_samples, n_sources, dim) if target_source else (res**2, dim),
             dtype="float32",
         )
         db.create_dataset(
             "msp",
-            shape=(n_samples, n_sources) if t_source else (n_samples, res**2),
+            shape=(n_samples, n_sources) if target_source else (n_samples, res**2),
             dtype="float32",
         )
         db.create_dataset(
             "field",
-            shape=(n_samples, n_sources, dim) if t_source else (n_samples, res**2, dim),
+            shape=(n_samples, n_sources, dim)
+            if target_source
+            else (n_samples, res**2, dim),
             dtype="float32",
         )
         db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
@@ -258,7 +267,7 @@ def configure(
         msp_grid = None
         field_grid = None
 
-    if t_source:
+    if target_source:
         # Add a small value to r0 to avoid singularities for gradient evaluation
         r = r0 + eps
     else:
@@ -280,7 +289,7 @@ def configure(
             db["r0"][k * batch : (k + 1) * batch] = r0[k * batch : (k + 1) * batch]
             db["size"][k * batch : (k + 1) * batch] = size[k * batch : (k + 1) * batch]
 
-        if t_source:
+        if target_source:
             msp = np.zeros((batch, r.shape[1]))
             if field_eval:
                 field = np.zeros((batch, r.shape[1], dim))
@@ -329,7 +338,7 @@ def configure(
         if save_data:
             db["msp"][k * batch : (k + 1) * batch] = msp
             db["field"][k * batch : (k + 1) * batch] = field
-            print(f"Database '{db_prefix}{seed}_{n_samples}_{n_sources}.h5' created!")
+            print(f"Database '{db_prefix}_{seed}_{n_samples}_{n_sources}.h5' created!")
 
     # Postprocessing - Remove fields with nan values
     if save_data and n_samples > 1000:
@@ -372,7 +381,7 @@ def read_db(filename: str, read_grid=False):
             "msp_grid": jnp.array(db["msp_grid"][:]),
             "field_grid": jnp.array(db["field_grid"][:]),
             "field_eval": db.attrs["field_eval"],
-            "t_source": db.attrs["t_source"],
+            "target_source": db.attrs["target_source"],
             "shape": db.attrs["shape"],
         }
     else:
@@ -384,7 +393,7 @@ def read_db(filename: str, read_grid=False):
             "msp": jnp.array(db["msp"][:]),
             "field": jnp.array(db["field"][:]),
             "field_eval": db.attrs["field_eval"],
-            "t_source": db.attrs["t_source"],
+            "target_source": db.attrs["target_source"],
             "shape": db.attrs["shape"],
         }
     db.close()

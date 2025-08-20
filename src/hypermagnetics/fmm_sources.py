@@ -12,9 +12,10 @@ def potential2D(
     sources: np.ndarray,
     shape: str = "sphere",
     grid: np.ndarray | None = None,
-    loop: bool = False,
     correction: bool = False,
     correction_source: bool = False,
+    center_eval: bool = True,
+    idx_single: int | slice | None = None,
 ):
     """
     Compute the potential at the grid points due to the sources.
@@ -50,14 +51,9 @@ def potential2D(
     if grid is None:
         msp = np.zeros((n_samples, n_sources))
         field = np.zeros((n_samples, n_sources, 2))
-        if loop:
-            targets = r0[0].swapaxes(0, 1)
-            source_eval = 0
-            target_eval = 2
-        else:
-            source_eval = 2
-            target_eval = 0
-            targets = None
+        source_eval = 2
+        target_eval = 0
+        targets = None
     else:
         if dim == 3 and shape == "prism":
             grid = grid[..., :2]
@@ -117,16 +113,22 @@ def potential2D(
                     field[i, idx_in] = -m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
 
             elif correction_source:
-                msp[i] += (
-                    np.einsum('ij,ij->i', m[i], grid - r0[i])
+                if idx_single is None:
+                    idx_single = slice(0, n_sources)
+                msp[i, idx_single] += (
+                    np.einsum("ij,ij->i", m[i], grid - r0[i])
                     / size[i, :, 0]
                     / (2 * np.pi * size[i, :, 0])
-                ) - replace_inf_nan(
-                    np.einsum('ij,ij->i', m[i], grid - r0[i])
+                )[idx_single] - replace_inf_nan(
+                    np.einsum("ij,ij->i", m[i], grid - r0[i])
                     / np.linalg.norm(grid - r0[i], axis=1)
                     / (2 * np.pi * np.linalg.norm(grid - r0[i], axis=1))
-                )
-                field[i] = -m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
+                )[idx_single]
+
+                if center_eval:
+                    field[i, idx_single] -= m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
+                else:
+                    field[i, idx_single] = -m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
 
     return msp, field
 
