@@ -371,27 +371,27 @@ def read_db(filename: str, read_grid=False):
     db = h5py.File(datapath / filename, "r")
     if read_grid:
         data = {
-            "sources": jnp.concatenate(
+            "sources": np.concatenate(
                 [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
             ),
-            "r": jnp.array(db["r"][:]),
-            "msp": jnp.array(db["msp"][:]),
-            "field": jnp.array(db["field"][:]),
-            "grid": jnp.array(db["grid"][:]),
-            "msp_grid": jnp.array(db["msp_grid"][:]),
-            "field_grid": jnp.array(db["field_grid"][:]),
+            "r": np.array(db["r"][:]),
+            "msp": np.array(db["msp"][:]),
+            "field": np.array(db["field"][:]),
+            "grid": np.array(db["grid"][:]),
+            "msp_grid": np.array(db["msp_grid"][:]),
+            "field_grid": np.array(db["field_grid"][:]),
             "field_eval": db.attrs["field_eval"],
             "target_source": db.attrs["target_source"],
             "shape": db.attrs["shape"],
         }
     else:
         data = {
-            "sources": jnp.concatenate(
+            "sources": np.concatenate(
                 [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
             ),
-            "r": jnp.array(db["r"][:]),
-            "msp": jnp.array(db["msp"][:]),
-            "field": jnp.array(db["field"][:]),
+            "r": np.array(db["r"][:]),
+            "msp": np.array(db["msp"][:]),
+            "field": np.array(db["field"][:]),
             "field_eval": db.attrs["field_eval"],
             "target_source": db.attrs["target_source"],
             "shape": db.attrs["shape"],

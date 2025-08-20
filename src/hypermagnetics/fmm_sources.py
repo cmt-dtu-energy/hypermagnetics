@@ -14,8 +14,8 @@ def potential2D(
     grid: np.ndarray | None = None,
     correction: bool = False,
     correction_source: bool = False,
-    center_eval: bool = True,
     idx_single: int | slice | None = None,
+    DTYPE: np.dtype = np.float64,
 ):
     """
     Compute the potential at the grid points due to the sources.
@@ -49,27 +49,27 @@ def potential2D(
         r0 = r0[..., :2]
 
     if grid is None:
-        msp = np.zeros((n_samples, n_sources))
-        field = np.zeros((n_samples, n_sources, 2))
+        msp = np.zeros((n_samples, n_sources), dtype=DTYPE)
+        field = np.zeros((n_samples, n_sources, 2), dtype=DTYPE)
         source_eval = 2
         target_eval = 0
         targets = None
     else:
         if dim == 3 and shape == "prism":
             grid = grid[..., :2]
-        msp = np.zeros((n_samples, grid.shape[0]))
-        field = np.zeros((n_samples, grid.shape[0], 2))
-        targets = grid.swapaxes(0, 1)
+        msp = np.zeros((n_samples, grid.shape[0]), dtype=DTYPE)
+        field = np.zeros((n_samples, grid.shape[0], 2), dtype=DTYPE)
+        targets = grid.swapaxes(0, 1).astype(DTYPE)
         source_eval = 0
         target_eval = 2
 
     for i in range(n_samples):
         out = fmm.rfmm2d(
             eps=10 ** (-5),
-            sources=r0[i].swapaxes(0, 1),
+            sources=r0[i].swapaxes(0, 1).astype(DTYPE),
             charges=None,
-            dipstr=np.ones(shape=(n_sources,)),
-            dipvec=-m[i].swapaxes(0, 1),
+            dipstr=np.ones(shape=(n_sources,), dtype=DTYPE),
+            dipvec=-m[i].swapaxes(0, 1).astype(DTYPE),
             targets=targets,
             nd=1,
             pg=source_eval,
@@ -110,7 +110,27 @@ def potential2D(
                         / (2 * np.pi * np.linalg.norm(grid[idx_in] - r0[i][n], axis=1))
                     )
 
-                    field[i, idx_in] = -m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
+                    field[i, idx_in] -= m[i][n] / (np.pi * size[i, n, 0] ** 2) / 2
+                    # Correction for point-like dipole
+                    field[i, idx_in] += replace_inf_nan(
+                        (
+                            m[i][n]
+                            / np.reshape(
+                                np.linalg.norm(grid[idx_in] - r0[i][n], axis=1) ** 2,
+                                (-1, 1),
+                            )
+                            - 2
+                            * np.reshape(
+                                np.dot(m[i][n], (grid[idx_in] - r0[i][n]).T), (-1, 1)
+                            )
+                            * (grid[idx_in] - r0[i][n])
+                            / np.reshape(
+                                np.linalg.norm(grid[idx_in] - r0[i][n], axis=1) ** 4,
+                                (-1, 1),
+                            )
+                        )
+                        / (2 * np.pi)
+                    )
 
             elif correction_source:
                 if idx_single is None:
@@ -125,10 +145,21 @@ def potential2D(
                     / (2 * np.pi * np.linalg.norm(grid - r0[i], axis=1))
                 )[idx_single]
 
-                if center_eval:
-                    field[i, idx_single] -= m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
-                else:
-                    field[i, idx_single] = -m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
+                # Field in elongated cylinder
+                field[i, idx_single] -= m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
+
+                # Correction for point-like dipole
+                field[i, idx_single] += replace_inf_nan(
+                    (
+                        m[i]
+                        / np.reshape(np.linalg.norm(grid - r0[i], axis=1) ** 2, (-1, 1))
+                        - 2
+                        * np.reshape(np.einsum("ij,ij->i", m[i], grid - r0[i]), (-1, 1))
+                        * (grid - r0[i])
+                        / np.reshape(np.linalg.norm(grid - r0[i], axis=1) ** 4, (-1, 1))
+                    )
+                    / (2 * np.pi)
+                )
 
     return msp, field
 

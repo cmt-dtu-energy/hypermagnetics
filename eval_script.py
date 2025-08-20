@@ -1,4 +1,3 @@
-import jax.numpy as jnp
 import numpy as np
 import time
 import matplotlib.pyplot as plt
@@ -9,7 +8,7 @@ from hypermagnetics.fmm_sources import potential2D, potential2D_loop
 from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 
-n_eval = 6  # 8
+n_eval = 2  # 8
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
@@ -17,6 +16,7 @@ db_name = "eval_qt_exact_42"
 loop = False
 plot_t_fmm = True
 plot_err_mt = False
+grid_eval = False
 
 mt_acc = []
 mt_acc_std = []
@@ -34,29 +34,41 @@ for n in range(n_eval + 1):
     mt_out = []
     field_out = []
 
-    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
+    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5", read_grid=grid_eval)
 
-    pot_out = np.zeros((n_ensemble, n_sources))
+    if grid_eval:
+        pot_out = np.zeros((n_ensemble, data["grid"].shape[0]))
+    else:
+        pot_out = np.zeros((n_ensemble, n_sources))
     t_pot = np.zeros(n_ensemble)
     t_mt = np.zeros(n_ensemble)
+
     for i in range(n_ensemble):
+        if grid_eval:
+            eval_loc = data["grid"]
+            cor = True
+            cor_source = False
+        else:
+            eval_loc = data["r"][i]
+            cor = False
+            cor_source = True
         # Function once to eliminate any overhead for first call
         if i == 0:
-            potential2D(data["sources"][i : i + 1], data["shape"], data["r"][i])
+            potential2D(data["sources"][i : i + 1], data["shape"], eval_loc)
         # Run model for potential
         start_time_pot = time.time()
 
         if loop:
             msp_fmm, field_fmm = potential2D_loop(
-                data["sources"][i : i + 1], data["shape"], data["r"][i]
+                data["sources"][i : i + 1], data["shape"], eval_loc
             )
         else:
             msp_fmm, field_fmm = potential2D(
                 data["sources"][i : i + 1],
                 data["shape"],
-                data["r"][i],
-                correction=False,
-                correction_source=True,
+                eval_loc,
+                correction=cor,
+                correction_source=cor_source,
             )
 
         pot_out[i] = msp_fmm
@@ -66,12 +78,12 @@ for n in range(n_eval + 1):
         # Run MagTense
         if data["shape"] == "sphere":
             mt_h, mt_dur = field_cylinder_exact(
-                data["sources"][i : i + 1], data["r"][i], length=25
+                data["sources"][i : i + 1], eval_loc, length=25
             )
         else:
             mt_h, mt_dur = field_mt(
                 data["sources"][i : i + 1],
-                data["r"][i] if data["target_source"] else data["r"],
+                eval_loc,
                 data["shape"],
             )
         mt_out.append(mt_h[0])
@@ -80,31 +92,35 @@ for n in range(n_eval + 1):
     pot_t_avg.append(np.mean(t_pot))
 
     # Potential
-    diff_model_pot = data["msp"] - jnp.array(pot_out)
-    rel_err_pot = jnp.abs(diff_model_pot / data["msp"])
-    median_pot = jnp.nanmedian(rel_err_pot, axis=-1)
-    pot_acc.append(jnp.mean(median_pot) * 100)
-    pot_acc_std.append(jnp.std(median_pot) * 100)
+    if grid_eval:
+        diff_model_pot = data["msp_grid"] - np.array(pot_out)
+        rel_err_pot = np.abs(diff_model_pot / data["msp_grid"])
+    else:
+        diff_model_pot = data["msp"] - np.array(pot_out)
+        rel_err_pot = np.abs(diff_model_pot / data["msp"])
+    median_pot = np.nanmedian(rel_err_pot, axis=-1)
+    pot_acc.append(np.mean(median_pot) * 100)
+    pot_acc_std.append(np.std(median_pot) * 100)
 
     # Field
     mt_t_avg.append(np.mean(t_mt))
-    diff_model = jnp.array(mt_out)[..., :2] - jnp.array(field_out)[..., :2]
-    rel_err_field = jnp.linalg.norm(diff_model, axis=-1) / jnp.linalg.norm(
-        jnp.array(mt_out)[..., :2], axis=-1
+    diff_model = np.array(mt_out)[..., :2] - np.array(field_out)[..., :2]
+    rel_err_field = np.linalg.norm(diff_model, axis=-1) / np.linalg.norm(
+        np.array(mt_out)[..., :2], axis=-1
     )
-    median_field = jnp.nanmedian(rel_err_field, axis=-1)
-    field_acc.append(jnp.mean(median_field) * 100)
-    field_acc_std.append(jnp.std(median_field) * 100)
+    median_field = np.nanmedian(rel_err_field, axis=-1)
+    field_acc.append(np.mean(median_field) * 100)
+    field_acc_std.append(np.std(median_field) * 100)
 
     if data["field_eval"]:
         # Eval MagTense
-        diff_mt = data["field"][..., :2] - jnp.array(mt_out)[..., :2]
-        rel_err_mt = jnp.linalg.norm(diff_mt, axis=-1) / jnp.linalg.norm(
+        diff_mt = data["field"][..., :2] - np.array(mt_out)[..., :2]
+        rel_err_mt = np.linalg.norm(diff_mt, axis=-1) / np.linalg.norm(
             data["field"][..., :2], axis=-1
         )
-        median_mt = jnp.nanmedian(rel_err_mt, axis=-1)
-        mt_acc.append(jnp.mean(median_mt) * 100)
-        mt_acc_std.append(jnp.std(median_mt) * 100)
+        median_mt = np.nanmedian(rel_err_mt, axis=-1)
+        mt_acc.append(np.mean(median_mt) * 100)
+        mt_acc_std.append(np.std(median_mt) * 100)
 
     res_table = prettytable.PrettyTable()
     res_table.field_names = [

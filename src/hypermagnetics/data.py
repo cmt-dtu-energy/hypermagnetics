@@ -38,9 +38,9 @@ def create_data(
 
 if __name__ == "__main__":
     create_data(
-        n_eval=6,
+        n_eval=4,
         field_eval=False,
-        name="eval_qt_exact",
+        name="eval_qt",
         shape="prism",
         quadtree=True,
         grid_eval=True,
