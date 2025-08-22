@@ -8,7 +8,7 @@ from hypermagnetics.fmm_sources import potential2D, potential2D_loop
 from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 
-n_eval = 2  # 8
+n_eval = 6  # 8
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
@@ -17,6 +17,7 @@ loop = False
 plot_t_fmm = True
 plot_err_mt = False
 grid_eval = False
+mean_eval = True
 
 mt_acc = []
 mt_acc_std = []
@@ -98,9 +99,13 @@ for n in range(n_eval + 1):
     else:
         diff_model_pot = data["msp"] - np.array(pot_out)
         rel_err_pot = np.abs(diff_model_pot / data["msp"])
-    median_pot = np.nanmedian(rel_err_pot, axis=-1)
-    pot_acc.append(np.mean(median_pot) * 100)
-    pot_acc_std.append(np.std(median_pot) * 100)
+
+    if mean_eval:
+        m_pot = np.nanmean(rel_err_pot, axis=-1)
+    else:
+        m_pot = np.nanmedian(rel_err_pot, axis=-1)
+    pot_acc.append(np.mean(m_pot) * 100)
+    pot_acc_std.append(np.std(m_pot) * 100)
 
     # Field
     mt_t_avg.append(np.mean(t_mt))
@@ -108,9 +113,12 @@ for n in range(n_eval + 1):
     rel_err_field = np.linalg.norm(diff_model, axis=-1) / np.linalg.norm(
         np.array(mt_out)[..., :2], axis=-1
     )
-    median_field = np.nanmedian(rel_err_field, axis=-1)
-    field_acc.append(np.mean(median_field) * 100)
-    field_acc_std.append(np.std(median_field) * 100)
+    if mean_eval:
+        m_field = np.nanmean(rel_err_field, axis=-1)
+    else:
+        m_field = np.nanmedian(rel_err_field, axis=-1)
+    field_acc.append(np.mean(m_field) * 100)
+    field_acc_std.append(np.std(m_field) * 100)
 
     if data["field_eval"]:
         # Eval MagTense
@@ -118,9 +126,12 @@ for n in range(n_eval + 1):
         rel_err_mt = np.linalg.norm(diff_mt, axis=-1) / np.linalg.norm(
             data["field"][..., :2], axis=-1
         )
-        median_mt = np.nanmedian(rel_err_mt, axis=-1)
-        mt_acc.append(np.mean(median_mt) * 100)
-        mt_acc_std.append(np.std(median_mt) * 100)
+        if mean_eval:
+            m_mt = np.nanmean(rel_err_mt, axis=-1)
+        else:
+            m_mt = np.nanmedian(rel_err_mt, axis=-1)
+        mt_acc.append(np.mean(m_mt) * 100)
+        mt_acc_std.append(np.std(m_mt) * 100)
 
     res_table = prettytable.PrettyTable()
     res_table.field_names = [
@@ -151,7 +162,10 @@ fig.set_size_inches(12, 6)
 
 color = "tab:green"
 ax1.set_xlabel("Number of sources")
-ax1.set_ylabel("Relative median error (%)", color=color)
+if mean_eval:
+    ax1.set_ylabel("Relative mean error (%)", color=color)
+else:
+    ax1.set_ylabel("Relative median error (%)", color=color)
 # Plot mean and standard deviation for errors
 ax1.errorbar(
     range(len(x_axis_ticks)),
@@ -181,10 +195,13 @@ ax4.spines["left"].set_visible(True)
 ax4.yaxis.set_label_position("left")
 ax4.yaxis.set_ticks_position("left")
 ax4.tick_params(axis="y", labelcolor=color)
-ax4.set_ylabel("Relative median error (%) - FMM field", color=color)
+if mean_eval:
+    ax4.set_ylabel("Relative mean error (%) - FMM field", color=color)
+else:
+    ax4.set_ylabel("Relative median error (%) - FMM field", color=color)
 
 ax4.errorbar(
-    range(len(x_axis_ticks)),
+    np.array(range(len(x_axis_ticks))) + 0.05,
     field_acc,
     yerr=field_acc_std,
     fmt="o",
@@ -203,12 +220,16 @@ ax2.tick_params(axis="y", labelcolor=color)
 
 # Instantiate a third y-axis that shares the same x-axis
 if plot_t_fmm:
-    ax3 = ax1.twinx()
-    ax3.spines["right"].set_position(("axes", 1.1))
-    ax3.spines["right"].set_visible(True)
-    ax3.set_ylabel("Runtime - FMM (ms)", color=color)
-    ax3.plot([val_t * 1e3 for val_t in pot_t_avg], color=color)
-    ax3.tick_params(axis="y", labelcolor=color)
+    if grid_eval:
+        ax2.set_ylabel("Runtime (s)", color=color)
+        ax2.plot([val_t for val_t in pot_t_avg], color=color)
+    else:
+        ax3 = ax1.twinx()
+        ax3.spines["right"].set_position(("axes", 1.1))
+        ax3.spines["right"].set_visible(True)
+        ax3.set_ylabel("Runtime - FMM (ms)", color=color)
+        ax3.plot([val_t * 1e3 for val_t in pot_t_avg], color=color)
+        ax3.tick_params(axis="y", labelcolor=color)
 
 # Only display every second x tick
 xtick_indices = list(range(0, len(x_axis_ticks), 2))

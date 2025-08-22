@@ -19,7 +19,7 @@ field_single_out = np.zeros((n_ensemble, n_sources, n_sources, 2))
 target_field_single_out = np.zeros((n_ensemble, n_sources, n_sources, 2))
 
 target_field_mt = True
-plot_single_corr = False
+plot_single_corr = True
 
 for i in range(n_ensemble):
     # Run model for potential
@@ -94,38 +94,47 @@ for i in range(n_ensemble):
             )[..., :2]
 
 assert np.allclose(pot_out, np.sum(pot_single_out, axis=1), rtol=1e-8, atol=1e-5)
+assert np.allclose(field_out, np.sum(field_single_out, axis=1), rtol=1e-8, atol=1e-5)
 
 # Potential
 rel_err_pot = np.abs((data["msp"] - pot_out) / data["msp"])
-median_pot = np.nanmedian(rel_err_pot, axis=-1)
+mean_pot = np.nanmean(rel_err_pot, axis=-1)
+
+# Potential from individual sources
+diff_pot_single = target_single_out - pot_single_out
+diff_pot_single[np.abs(diff_pot_single) < 1e-12] = 0
+rel_err_pot_single = np.abs(diff_pot_single / target_single_out)
+mean_pot_single = np.nanmean(rel_err_pot_single, axis=-1)
 
 # Field
 diff_model = field_mt_out - np.array(field_out)[..., :2]
 rel_err_field = np.linalg.norm(diff_model, axis=-1) / np.linalg.norm(
     field_mt_out, axis=-1
 )
-median_field = np.nanmedian(rel_err_field, axis=-1)
-
-# Potential from individual sources
-rel_err_pot_single = np.abs((target_single_out - pot_single_out) / target_single_out)
-median_pot_single = np.nanmedian(rel_err_pot_single, axis=-1)
+mean_field = np.nanmean(rel_err_field, axis=-1)
 
 # Field from individual sources
 rel_err_field_single = np.abs(
     (target_field_single_out - field_single_out) / target_field_single_out
 )
-median_field_single = np.nanmedian(rel_err_field_single, axis=-1)
+mean_field_single = np.nanmean(rel_err_field_single, axis=-1)
 
 
 if plot_single_corr:
     corr_field_single = np.mean(rel_err_field_single, axis=-1)[0] * 100
     corr_pot_single = rel_err_pot_single[0] * 100
-    plt.imshow(np.clip(corr_field_single, 0, 40), cmap="viridis")
-    # plt.imshow(np.clip(corr_pot_single, 0, 10), cmap="viridis")
+
+    plt.imshow(np.clip(corr_field_single, 0, 30), cmap="viridis")
+    plt.title("Relative Mean Error of Field from Single Sources")
     plt.colorbar(label="Relative Error")
-    plt.title("Relative Error of Field from Single Sources")
-    plt.xlabel("Source Index")
-    plt.ylabel("Target Index")
+
+    # Potential plotting
+    # plt.imshow(np.clip(corr_pot_single, 0, 3), cmap="viridis")
+    # plt.title("Relative Mean Error of Potential from Single Sources")
+    # plt.colorbar(label="Relative Error")
+
+    plt.xlabel("Target Index")
+    plt.ylabel("Source Index")
     plt.xticks(np.arange(n_sources), np.arange(n_sources))
     plt.yticks(np.arange(n_sources), np.arange(n_sources))
     # Save the plot to the 'figs' directory
@@ -146,12 +155,12 @@ res_table.field_names = [
 res_table.add_row(
     [
         int(n_sources),
-        float(np.mean(median_pot) * 100),
-        float(np.std(median_pot) * 100),
-        float(np.mean(median_field) * 100),
-        float(np.mean(median_pot_single) * 100),
-        float(np.std(median_pot_single) * 100),
-        float(np.mean(median_field_single) * 100),
+        float(np.mean(mean_pot) * 100),
+        float(np.std(mean_pot) * 100),
+        float(np.mean(mean_field) * 100),
+        float(np.mean(mean_pot_single) * 100),
+        float(np.std(mean_pot_single) * 100),
+        float(np.mean(mean_field_single) * 100),
     ]
 )
 res_table.float_format = "5.4"

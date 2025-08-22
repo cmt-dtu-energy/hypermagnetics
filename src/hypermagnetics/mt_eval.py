@@ -323,6 +323,8 @@ def field_mt(sources, r, shape, length=100):
     # Shapes: n_samples, n_sources, dim
     m, r0, size = np.split(sources, 3, axis=-1)
     n_samples, n_sources, dim = r0.shape
+    if n_samples == 0:
+        raise ValueError("No sources provided for MagTense field calculation.")
 
     center_pos = np.zeros(shape=(n_samples, n_sources, 3))
     dev_center = np.zeros(shape=(n_samples, n_sources, 3))
