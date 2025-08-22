@@ -47,11 +47,9 @@ for n in range(n_eval + 1):
     for i in range(n_ensemble):
         if grid_eval:
             eval_loc = data["grid"]
-            cor = True
             cor_source = False
         else:
             eval_loc = data["r"][i]
-            cor = False
             cor_source = True
         # Function once to eliminate any overhead for first call
         if i == 0:
@@ -68,7 +66,6 @@ for n in range(n_eval + 1):
                 data["sources"][i : i + 1],
                 data["shape"],
                 eval_loc,
-                correction=cor,
                 correction_source=cor_source,
             )
 

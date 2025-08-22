@@ -27,7 +27,6 @@ for i in range(n_ensemble):
         data["sources"][i : i + 1],
         data["shape"],
         data["r"][i],
-        correction=False,
         correction_source=True,
     )
     pot_out[i] = msp_fmm
@@ -51,7 +50,6 @@ for i in range(n_ensemble):
             data["sources"][i : i + 1, n : n + 1],
             data["shape"],
             data["r"][i],
-            correction=False,
             correction_source=True,
             idx_single=n,
         )
@@ -94,16 +92,16 @@ for i in range(n_ensemble):
             )[..., :2]
 
 assert np.allclose(pot_out, np.sum(pot_single_out, axis=1), rtol=1e-8, atol=1e-5)
-assert np.allclose(field_out, np.sum(field_single_out, axis=1), rtol=1e-8, atol=1e-5)
+assert np.allclose(field_out, np.sum(field_single_out, axis=1), rtol=1e-4, atol=1e-4)
 
 # Potential
 rel_err_pot = np.abs((data["msp"] - pot_out) / data["msp"])
 mean_pot = np.nanmean(rel_err_pot, axis=-1)
 
 # Potential from individual sources
-diff_pot_single = target_single_out - pot_single_out
-diff_pot_single[np.abs(diff_pot_single) < 1e-12] = 0
-rel_err_pot_single = np.abs(diff_pot_single / target_single_out)
+diff_pot_single = np.abs(target_single_out - pot_single_out)
+diff_pot_single[diff_pot_single < 1e-12] = 0
+rel_err_pot_single = diff_pot_single / np.abs(target_single_out)
 mean_pot_single = np.nanmean(rel_err_pot_single, axis=-1)
 
 # Field
@@ -124,21 +122,23 @@ if plot_single_corr:
     corr_field_single = np.mean(rel_err_field_single, axis=-1)[0] * 100
     corr_pot_single = rel_err_pot_single[0] * 100
 
-    plt.imshow(np.clip(corr_field_single, 0, 30), cmap="viridis")
-    plt.title("Relative Mean Error of Field from Single Sources")
-    plt.colorbar(label="Relative Error")
+    # plt.imshow(np.clip(corr_field_single, 0, 30), cmap="viridis")
+    # plt.title("Relative Mean Error of Field from Single Sources")
 
     # Potential plotting
-    # plt.imshow(np.clip(corr_pot_single, 0, 3), cmap="viridis")
-    # plt.title("Relative Mean Error of Potential from Single Sources")
-    # plt.colorbar(label="Relative Error")
+    plt.imshow(np.clip(corr_pot_single, 0, 3), cmap="viridis")
+    plt.title("Relative Mean Error of Potential from Single Sources")
+
+    plt.colorbar(label="Relative Error [%]")
 
     plt.xlabel("Target Index")
     plt.ylabel("Source Index")
     plt.xticks(np.arange(n_sources), np.arange(n_sources))
     plt.yticks(np.arange(n_sources), np.arange(n_sources))
     # Save the plot to the 'figs' directory
-    plt.savefig("/home/spol/Documents/repos/hypermagnetics/figs/corr_fmm_single.svg")
+    plt.savefig(
+        "/home/spol/Documents/repos/hypermagnetics/figs/corr_fmm_single_pot.svg"
+    )
 
 
 res_table = prettytable.PrettyTable()

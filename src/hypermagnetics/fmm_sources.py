@@ -12,7 +12,6 @@ def potential2D(
     sources: np.ndarray,
     shape: str = "sphere",
     grid: np.ndarray | None = None,
-    correction: bool = False,
     correction_source: bool = False,
     idx_single: int | None = None,
     DTYPE: np.dtype = np.float64,
@@ -75,95 +74,64 @@ def potential2D(
             pg=source_eval,
             pgt=target_eval,
         )
-        if grid is None:
-            # Prefactor is missing in FMM
-            msp[i] = out.pot / (2 * np.pi)
-            field[i] = (-1) * out.grad.swapaxes(0, 1) / (2 * np.pi)
-            field[i] -= m[i] / (np.pi * size[i, :, 0:1] ** 2) / 2
-        else:
-            msp[i] = out.pottarg / (2 * np.pi)
-            field[i] = (-1) * out.gradtarg.swapaxes(0, 1) / (2 * np.pi)
+        # Prefactor is missing in FMM
+        msp[i] = out.pot / (2 * np.pi)
+        field[i] = (-1) * out.grad.swapaxes(0, 1) / (2 * np.pi)
 
+        if grid is None or correction_source:
+            if type(idx_single) is int:
+                slice_single = slice(idx_single, idx_single + 1)
+            else:
+                slice_single = slice(0, n_sources)
+
+            if shape == "sphere":
+                area_n = np.pi * size[i, :, 0:1] ** 2
+            elif shape == "prism":
+                area_n = 2 * size[i, :, 0:1] * 2 * size[i, :, 1:2]
+            else:
+                raise ValueError("Unknown shape")
+
+            field[i, slice_single] -= m[i] / 2 / area_n
+        else:
             # Correction for physical dipole - Adds an M in the complexity
             # This works only if sources do not overlap
-            if correction:
-                for n in range(n_sources):
-                    if shape == "sphere":
-                        idx_in = np.where(
-                            np.linalg.norm(grid - r0[i][n], axis=1) <= size[i, n, 0]
-                        )[0]
-                        area_n = np.pi * size[i, n, 0] ** 2
-                    elif shape == "prism":
-                        idx_in = np.where(
-                            (np.abs(grid[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
-                            & (np.abs(grid[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
-                        )[0]
-                        area_n = 2 * size[i, n, 0] * 2 * size[i, n, 1]
-                    else:
-                        raise ValueError("Unknown shape")
-
-                    d_in = grid[idx_in] - r0[i][n]
-                    d_in_norm = np.linalg.norm(d_in, axis=1)
-
-                    msp[i, idx_in] += np.dot(m[i][n], d_in.T) / 2 / area_n
-                    field[i, idx_in] -= m[i][n] / 2 / area_n
-
-                    # Correction for point-like dipole
-                    msp[i, idx_in] -= replace_inf_nan(
-                        np.dot(m[i][n], (d_in).T) / (2 * np.pi * d_in_norm**2)
-                    )
-
-                    # Correction for point-like dipole
-                    field[i, idx_in] += replace_inf_nan(
-                        (
-                            m[i][n] / np.reshape(d_in_norm**2, (-1, 1))
-                            - 2
-                            * np.reshape(np.dot(m[i][n], (d_in).T), (-1, 1))
-                            * (d_in)
-                            / np.reshape(d_in_norm**4, (-1, 1))
-                        )
-                        / (2 * np.pi)
-                    )
-
-            elif correction_source:
-                if type(idx_single) is int:
-                    slice_single = slice(idx_single, idx_single + 1)
-                else:
-                    slice_single = slice(0, n_sources)
-
+            for n in range(n_sources):
                 if shape == "sphere":
-                    area_n = np.pi * size[i, :, 0:1] ** 2
+                    idx_in = np.where(
+                        np.linalg.norm(grid - r0[i][n], axis=1) <= size[i, n, 0]
+                    )[0]
+                    area_n = np.pi * size[i, n, 0] ** 2
                 elif shape == "prism":
-                    area_n = 2 * size[i, :, 0:1] * 2 * size[i, :, 1:2]
+                    idx_in = np.where(
+                        (np.abs(grid[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
+                        & (np.abs(grid[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
+                    )[0]
+                    area_n = 2 * size[i, n, 0] * 2 * size[i, n, 1]
                 else:
                     raise ValueError("Unknown shape")
 
-                # d = grid - r0[i]
-                # d_norm = np.linalg.norm(d, axis=1)
+                d_in = grid[idx_in] - r0[i][n]
+                d_in_norm = np.linalg.norm(d_in, axis=1)
 
-                # Zero magnetic scalar potential at center
-                # msp[i, slice_single] += (
-                #     np.einsum("ij,ij->i", m[i], d) / 2 / (np.pi * size[i, :, 0] ** 2)
-                # )[slice_single]
+                msp[i, idx_in] += np.dot(m[i][n], d_in.T) / 2 / area_n
+                field[i, idx_in] -= m[i][n] / 2 / area_n
 
-                # msp[i, slice_single] -= replace_inf_nan(
-                #     np.einsum("ij,ij->i", m[i], d) / (2 * np.pi * d_norm**2)
-                # )[slice_single]
+                # Correction for point-like dipole
+                msp[i, idx_in] -= replace_inf_nan(
+                    np.dot(m[i][n], (d_in).T) / (2 * np.pi * d_in_norm**2)
+                )
 
-                # Field in elongated cylinder
-                field[i, slice_single] -= m[i] / 2 / area_n
-
-                # Zero field at the center
-                # field[i, slice_single] += replace_inf_nan(
-                #     (
-                #         m[i] / np.reshape(d_norm**2, (-1, 1))
-                #         - 2
-                #         * np.reshape(np.einsum("ij,ij->i", m[i], d), (-1, 1))
-                #         * (d)
-                #         / np.reshape(d_norm**4, (-1, 1))
-                #     )[slice_single]
-                #     / (2 * np.pi)
-                # )
+                # Correction for point-like dipole
+                field[i, idx_in] += replace_inf_nan(
+                    (
+                        m[i][n] / np.reshape(d_in_norm**2, (-1, 1))
+                        - 2
+                        * np.reshape(np.dot(m[i][n], (d_in).T), (-1, 1))
+                        * (d_in)
+                        / np.reshape(d_in_norm**4, (-1, 1))
+                    )
+                    / (2 * np.pi)
+                )
 
     return msp, field
 
