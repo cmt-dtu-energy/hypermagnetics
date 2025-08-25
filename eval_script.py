@@ -16,7 +16,7 @@ db_name = "eval_qt_exact_42"
 loop = False
 plot_t_fmm = True
 plot_err_mt = False
-grid_eval = False
+grid_eval = True
 mean_eval = True
 
 mt_acc = []

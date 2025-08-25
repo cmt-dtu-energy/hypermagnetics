@@ -2,22 +2,27 @@ import numpy as np
 import fmm2dpy as fmm
 
 
-def replace_inf_nan(x):
-    x = np.where(np.isinf(x), 0.0, x)
-    x = np.where(np.isnan(x), 0.0, x)
-    return x
-
-
 def potential2D(
     sources: np.ndarray,
     shape: str = "sphere",
     grid: np.ndarray | None = None,
     correction_source: bool = False,
     idx_single: int | None = None,
-    DTYPE: np.dtype = np.float64,
 ):
     """
     Compute the potential at the grid points due to the sources.
+
+    Args:
+        sources: Array of source points and their properties.
+        shape: Shape of the source (e.g., "sphere" or "prism").
+        grid: Optional grid points to evaluate the potential.
+        correction_source: Whether to apply correction to the source.
+        idx_single: Index of a single source to evaluate.
+
+    Returns:
+        msp: The magnetic scalar potential at the grid points.
+        field: The magnetic field at the grid points.
+
     The package fmm2dpy calculates the dipolar potential from a magnetic moment.
 
     Pecularities of fmm2d:
@@ -46,37 +51,42 @@ def potential2D(
     if dim == 3 and shape == "prism":
         m = m[..., :2]
         r0 = r0[..., :2]
+        if grid is not None:
+            grid = grid[..., :2]
 
     if grid is None:
-        msp = np.zeros((n_samples, n_sources), dtype=DTYPE)
-        field = np.zeros((n_samples, n_sources, 2), dtype=DTYPE)
+        n_points = n_sources
+        targets = None
         source_eval = 2
         target_eval = 0
-        targets = None
     else:
-        if dim == 3 and shape == "prism":
-            grid = grid[..., :2]
-        msp = np.zeros((n_samples, grid.shape[0]), dtype=DTYPE)
-        field = np.zeros((n_samples, grid.shape[0], 2), dtype=DTYPE)
-        targets = grid.swapaxes(0, 1).astype(DTYPE)
+        n_points = grid.shape[0]
+        targets = grid.swapaxes(0, 1)
         source_eval = 0
         target_eval = 2
+
+    msp = np.zeros((n_samples, n_points))
+    field = np.zeros((n_samples, n_points, 2))
 
     for i in range(n_samples):
         out = fmm.rfmm2d(
             eps=10 ** (-5),
-            sources=r0[i].swapaxes(0, 1).astype(DTYPE),
+            sources=r0[i].swapaxes(0, 1),
             charges=None,
-            dipstr=np.ones(shape=(n_sources,), dtype=DTYPE),
-            dipvec=-m[i].swapaxes(0, 1).astype(DTYPE),
+            dipstr=np.ones(shape=(n_sources,)),
+            dipvec=-m[i].swapaxes(0, 1),
             targets=targets,
             nd=1,
             pg=source_eval,
             pgt=target_eval,
         )
-        # Prefactor is missing in FMM
-        msp[i] = out.pot / (2 * np.pi)
-        field[i] = (-1) * out.grad.swapaxes(0, 1) / (2 * np.pi)
+
+        if grid is None:
+            msp[i] = out.pot / (2 * np.pi)
+            field[i] = (-1) * out.grad.swapaxes(0, 1) / (2 * np.pi)
+        else:
+            msp[i] = out.pottarg / (2 * np.pi)
+            field[i] = (-1) * out.gradtarg.swapaxes(0, 1) / (2 * np.pi)
 
         if grid is None or correction_source:
             if type(idx_single) is int:
@@ -112,26 +122,20 @@ def potential2D(
 
                 d_in = grid[idx_in] - r0[i][n]
                 d_in_norm = np.linalg.norm(d_in, axis=1)
+                d_in_norm2 = np.where(d_in_norm == 0, np.inf, d_in_norm**2)
+                mdotd = np.dot(m[i][n], d_in.T)
 
-                msp[i, idx_in] += np.dot(m[i][n], d_in.T) / 2 / area_n
+                msp[i, idx_in] += mdotd / 2 / area_n
                 field[i, idx_in] -= m[i][n] / 2 / area_n
 
                 # Correction for point-like dipole
-                msp[i, idx_in] -= replace_inf_nan(
-                    np.dot(m[i][n], (d_in).T) / (2 * np.pi * d_in_norm**2)
-                )
+                msp[i, idx_in] -= mdotd / (2 * np.pi * d_in_norm2)
 
                 # Correction for point-like dipole
-                field[i, idx_in] += replace_inf_nan(
-                    (
-                        m[i][n] / np.reshape(d_in_norm**2, (-1, 1))
-                        - 2
-                        * np.reshape(np.dot(m[i][n], (d_in).T), (-1, 1))
-                        * (d_in)
-                        / np.reshape(d_in_norm**4, (-1, 1))
-                    )
-                    / (2 * np.pi)
-                )
+                field[i, idx_in] += (
+                    m[i][n] / d_in_norm2[:, None]
+                    - 2 * mdotd[:, None] * (d_in) / d_in_norm2[:, None] ** 2
+                ) / (2 * np.pi)
 
     return msp, field
 
