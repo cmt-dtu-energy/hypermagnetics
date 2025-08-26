@@ -368,7 +368,7 @@ def configure(
 
 
 def read_db(filename: str, read_grid=False):
-    datapath = Path("/home/spol/Documents/repos/hypermagnetics/data")
+    datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     if read_grid:
         data = {

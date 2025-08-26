@@ -8,6 +8,15 @@ This repository contains two implementations: **source-to-field** and **boundary
 
 **Boundary-to-field** is for estimating the uncertainty in the spatial magnetic field given only observations around a boundary. It is done by contructing a Gaussian process on the boundary, samples from which are then solved exactly using Laplace's equation.
 
+## Dependencies and set-up for fmm2dpy (python<3.12)
+```zsh
+conda create -n hm python=3.11 && conda activate hm
+pip install numpy==1.26.4
+pip install -U "jax[cuda12]"
+pip install -e ".dev"
+conda install magtense -c cmt-dtu-energy/label/cpu
+````
+
 ## Dependencies and set-up for source-to-field
 
 - Python 3.9

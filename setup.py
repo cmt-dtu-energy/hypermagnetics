@@ -22,9 +22,12 @@ setup(
             "ipython",
             "ipykernel",
             "scienceplots",
+            "prettytable",
+            "fmm2dpy",
+            "h5py",
             # "pyvista", # Install via conda
         ],
         "metal": ["jax-metal==0.0.6"],
     },
-    python_requires=">=3.9",
+    python_requires=">=3.9,<3.12",
 )
