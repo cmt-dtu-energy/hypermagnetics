@@ -38,11 +38,9 @@ def fit(
         for i in range(n_steps):
             batch = {}
             batch["sources"] = train["sources"][i * batch_size : (i + 1) * batch_size]
-            batch["potential"] = train["potential"][
-                i * batch_size : (i + 1) * batch_size
-            ]
+            batch["msp"] = train["msp"][i * batch_size : (i + 1) * batch_size]
             batch["field"] = train["field"][i * batch_size : (i + 1) * batch_size]
-            # batch["potential_grid"] = train["potential_grid"][
+            # batch["msp_grid"] = train["msp_grid"][
             #     i * batch_size : (i + 1) * batch_size
             # ]
             # batch["field_grid"] = train["field_grid"][

@@ -1,6 +1,8 @@
 import numpy as np
 import fmm2dpy as fmm
 
+from hypermagnetics.sources import _field, _potential, _total
+
 
 def potential2D(
     sources: np.ndarray,
@@ -125,17 +127,30 @@ def potential2D(
                 d_in_norm2 = np.where(d_in_norm == 0, np.inf, d_in_norm**2)
                 mdotd = np.dot(m[i][n], d_in.T)
 
-                msp[i, idx_in] += mdotd / 2 / area_n
-                field[i, idx_in] -= m[i][n] / 2 / area_n
-
                 # Correction for point-like dipole
                 msp[i, idx_in] -= mdotd / (2 * np.pi * d_in_norm2)
-
-                # Correction for point-like dipole
                 field[i, idx_in] += (
                     m[i][n] / d_in_norm2[:, None]
                     - 2 * mdotd[:, None] * (d_in) / d_in_norm2[:, None] ** 2
                 ) / (2 * np.pi)
+
+                if shape == "sphere":
+                    # Correction for physical dipole (elongated cylinder)
+                    msp[i, idx_in] += mdotd / 2 / area_n
+                    field[i, idx_in] -= m[i][n] / 2 / area_n
+
+                elif shape == "prism":
+                    # Correction for physical dipole (elongated prism)
+                    grid_in = np.zeros((grid[idx_in].shape[0], 3))
+                    grid_in[:, :2] = grid[idx_in]
+                    msp[i, idx_in] += _total(
+                        _potential, sources[i : i + 1, n : n + 1], grid_in, shape
+                    )[0]
+                    field[i, idx_in] += _total(
+                        _field, sources[i : i + 1, n : n + 1], grid_in, shape
+                    )[0][..., :2]
+                else:
+                    raise ValueError("Unknown shape")
 
     return msp, field
 

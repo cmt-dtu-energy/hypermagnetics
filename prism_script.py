@@ -2,21 +2,19 @@ import wandb
 import optax
 import equinox as eqx
 from pathlib import Path
-import jax.numpy as jnp
-from hypermagnetics.sources import configure, read_db
-from hypermagnetics.models.hyper_fourier import FourierModel
+from hypermagnetics.sources import read_db
 from hypermagnetics.models.hyper_mlp import HyperLayer
-from hypermagnetics.measures import loss, accuracy
+from hypermagnetics.measures import accuracy
 from hypermagnetics.runner import fit
 
 
 if __name__ == "__main__":
     config = {
         "shape": "prism",
-        "n_samples": 200200,
-        "lim": 2.4,
+        "n_samples": 100100,
+        "lim": 1,
         "res": 32,
-        "dim": 3,
+        "dim": 2,
         "epochs": 80,
         "width": 400,
         "depth": 3,
@@ -24,16 +22,12 @@ if __name__ == "__main__":
         "hdepth": 3,
         "seed": 42,
         "lambda_field": 0.25,
-        "batch_size": 800,
+        "batch_size": 400,
     }
 
-    # train = configure(**source_config, n_sources=3, seed=110)
-    # val = configure(**source_config, n_sources=4, seed=101)
-    # val_single = configure(**source_config, n_sources=1, seed=102)
-
-    train = read_db(f"100_{config['n_samples']}_train.h5")
-    val = read_db("101_1020_val_lim.h5")
-    val_single = read_db("102_1020_val_lim_single.h5")
+    train = read_db("train_qt_42_100100_1.h5")
+    val = read_db("val_qt_41_1020_10.h5")
+    val_single = read_db("val_qt_40_1020_1.h5")
 
     # model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
     model = HyperLayer(
@@ -67,11 +61,11 @@ if __name__ == "__main__":
             "epochs": config["epochs"],
             "params": {"learning_rate": 1e-4},
         },
-        # {
-        #     "optim": optax.adam,
-        #     "epochs": config["epochs"],
-        #     "params": {"learning_rate": 1e-5},
-        # },
+        {
+            "optim": optax.adam,
+            "epochs": config["epochs"],
+            "params": {"learning_rate": 1e-5},
+        },
     ]
 
     for trainer_config in schedule:
@@ -103,5 +97,5 @@ if __name__ == "__main__":
 
     filepath = Path("/home/spol/Documents/repos/hypermagnetics/")
     eqx.tree_serialise_leaves(
-        filepath / "models" / "ic_inr_400_200k_fcinr_lim_uniform.eqx", model
+        filepath / "models" / "ic_inr_400_200k_fcinr_quadtree.eqx", model
     )

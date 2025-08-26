@@ -338,19 +338,20 @@ def configure(
         if save_data:
             db["msp"][k * batch : (k + 1) * batch] = msp
             db["field"][k * batch : (k + 1) * batch] = field
-            print(f"Database '{db_prefix}_{seed}_{n_samples}_{n_sources}.h5' created!")
 
     # Postprocessing - Remove fields with nan values
-    if save_data and n_samples > 1000:
-        nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
-        for i, idx in enumerate(nan_idx):
-            db["m"][idx] = db["m"][n_samples - 1000 + i]
-            db["r0"][idx] = db["r0"][n_samples - 1000 + i]
-            db["size"][idx] = db["size"][n_samples - 1000 + i]
-            db["msp"][idx] = db["msp"][n_samples - 1000 + i]
-            db["field"][idx] = db["field"][n_samples - 1000 + i]
-            db["msp_grid"][idx] = db["msp_grid"][n_samples - 1000 + i]
-            db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
+    if save_data:
+        print(f"Database '{db_prefix}_{seed}_{n_samples}_{n_sources}.h5' created!")
+        if n_samples > 1000:
+            nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
+            for i, idx in enumerate(nan_idx):
+                db["m"][idx] = db["m"][n_samples - 1000 + i]
+                db["r0"][idx] = db["r0"][n_samples - 1000 + i]
+                db["size"][idx] = db["size"][n_samples - 1000 + i]
+                db["msp"][idx] = db["msp"][n_samples - 1000 + i]
+                db["field"][idx] = db["field"][n_samples - 1000 + i]
+                db["msp_grid"][idx] = db["msp_grid"][n_samples - 1000 + i]
+                db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
 
         db.close()
 
@@ -397,6 +398,10 @@ def read_db(filename: str, read_grid=False):
             "shape": db.attrs["shape"],
         }
     db.close()
+
+    _, _, size = np.split(data["sources"], 3, axis=-1)
+    data["max_size"] = np.max(size[..., :2])
+    data["min_size"] = np.min(size[..., :2])
 
     return data
 

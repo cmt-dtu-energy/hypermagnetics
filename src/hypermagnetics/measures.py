@@ -45,17 +45,17 @@ def loss(model, data, lambda_field=0.25):
     sources, r, P, F = (
         data["sources"],
         data["r"],
-        data["potential"],
+        data["msp"],
         data["field"],
     )
 
     pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    potential_loss = jnp.mean(optax.huber_loss(pred, P))
+    msp_loss = jnp.mean(optax.huber_loss(pred, P))
 
     pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
     field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
 
-    res = potential_loss + lambda_field * field_loss
+    res = msp_loss + lambda_field * field_loss
 
     return res
 
@@ -73,7 +73,7 @@ def cached_loss(model, data):
     Returns:
     - The mean loss value calculated using the Huber loss function.
     """
-    sources, _, target = data["sources"], data["r"], data["potential"]
+    sources, _, target = data["sources"], data["r"], data["msp"]
     pred = jax.vmap(model.cached_evaluation)(*jax.vmap(model.prepare_weights)(sources))
     return jnp.mean(optax.huber_loss(pred, target))
 
@@ -91,7 +91,7 @@ def accuracy(model, data):
     float: The median relative error of the model, as a percentage.
 
     """
-    sources, r, target = data["sources"], data["r"], data["potential"]
+    sources, r, target = data["sources"], data["r"], data["msp"]
     pred = jax.vmap(model, in_axes=(0, None))(sources, r)
     diff = target - pred
 

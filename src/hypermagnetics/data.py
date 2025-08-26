@@ -14,6 +14,9 @@ def create_data(
     name: str = "eval",
     lim: float = 1.0,
     eps: float = 0.0,
+    max_size: float = 0.5,
+    min_size: float = 0.05,
+    batch_size: int = 1000,
 ):
     for n in range(n_eval + 1):
         source_config = {
@@ -22,7 +25,7 @@ def create_data(
             "n_sources": max(min_sources, step_sources * n),
             "lim": lim,
             "res": 32,
-            "target_source": True,
+            "target_source": False,
             "eps": eps,
             "grid_eval": grid_eval,
             "field_eval": field_eval,
@@ -30,21 +33,28 @@ def create_data(
             "save_data": True,
             "db_prefix": name,
             "seed": seed,
-            "min_size": 0.05,
-            "max_size": 0.5,
+            "min_size": min_size,
+            "max_size": max_size,
+            "batch_size": batch_size,
         }
         configure(**source_config)
 
 
 if __name__ == "__main__":
     create_data(
-        n_eval=4,
-        field_eval=False,
-        name="eval_qt",
+        n_eval=0,
+        n_ensemble=1020,
+        min_sources=10,
+        step_sources=0,
+        field_eval=True,
+        name="val_single_qt",
         shape="prism",
-        quadtree=True,
+        quadtree=False,
         grid_eval=True,
         lim=1.0,
         eps=0.0,
-        seed=42,
+        max_size=0.5,
+        min_size=0.005,
+        batch_size=10,
+        seed=41,
     )
