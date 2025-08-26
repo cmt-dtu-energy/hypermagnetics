@@ -8,7 +8,7 @@ from hypermagnetics.fmm_sources import potential2D, potential2D_loop
 from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 
-n_eval = 6  # 8
+n_eval = 1  # 8
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
