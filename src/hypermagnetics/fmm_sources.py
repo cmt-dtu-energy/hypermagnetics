@@ -154,28 +154,18 @@ def potential2D(
 
                 elif shape == "prism":
                     # Correction for physical dipole (elongated prism)
-                    # grid_in = np.zeros((grid[idx_in].shape[0], 3))
-                    # grid_in[:, :2] = grid[idx_in]
-                    # msp[i, idx_in] += _total(
-                    #     _potential, sources[i : i + 1, n : n + 1], grid_in, shape
-                    # )[0]
-                    # field[i, idx_in] += _total(
-                    #     _field, sources[i : i + 1, n : n + 1], grid_in, shape
-                    # )[0][..., :2]
-
-                    with jax.default_device(jax.devices("cpu")[0]):
-                        vals, grads = batched_prism(
-                            idx_in,
-                            jnp.array(sources[i, n], dtype=jnp.float64),
-                            jnp.array(
-                                np.concatenate(
-                                    [grid, np.zeros((grid.shape[0], 1))], axis=-1
-                                ),
-                                dtype=jnp.float64,
+                    vals, grads = batched_prism(
+                        idx_in,
+                        jnp.array(sources[i, n], dtype=jnp.float64),
+                        jnp.array(
+                            np.concatenate(
+                                [grid, np.zeros((grid.shape[0], 1))], axis=-1
                             ),
-                        )
-                        msp[i, idx_in] += vals
-                        field[i, idx_in] -= grads[..., :2]
+                            dtype=jnp.float64,
+                        ),
+                    )
+                    msp[i, idx_in] += vals
+                    field[i, idx_in] -= grads[..., :2]
                 else:
                     raise ValueError("Unknown shape")
 

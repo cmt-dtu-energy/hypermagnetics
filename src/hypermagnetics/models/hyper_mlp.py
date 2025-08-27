@@ -75,14 +75,14 @@ class HyperLayer(MLPHyperModel):
         weights, bias = wb[:-1], wb[-1:]
         return weights, bias
 
-    def prepare_model(self, weights, bias):
+    def prepare_model(self, weights, biases):
         final_layer = eqx.tree_at(
             get_weights,
             self.final_layer,
             reshape_params(get_weights(self.final_layer), weights),
         )
         final_layer = eqx.tree_at(
-            get_biases, final_layer, reshape_params(get_biases(final_layer), bias)
+            get_biases, final_layer, reshape_params(get_biases(final_layer), biases)
         )
         return lambda r: final_layer(self.model(r))
 
