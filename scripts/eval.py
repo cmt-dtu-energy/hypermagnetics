@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import prettytable
 
-from hypermagnetics.fmm_sources import potential2D, potential2D_loop
+from hypermagnetics.fmm_sources import potential2D
 from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 from hypermagnetics.models.hyper_mlp import HyperLayer
@@ -18,13 +18,14 @@ n_ensemble = 5
 min_sources = 10
 step_sources = 250
 db_name = "eval_qt_exact_42"
-loop = False
 plot_t_fmm = True
 plot_err_mt = False
 plot_pot_fmm = False
 grid_eval = True
-mean_eval = False
+mean_eval = True
 model_eval = True
+model_path = Path(__file__).parent / ".." / "models"
+figs_path = Path(__file__).parent / ".." / "figs"
 
 if model_eval:
     model_cfg = HyperLayer(
@@ -34,7 +35,6 @@ if model_eval:
         hdepth=3,
         seed=42,
     )
-    model_path = Path(__file__).parent / "models"
     model_name = "fcilr_400_200k_quadtree.eqx"
     model = eqx.tree_deserialise_leaves(model_path / model_name, model_cfg)
     fcilr_t_avg = []
@@ -61,7 +61,7 @@ for n in range(n_eval + 1):
     fcilr_field_out = []
     fcilr_pot_out = []
 
-    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5", read_grid=grid_eval)
+    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
 
     if grid_eval:
         pot_out = np.zeros((n_ensemble, data["grid"].shape[0]))
@@ -88,17 +88,12 @@ for n in range(n_eval + 1):
         # Run model for potential
         start_time_pot = time.time()
 
-        if loop:
-            msp_fmm, field_fmm = potential2D_loop(
-                data["sources"][i : i + 1], data["shape"], eval_loc
-            )
-        else:
-            msp_fmm, field_fmm = potential2D(
-                data["sources"][i : i + 1],
-                data["shape"],
-                eval_loc,
-                correction_source=cor_source,
-            )
+        msp_fmm, field_fmm = potential2D(
+            data["sources"][i : i + 1],
+            data["shape"],
+            eval_loc,
+            correction_source=cor_source,
+        )
 
         pot_out[i] = msp_fmm
         t_pot[i] = time.time() - start_time_pot
@@ -313,7 +308,7 @@ if model_eval:
 ax2 = ax1.twinx()
 
 color = "tab:blue"
-ax2.set_ylabel("Runtime - MagTense (s)", color=color)
+ax2.set_ylabel("Runtime (s)", color=color)
 if len(mt_t_avg) > 0:
     ax2.plot(mt_t_avg, color=color, linestyle="--")
 ax2.tick_params(axis="y", labelcolor=color)
@@ -326,13 +321,13 @@ if model_eval:
 if plot_t_fmm:
     if grid_eval:
         ax2.set_ylabel("Runtime (s)", color=color)
-        ax2.plot([val_t for val_t in pot_t_avg], color=color, linestyle="-.")
+        ax2.plot([val_t for val_t in pot_t_avg], color=color, linestyle=":")
     else:
         ax3 = ax1.twinx()
         ax3.spines["right"].set_position(("axes", 1.1))
         ax3.spines["right"].set_visible(True)
         ax3.set_ylabel("Runtime - FMM (ms)", color=color)
-        ax3.plot([val_t * 1e3 for val_t in pot_t_avg], color=color, linestyle="-.")
+        ax3.plot([val_t * 1e3 for val_t in pot_t_avg], color=color, linestyle=":")
         ax3.tick_params(axis="y", labelcolor=color)
 
 # Only display every second x tick
@@ -352,9 +347,5 @@ plt.legend(handles=legend_elements, loc="upper left")
 fig.tight_layout()  # To ensure there's no overlap
 
 # Save the plot to the 'figs' directory
-plt.savefig(
-    f"/home/spol/Documents/repos/hypermagnetics/figs/metrics_fcilr_{data['shape']}.svg"
-)
-
-# Clear the current figure after saving to avoid conflicts with future plots
+plt.savefig(figs_path / f"metrics_fcilr_{data['shape']}.svg")
 plt.clf()

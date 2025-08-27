@@ -367,36 +367,21 @@ def configure(
     }
 
 
-def read_db(filename: str, read_grid=False):
+def read_db(filename: str):
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
-    if read_grid:
-        data = {
-            "sources": np.concatenate(
-                [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
-            ),
-            "r": np.array(db["r"][:]),
-            "msp": np.array(db["msp"][:]),
-            "field": np.array(db["field"][:]),
-            "grid": np.array(db["grid"][:]),
-            "msp_grid": np.array(db["msp_grid"][:]),
-            "field_grid": np.array(db["field_grid"][:]),
-            "field_eval": db.attrs["field_eval"],
-            "target_source": db.attrs["target_source"],
-            "shape": db.attrs["shape"],
-        }
-    else:
-        data = {
-            "sources": np.concatenate(
-                [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
-            ),
-            "r": np.array(db["r"][:]),
-            "msp": np.array(db["msp"][:]),
-            "field": np.array(db["field"][:]),
-            "field_eval": db.attrs["field_eval"],
-            "target_source": db.attrs["target_source"],
-            "shape": db.attrs["shape"],
-        }
+    data = {
+        "sources": np.concatenate([db["m"][:], db["r0"][:], db["size"][:]], axis=-1),
+        "r": np.array(db["r"][:]),
+        "msp": np.array(db["msp"][:]),
+        "field": np.array(db["field"][:]),
+        "grid": np.array(db["grid"][:]),
+        "msp_grid": np.array(db["msp_grid"][:]),
+        "field_grid": np.array(db["field_grid"][:]),
+        "field_eval": db.attrs["field_eval"],
+        "target_source": db.attrs["target_source"],
+        "shape": db.attrs["shape"],
+    }
     db.close()
 
     _, _, size = np.split(data["sources"], 3, axis=-1)

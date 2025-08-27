@@ -21,7 +21,7 @@ if __name__ == "__main__":
         "hwidth": 2,
         "hdepth": 3,
         "seed": 42,
-        "lambda_field": 0.25,
+        "lambda_field": 10,
         "batch_size": 400,
     }
 
@@ -95,7 +95,5 @@ if __name__ == "__main__":
 
     wandb.finish()
 
-    filepath = Path("/home/spol/Documents/repos/hypermagnetics/")
-    eqx.tree_serialise_leaves(
-        filepath / "models" / "ic_inr_400_200k_fcinr_quadtree.eqx", model
-    )
+    filepath = Path(__file__).parent / ".." / "models"
+    eqx.tree_serialise_leaves(filepath / "ic_ilr_400_200k_field.eqx", model)
