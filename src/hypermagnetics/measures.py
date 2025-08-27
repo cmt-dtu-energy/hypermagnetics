@@ -49,13 +49,13 @@ def loss(model, data, lambda_field=0.25):
         data["field"],
     )
 
-    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    msp_loss = jnp.mean(optax.huber_loss(pred, P))
+    # pred = jax.vmap(model, in_axes=(0, None))(sources, r)
+    # msp_loss = jnp.mean(optax.huber_loss(pred, P))
 
     pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
     field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
 
-    res = msp_loss + lambda_field * field_loss
+    res = lambda_field * field_loss
 
     return res
 

@@ -286,7 +286,7 @@ def field_cylinder_exact(sources, r, length=100):
 
     # Magnetization is used in MagTense
     # Magnetic moment is used for dipole formula
-    m = m / (np.pi * size[..., 0:1] ** 2)
+    # m = m / (np.pi * size[..., 0:1] ** 2)
 
     if dim == 2:
         r0 = np.concatenate([r0, np.zeros((n_samples, n_sources, 1))], axis=-1)
@@ -332,7 +332,7 @@ def field_mt(sources, r, shape, length=100):
     if shape == "sphere":
         # Magnetization is used in MagTense
         # Magnetic moment is used for dipole formula
-        m = m / (np.pi * size[..., 0:1] ** 2)
+        # m = m / (np.pi * size[..., 0:1] ** 2)
 
         # 2D is simulated with an elongated cylinder
         if dim == 2:
@@ -362,7 +362,7 @@ def field_mt(sources, r, shape, length=100):
         size = size * 2
         # Magnetization is used in MagTense
         # Magnetic moment is used for dipole formula
-        m = m / (size[..., 0:1] * size[..., 1:2])
+        # m = m / (size[..., 0:1] * size[..., 1:2])
     else:
         raise ValueError(f"Unknown source shape: {shape}")
 

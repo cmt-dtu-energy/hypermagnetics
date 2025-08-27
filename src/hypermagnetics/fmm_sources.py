@@ -80,6 +80,12 @@ def potential2D(
         source_eval = 0
         target_eval = 2
 
+    # Convert magnetization to magnetic moment
+    if shape == "sphere":
+        m = m * (np.pi * size[..., 0:1] ** 2)
+    elif shape == "prism":
+        m = m * (4 * size[..., 0:1] * size[..., 1:2])
+
     msp = np.zeros((n_samples, n_points))
     field = np.zeros((n_samples, n_points, 2))
 

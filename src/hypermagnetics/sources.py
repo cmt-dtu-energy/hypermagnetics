@@ -50,14 +50,16 @@ def _prism(m: jax.Array, r0: jax.Array, r: jax.Array, size: jax.Array):
 
     # To be consistent with dipolar potential implementation
     # Convert magnetic moment to magnetization
-    M = m / (2 * a * 2 * b)
-    value = M @ jnp.array([fx, fy, fz]) / (4 * jnp.pi)
+    # M = m / (2 * a * 2 * b)
+    value = m @ jnp.array([fx, fy, fz]) / (4 * jnp.pi)
     return replace_inf_nan(value)
 
 
 @jax.jit
 def _sphere(m: jax.Array, r0: jax.Array, r: jax.Array, size=1.0, dim=2):
     """Finite sphere potential in two or three dimensions."""
+    # Convert magnetization to magnetic moment
+    m = m * (jnp.pi * size**2)
     d = r - r0
     d_norm = jnp.linalg.norm(d)
     m_dot_r = jnp.dot(m, d)
@@ -158,8 +160,13 @@ def configure(
             minval=-lim + min_size,
             maxval=lim - min_size,
         )
-        size = jr.uniform(
-            key=skey, shape=(n_samples, n_sources, 1), minval=min_size, maxval=max_size
+        size = jnp.exp(
+            jr.uniform(
+                key=skey,
+                shape=(n_samples, n_sources, 1),
+                minval=jnp.log(min_size),
+                maxval=jnp.log(max_size),
+            )
         )
 
     if shape == "sphere":

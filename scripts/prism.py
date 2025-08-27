@@ -15,7 +15,7 @@ if __name__ == "__main__":
         "lim": 1,
         "res": 32,
         "dim": 2,
-        "epochs": 80,
+        "epochs": 50,
         "width": 400,
         "depth": 3,
         "hwidth": 2,
@@ -25,7 +25,7 @@ if __name__ == "__main__":
         "batch_size": 400,
     }
 
-    train = read_db("train_qt_42_100100_1.h5")
+    train = read_db("train_qt_42_50050_1.h5")
     val = read_db("val_qt_41_1020_10.h5")
     val_single = read_db("val_qt_40_1020_1.h5")
 

@@ -13,7 +13,7 @@ from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 from hypermagnetics.models.hyper_mlp import HyperLayer
 
-n_eval = 4
+n_eval = 2
 n_ensemble = 5
 min_sources = 10
 step_sources = 250
@@ -21,9 +21,9 @@ db_name = "eval_qt_exact_42"
 plot_t_fmm = True
 plot_err_mt = False
 plot_pot_fmm = False
-grid_eval = True
+grid_eval = False
 mean_eval = True
-model_eval = True
+model_eval = False
 model_path = Path(__file__).parent / ".." / "models"
 figs_path = Path(__file__).parent / ".." / "figs"
 

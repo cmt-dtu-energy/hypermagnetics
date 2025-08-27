@@ -43,11 +43,11 @@ def create_data(
 if __name__ == "__main__":
     create_data(
         n_eval=0,
-        n_ensemble=1020,
-        min_sources=10,
+        n_ensemble=50050,
+        min_sources=1,
         step_sources=0,
         field_eval=True,
-        name="val_single_qt",
+        name="train_qt",
         shape="prism",
         quadtree=False,
         grid_eval=True,
@@ -56,5 +56,5 @@ if __name__ == "__main__":
         max_size=0.5,
         min_size=0.005,
         batch_size=10,
-        seed=41,
+        seed=42,
     )
