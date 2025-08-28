@@ -20,17 +20,18 @@ model_cfg = HyperLayer(
 )
 model_path = Path(__file__).parent / ".." / "models"
 figs_path = Path(__file__).parent / ".." / "figs"
-model_name = "fcilr_400_200k_quadtree.eqx"
+fig_name = "size_err_fcilr_field"
+model_name = "fc_ilr_400_200k_field.eqx"  # "fcilr_400_200k_quadtree.eqx"
 model = eqx.tree_deserialise_leaves(model_path / model_name, model_cfg)
 
-data = read_db("val_qt_40_1020_1.h5")
+data = read_db("train_qt_42_50050_1.h5")  # val_qt_40_1020_1.h5")
 
 out = []
 
 if plot_single_err:
     n_samples = 10
 else:
-    n_samples = data["sources"].shape[0] // 4
+    n_samples = data["sources"].shape[0] // 8
 
 for i in range(n_samples):
     # Run model for field
@@ -69,8 +70,7 @@ for i in range(n_samples):
         plt.title(f"Relative Error of field [%] - Size {data['sources'][i, 0, 7]:.3f}")
         plt.colorbar()
         plt.savefig(
-            figs_path
-            / f"size_err_fcilr_{data['shape']}_{data['sources'][i, 0, 7]:.3f}.svg"
+            figs_path / f"{fig_name}_{data['shape']}_{data['sources'][i, 0, 7]:.3f}.svg"
         )
         plt.clf()
 
@@ -78,8 +78,8 @@ if not plot_single_err:
     plt.scatter(jnp.array(out)[:, 0], jnp.array(out)[:, 1] * 100)
     plt.xlabel("Size")
     plt.xscale("log")
-    plt.ylim(0, 200)
+    plt.ylim(0, 300)
     plt.ylabel("Mean Relative Error (%)")
     plt.grid()
-    plt.savefig(figs_path / f"size_err_fcilr_{data['shape']}.svg")
+    plt.savefig(figs_path / f"{fig_name}_{data['shape']}.svg")
     plt.clf()

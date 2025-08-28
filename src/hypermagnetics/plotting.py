@@ -8,15 +8,15 @@ import numpy as np
 import wandb
 
 
-def _plot_shape(ax, r0, m, size, shape, idx, loc, edge):
+def _plot_shape(ax, r0, m, size, shape, loc, edge):
     # Dot at source location
     if loc:
-        ax.scatter(r0[idx, :, 0], r0[idx, :, 1], color="red")
+        ax.scatter(r0[0, :, 0], r0[0, :, 1], color="red")
         ax.quiver(
-            r0[idx, :, 0],
-            r0[idx, :, 1],
-            m[idx, :, 0],
-            m[idx, :, 1],
+            r0[0, :, 0],
+            r0[0, :, 1],
+            m[0, :, 0],
+            m[0, :, 1],
             angles="xy",
             scale_units="xy",
             scale=5,
@@ -27,19 +27,19 @@ def _plot_shape(ax, r0, m, size, shape, idx, loc, edge):
         for i in range(r0.shape[1]):
             if shape == "sphere":
                 edge = Circle(
-                    (r0[idx, i, 0], r0[idx, i, 1]),
-                    size[idx, i, 0],
+                    (r0[0, i, 0], r0[0, i, 1]),
+                    size[0, i, 0],
                     fill=False,
                     edgecolor="red",
                 )
             elif shape == "prism":
                 edge = Rectangle(
                     (
-                        r0[idx, i, 0] - size[idx, i, 0],
-                        r0[idx, i, 1] - size[idx, i, 1],
+                        r0[0, i, 0] - size[0, i, 0],
+                        r0[0, i, 1] - size[0, i, 1],
                     ),
-                    size[idx, i, 0] * 2,
-                    size[idx, i, 1] * 2,
+                    size[0, i, 0] * 2,
+                    size[0, i, 1] * 2,
                     fill=False,
                     edgecolor="red",
                 )
@@ -78,12 +78,12 @@ def _plot(
 
     # Subplot 1: Magnetic Scalar Potential
     axes[0].contourf(x_grid, y_grid, msp.reshape((res, res)))
-    _plot_shape(axes[0], r0, m, size, data["shape"], idx, loc, edge)
+    _plot_shape(axes[0], r0, m, size, data["shape"], loc, edge)
     if number:
         for i in range(r0.shape[1]):
             axes[0].text(
-                r0[idx, i, 0] + 0.05,
-                r0[idx, i, 1] + 0.05,
+                r0[0, i, 0] + 0.05,
+                r0[0, i, 1] + 0.05,
                 str(i),
                 color="black",
                 fontsize=12,
@@ -110,7 +110,7 @@ def _plot(
         arrowsize=1.5,
         arrowstyle="->",
     )
-    _plot_shape(axes[1], r0, m, size, data["shape"], idx, loc, edge)
+    _plot_shape(axes[1], r0, m, size, data["shape"], loc, edge)
 
     axes[1].set_title(prefix + " " + "Magnetic Field")
     axes[1].set_xlabel("x" + units_str)

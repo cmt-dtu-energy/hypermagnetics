@@ -36,6 +36,7 @@ def create_data(
             "min_size": min_size,
             "max_size": max_size,
             "batch_size": batch_size,
+            "dipole_correction": True,
         }
         configure(**source_config)
 
@@ -43,18 +44,18 @@ def create_data(
 if __name__ == "__main__":
     create_data(
         n_eval=0,
-        n_ensemble=50050,
-        min_sources=1,
+        n_ensemble=1020,
+        min_sources=10,
         step_sources=0,
         field_eval=True,
-        name="train_qt",
+        name="val_qt_dipole",
         shape="prism",
-        quadtree=False,
+        quadtree=True,
         grid_eval=True,
         lim=1.0,
         eps=0.0,
         max_size=0.5,
         min_size=0.005,
         batch_size=10,
-        seed=42,
+        seed=41,
     )

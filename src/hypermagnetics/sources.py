@@ -9,6 +9,7 @@ import numpy as np
 
 from hypermagnetics import plots
 from hypermagnetics.quadtree import random_quadtree
+from hypermagnetics.fmm_sources import potential2D
 
 jax.config.update("jax_enable_x64", True)
 
@@ -110,6 +111,7 @@ def configure(
     eps: float = 1e-5,
     quadtree: bool = False,
     target_source: bool = False,
+    dipole_correction: bool = False,
     field_eval: bool = True,
     grid_eval: bool = True,
     batch_size: int = 1000,
@@ -259,12 +261,18 @@ def configure(
         for i in range(max(1, n_samples // batch_size + 1)):
             batch = min(batch_size, n_samples - i * batch_size)
             b_sources = sources[i * batch : (i + 1) * batch]
-            msp_grid = _total(_potential, b_sources, grid, shape)
+            msp_grid = np.array(_total(_potential, b_sources, grid, shape))
             if field_eval:
-                field_grid = _total(_field, b_sources, grid, shape)
+                field_grid = np.array(_total(_field, b_sources, grid, shape))
             else:
                 field_grid = None
 
+            if dipole_correction:
+                msp_fmm, field_fmm = potential2D(b_sources, shape, grid)
+                msp_grid -= msp_fmm
+
+                if field_eval:
+                    field_grid[..., :2] -= field_fmm
             if save_data:
                 db["msp_grid"][i * batch : (i + 1) * batch] = msp_grid
                 db["field_grid"][i * batch : (i + 1) * batch] = field_grid
@@ -336,11 +344,18 @@ def configure(
                         ][:, :dim]
 
         else:
-            msp = _total(_potential, b_sources, r, shape)
+            msp = np.array(_total(_potential, b_sources, r, shape))
             if field_eval:
-                field = _total(_field, b_sources, r, shape)
+                field = np.array(_total(_field, b_sources, r, shape))
             else:
                 field = None
+
+            if dipole_correction:
+                msp_fmm, field_fmm = potential2D(b_sources, shape, r)
+                msp -= msp_fmm
+
+                if field_eval:
+                    field[..., :2] -= field_fmm
 
         if save_data:
             db["msp"][k * batch : (k + 1) * batch] = msp

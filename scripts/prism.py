@@ -11,7 +11,7 @@ from hypermagnetics.runner import fit
 if __name__ == "__main__":
     config = {
         "shape": "prism",
-        "n_samples": 100100,
+        "n_samples": 50050,
         "lim": 1,
         "res": 32,
         "dim": 2,
@@ -25,9 +25,9 @@ if __name__ == "__main__":
         "batch_size": 400,
     }
 
-    train = read_db("train_qt_42_50050_1.h5")
-    val = read_db("val_qt_41_1020_10.h5")
-    val_single = read_db("val_qt_40_1020_1.h5")
+    train = read_db("train_qt_dipole_42_50050_1.h5")
+    val = read_db("val_qt_dipole_41_1020_10.h5")
+    val_single = read_db("val_qt_dipole_40_1020_1.h5")
 
     # model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
     model = HyperLayer(
@@ -96,4 +96,4 @@ if __name__ == "__main__":
     wandb.finish()
 
     filepath = Path(__file__).parent / ".." / "models"
-    eqx.tree_serialise_leaves(filepath / "ic_ilr_400_200k_field.eqx", model)
+    eqx.tree_serialise_leaves(filepath / "fc_ilr_400_200k_dipole_correction.eqx", model)

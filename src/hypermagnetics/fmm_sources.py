@@ -1,20 +1,7 @@
-import jax
-import jax.numpy as jnp
 import numpy as np
 import fmm2dpy as fmm
 
-from hypermagnetics.sources import _prism
-
-# Vectorize over idx axis
-batched_prism = jax.vmap(
-    lambda idx, source, grid: jax.value_and_grad(_prism, argnums=2)(
-        source[:3],
-        source[3:6],
-        grid[idx],
-        source[6:],
-    ),
-    in_axes=(0, None, None),
-)
+from hypermagnetics.mt_eval import field_mt
 
 
 def potential2D(
@@ -22,6 +9,7 @@ def potential2D(
     shape: str = "sphere",
     grid: np.ndarray | None = None,
     correction_source: bool = False,
+    prism_mt: bool = False,
     idx_single: int | None = None,
 ):
     """
@@ -160,18 +148,19 @@ def potential2D(
 
                 elif shape == "prism":
                     # Correction for physical dipole (elongated prism)
-                    vals, grads = batched_prism(
-                        idx_in,
-                        jnp.array(sources[i, n], dtype=jnp.float64),
-                        jnp.array(
+                    msp[i, idx_in] += mdotd / 2 / area_n
+                    if prism_mt:
+                        mt_sim, _ = field_mt(
+                            sources[i : i + 1, n : n + 1],
                             np.concatenate(
-                                [grid, np.zeros((grid.shape[0], 1))], axis=-1
+                                [grid[idx_in], np.zeros((grid[idx_in].shape[0], 1))],
+                                axis=-1,
                             ),
-                            dtype=jnp.float64,
-                        ),
-                    )
-                    msp[i, idx_in] += vals
-                    field[i, idx_in] -= grads[..., :2]
+                            "prism",
+                        )
+                        field[i, idx_in] += mt_sim[0, ..., :2]
+                    else:
+                        field[i, idx_in] -= m[i][n] / 2 / area_n
                 else:
                     raise ValueError("Unknown shape")
 
