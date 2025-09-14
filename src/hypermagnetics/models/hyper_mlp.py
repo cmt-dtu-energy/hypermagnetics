@@ -54,9 +54,9 @@ class HyperLayer(MLPHyperModel):
             use_bias=True,
             key=modelkey,
         )
-        self.final_layer = eqx.nn.MLP(self.width, "scalar", self.width, 0, key=finalkey)
+        self.final_layer = eqx.nn.MLP(self.width, 2, self.width, 0, key=finalkey)
 
-        p = self.width + 1
+        p = 2 * (self.width + 1)
         q = int(self.hwidth * p)
         self.hypermodel = eqx.nn.MLP(
             2 * self.in_size + 1, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
@@ -72,8 +72,8 @@ class HyperLayer(MLPHyperModel):
             [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
         )
         wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
-        weights, bias = wb[:-1], wb[-1:]
-        return weights, bias
+        weights, biases = wb[:-2], wb[-2:]
+        return weights, biases
 
     def prepare_model(self, weights, biases):
         final_layer = eqx.tree_at(

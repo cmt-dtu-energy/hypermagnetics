@@ -4,7 +4,7 @@ import equinox as eqx
 from pathlib import Path
 from hypermagnetics.sources import read_db
 from hypermagnetics.models.hyper_mlp import HyperLayer
-from hypermagnetics.measures import accuracy
+from hypermagnetics.measures import accuracy, accuracy_field
 from hypermagnetics.runner import fit
 
 
@@ -16,12 +16,12 @@ if __name__ == "__main__":
         "res": 32,
         "dim": 2,
         "epochs": 50,
-        "width": 400,
+        "width": 200,
         "depth": 3,
         "hwidth": 2,
         "hdepth": 3,
         "seed": 42,
-        "lambda_field": 10,
+        "lambda_field": 100,
         "batch_size": 400,
     }
 
@@ -82,9 +82,9 @@ if __name__ == "__main__":
             lambda_field=config["lambda_field"],
         )
 
-    train_err = accuracy(model, train)
-    val_single_err = accuracy(model, val_single)
-    val_multi_err = accuracy(model, val)
+    train_err = accuracy_field(model, train)
+    val_single_err = accuracy_field(model, val_single)
+    val_multi_err = accuracy_field(model, val)
     wandb.log(
         {
             "train_err": train_err.item(),
@@ -96,4 +96,4 @@ if __name__ == "__main__":
     wandb.finish()
 
     filepath = Path(__file__).parent / ".." / "models"
-    eqx.tree_serialise_leaves(filepath / "fc_ilr_400_200k_dipole_correction.eqx", model)
+    eqx.tree_serialise_leaves(filepath / "fc_ilr_400_200k_dipole_direct.eqx", model)

@@ -88,20 +88,20 @@ class HyperModel(eqx.Module):
         """Compute inference model weights."""
         raise NotImplementedError
 
-    def prepare_model(self, weights, bias):
+    def prepare_model(self, weights, biases):
         """Construct inference model for evaluation."""
         raise NotImplementedError
 
-    def field(self, sources, r):
-        """Evaluate the field given sources (sources) and evaluation points (r)."""
-        weights, bias = self.prepare_weights(sources)
-        model = self.prepare_model(weights, bias)
-        return -jax.vmap(jax.grad(model))(r[..., :2])
+    # def field(self, sources, r):
+    #     """Evaluate the field given sources (sources) and evaluation points (r)."""
+    #     weights, bias = self.prepare_weights(sources)
+    #     model = self.prepare_model(weights, bias)
+    #     return -jax.vmap(jax.grad(model))(r[..., :2])
 
     def __call__(self, sources, r):
         """Evaluate the potential given sources (sources) and evaluation points (r)."""
-        weights, bias = self.prepare_weights(sources)
-        model = self.prepare_model(weights, bias)
+        weights, biases = self.prepare_weights(sources)
+        model = self.prepare_model(weights, biases)
         return jax.vmap(model)(r[..., :2])
 
 

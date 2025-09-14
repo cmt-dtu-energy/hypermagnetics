@@ -49,11 +49,11 @@ def loss(model, data, lambda_field=0.25):
         data["field"],
     )
 
-    # pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    # msp_loss = jnp.mean(optax.huber_loss(pred, P))
-
-    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
     field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
+
+    # pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    # field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
 
     res = lambda_field * field_loss
 
@@ -114,7 +114,7 @@ def accuracy_field(model, data):
 
     """
     sources, r, target = data["sources"], data["r"], data["field"]
-    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    pred = jax.vmap(model, in_axes=(0, None))(sources, r)
     diff = target[..., :2] - pred
 
     acc = jnp.linalg.norm(diff, axis=-1) / jnp.linalg.norm(target, axis=-1) * 100

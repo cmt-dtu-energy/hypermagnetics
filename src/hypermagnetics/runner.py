@@ -6,7 +6,7 @@ import yaml
 
 import hypermagnetics.sources as sources
 import wandb
-from hypermagnetics.measures import accuracy, accuracy_field, loss
+from hypermagnetics.measures import accuracy_field, loss
 from hypermagnetics.models.hyper_fourier import FourierModel  # noqa
 from hypermagnetics.models.hyper_mlp import HyperLayer, HyperMLP  # noqa
 
@@ -52,16 +52,16 @@ def fit(
             model, opt_state, train_loss = step(model, opt_state, batch)
 
             # Logging
-            train_err = accuracy(model, batch)
-            train_err_field = accuracy_field(model, batch)
-            test_err = accuracy(model, test)
+            train_err = accuracy_field(model, batch)
+            # train_err_field = accuracy_field(model, batch)
+            test_err = accuracy_field(model, test)
             steps = epoch * n_steps + i
             log(
                 {
                     "epoch": epoch,
                     "train_loss": train_loss.item(),
                     "train_err": train_err.item(),
-                    "train_field_err": train_err_field.item(),
+                    # "train_field_err": train_err_field.item(),
                     "test_err": test_err.item(),
                 }
             ) if (steps % every == 0) else None
@@ -97,9 +97,9 @@ if __name__ == "__main__":
         model = fit(trainer_config, optim, model, train, test, log=wandb.log, every=10)
         # wandb.log({"mode_limits": model.kl})
 
-    train_err = accuracy(model, train)
-    val_single_err = accuracy(model, val_single)
-    val_multi_err = accuracy(model, val_multi)
+    train_err = accuracy_field(model, train)
+    val_single_err = accuracy_field(model, val_single)
+    val_multi_err = accuracy_field(model, val_multi)
     wandb.log(
         {
             "train_err": train_err.item(),
