@@ -44,18 +44,18 @@ def create_data(
 if __name__ == "__main__":
     create_data(
         n_eval=0,
-        n_ensemble=1020,
-        min_sources=10,
+        n_ensemble=50050,
+        min_sources=1,
         step_sources=0,
         field_eval=True,
-        name="val_qt_dipole",
+        name="train_qt_dipole",
         shape="prism",
-        quadtree=True,
+        quadtree=False,
         grid_eval=True,
         lim=1.0,
         eps=0.0,
         max_size=0.5,
         min_size=0.005,
         batch_size=10,
-        seed=41,
+        seed=42,
     )

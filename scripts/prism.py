@@ -22,7 +22,7 @@ if __name__ == "__main__":
         "hdepth": 3,
         "seed": 42,
         "lambda_field": 10,
-        "batch_size": 400,
+        "batch_size": 100,
     }
 
     train = read_db("train_qt_dipole_42_50050_1.h5")

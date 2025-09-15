@@ -97,6 +97,15 @@ def _total(fun, sources, r, shape):
     return jnp.sum(components, axis=0)
 
 
+def _total_batch(fun, sources, r, shape):
+    """Aggregate the field or potential of all sources."""
+    fun_with_shape = partial(fun, shape=shape)
+    points = jax.vmap(fun_with_shape, in_axes=(None, 0))
+    batch = jax.vmap(points, in_axes=(0, 0))
+    components = jax.vmap(batch, in_axes=(1, None))(sources, r)
+    return jnp.sum(components, axis=0)
+
+
 def configure(
     n_samples: int,
     n_sources: int,
@@ -159,8 +168,8 @@ def configure(
         r0 = jr.uniform(
             key=r0key,
             shape=(n_samples, n_sources, 2),
-            minval=-lim + min_size,
-            maxval=lim - min_size,
+            minval=-lim,
+            maxval=lim,
         )
         size = jnp.exp(
             jr.uniform(
@@ -211,23 +220,40 @@ def configure(
         db.create_dataset("m", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
-        db.create_dataset(
-            "r",
-            shape=(n_samples, n_sources, dim) if target_source else (res**2, dim),
-            dtype="float32",
-        )
-        db.create_dataset(
-            "msp",
-            shape=(n_samples, n_sources) if target_source else (n_samples, res**2),
-            dtype="float32",
-        )
-        db.create_dataset(
-            "field",
-            shape=(n_samples, n_sources, dim)
-            if target_source
-            else (n_samples, res**2, dim),
-            dtype="float32",
-        )
+        if dipole_correction:
+            db.create_dataset(
+                "r",
+                shape=(n_samples + 1, res**2, 3),
+                dtype="float32",
+            )
+            db.create_dataset(
+                "msp",
+                shape=(n_samples, 2 * res**2),
+                dtype="float32",
+            )
+            db.create_dataset(
+                "field",
+                (n_samples, 2 * res**2, dim),
+                dtype="float32",
+            )
+        else:
+            db.create_dataset(
+                "r",
+                shape=(n_samples, n_sources, dim) if target_source else (res**2, dim),
+                dtype="float32",
+            )
+            db.create_dataset(
+                "msp",
+                shape=(n_samples, n_sources) if target_source else (n_samples, res**2),
+                dtype="float32",
+            )
+            db.create_dataset(
+                "field",
+                shape=(n_samples, n_sources, dim)
+                if target_source
+                else (n_samples, res**2, dim),
+                dtype="float32",
+            )
         db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
         db.create_dataset("msp_grid", shape=(n_samples, res**2), dtype="float32")
         db.create_dataset("field_grid", shape=(n_samples, res**2, dim), dtype="float32")
@@ -268,7 +294,7 @@ def configure(
                 field_grid = None
 
             if dipole_correction:
-                msp_fmm, field_fmm = potential2D(b_sources, shape, grid)
+                msp_fmm, field_fmm = potential2D(b_sources, "sphere", grid)
                 msp_grid -= msp_fmm
 
                 if field_eval:
@@ -286,9 +312,23 @@ def configure(
         # Add a small value to r0 to avoid singularities for gradient evaluation
         r = r0 + eps
     else:
-        r = jr.uniform(minval=-lim, maxval=lim, shape=(res**2, 2), key=rkey)
+        r_all = jr.uniform(key=rkey, minval=-lim, maxval=lim, shape=(res**2, 2))
         if dim == 3:
-            r = jnp.concatenate([r, jnp.zeros((res**2, 1))], axis=-1)
+            r_all = jnp.concatenate([r_all, jnp.zeros((res**2, 1))], axis=-1)
+
+        if dipole_correction:
+            r_dipole = (
+                jr.normal(key=rkey, shape=(n_samples, res**2, 2)) * size[:, 0:1, 0:2]
+                + r0[:, 0:1, 0:2]
+            )
+            if dim == 3:
+                r_dipole = jnp.concatenate(
+                    [r_dipole, jnp.zeros((n_samples, res**2, 1))], axis=-1
+                )
+
+            r = jnp.concatenate([r_dipole, r_all[None]], axis=0)
+        else:
+            r = r_all
 
     if save_data:
         db["r"][:] = r
@@ -298,6 +338,16 @@ def configure(
     for k in range(max(1, n_samples // batch_size + 1)):
         batch = min(batch_size, n_samples - k * batch_size)
         b_sources = sources[k * batch : (k + 1) * batch]
+        if dipole_correction:
+            b_r = jnp.concatenate(
+                [
+                    r[k * batch : (k + 1) * batch],
+                    jnp.repeat(r[-1:], batch, axis=0),
+                ],
+                axis=1,
+            )
+        else:
+            b_r = r
 
         if save_data:
             db["m"][k * batch : (k + 1) * batch] = m[k * batch : (k + 1) * batch]
@@ -344,18 +394,25 @@ def configure(
                         ][:, :dim]
 
         else:
-            msp = np.array(_total(_potential, b_sources, r, shape))
-            if field_eval:
-                field = np.array(_total(_field, b_sources, r, shape))
-            else:
-                field = None
-
             if dipole_correction:
-                msp_fmm, field_fmm = potential2D(b_sources, shape, r)
+                msp = np.array(_total_batch(_potential, b_sources, b_r, shape))
+                if field_eval:
+                    field = np.array(_total_batch(_field, b_sources, b_r, shape))
+                else:
+                    field = None
+
+                msp_fmm, field_fmm = potential2D(b_sources, shape, b_r, batch_r=True)
                 msp -= msp_fmm
 
                 if field_eval:
                     field[..., :2] -= field_fmm
+
+            else:
+                msp = np.array(_total(_potential, b_sources, b_r, shape))
+                if field_eval:
+                    field = np.array(_total(_field, b_sources, b_r, shape))
+                else:
+                    field = None
 
         if save_data:
             db["msp"][k * batch : (k + 1) * batch] = msp

@@ -49,13 +49,13 @@ def loss(model, data, lambda_field=0.25):
         data["field"],
     )
 
-    # pred = jax.vmap(model, in_axes=(0, None))(sources, r)
-    # msp_loss = jnp.mean(optax.huber_loss(pred, P))
+    pred = jax.vmap(model, in_axes=(0, 0))(sources, r)
+    msp_loss = jnp.mean(optax.huber_loss(pred, P))
 
-    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    pred = jax.vmap(model.field, in_axes=(0, 0))(sources, r)
     field_loss = jnp.mean(optax.huber_loss(pred, F[..., :2]))
 
-    res = lambda_field * field_loss
+    res = msp_loss + lambda_field * field_loss
 
     return res
 
@@ -92,6 +92,28 @@ def accuracy(model, data):
 
     """
     sources, r, target = data["sources"], data["r"], data["msp"]
+    pred = jax.vmap(model, in_axes=(0, 0))(sources, r)
+    diff = target - pred
+
+    acc = jnp.linalg.norm(diff) / jnp.linalg.norm(target) * 100
+    acc = replace_inf_nan(acc)
+    return jnp.median(acc)
+
+
+@eqx.filter_jit
+def accuracy_multi(model, data):
+    """
+    Calculate the median relative error of the model given the data.
+
+    Parameters:
+    - model (callable): The model function that takes in sources and grid as inputs and returns predictions.
+    - data (dict): A dictionary containing the input data, including sources, grid, and target potential.
+
+    Returns:
+    float: The median relative error of the model, as a percentage.
+
+    """
+    sources, r, target = data["sources"], data["r"], data["msp"]
     pred = jax.vmap(model, in_axes=(0, None))(sources, r)
     diff = target - pred
 
@@ -114,7 +136,7 @@ def accuracy_field(model, data):
 
     """
     sources, r, target = data["sources"], data["r"], data["field"]
-    pred = jax.vmap(model.field, in_axes=(0, None))(sources, r)
+    pred = jax.vmap(model.field, in_axes=(0, 0))(sources, r)
     diff = target[..., :2] - pred
 
     acc = jnp.linalg.norm(diff, axis=-1) / jnp.linalg.norm(target, axis=-1) * 100

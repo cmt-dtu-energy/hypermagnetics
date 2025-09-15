@@ -11,6 +11,7 @@ def potential2D(
     correction_source: bool = False,
     prism_mt: bool = False,
     idx_single: int | None = None,
+    batch_r: bool = False,
 ):
     """
     Compute the potential at the grid points due to the sources.
@@ -51,7 +52,7 @@ def potential2D(
 
     m, r0, size = np.split(sources, 3, axis=-1)
     n_samples, n_sources, dim = r0.shape
-    if dim == 3 and shape == "prism":
+    if dim == 3:
         m = m[..., :2]
         r0 = r0[..., :2]
         if grid is not None:
@@ -63,8 +64,12 @@ def potential2D(
         source_eval = 2
         target_eval = 0
     else:
-        n_points = grid.shape[0]
-        targets = grid.swapaxes(0, 1)
+        if batch_r:
+            n_points = grid.shape[1]
+            targets = grid.swapaxes(1, 2)
+        else:
+            n_points = grid.shape[0]
+            targets = grid.swapaxes(0, 1)
         source_eval = 0
         target_eval = 2
 
@@ -78,13 +83,20 @@ def potential2D(
     field = np.zeros((n_samples, n_points, 2))
 
     for i in range(n_samples):
+        if batch_r:
+            targets_i = targets[i]
+            grid_i = grid[i]
+        else:
+            targets_i = targets
+            grid_i = grid
+
         out = fmm.rfmm2d(
             eps=10 ** (-5),
             sources=r0[i].swapaxes(0, 1),
             charges=None,
             dipstr=np.ones(shape=(n_sources,)),
             dipvec=-m[i].swapaxes(0, 1),
-            targets=targets,
+            targets=targets_i,
             nd=1,
             pg=source_eval,
             pgt=target_eval,
@@ -113,23 +125,22 @@ def potential2D(
             field[i, slice_single] -= m[i] / 2 / area_n
         else:
             # Correction for physical dipole - Adds an M in the complexity
-            # This works only if sources do not overlap
             for n in range(n_sources):
                 if shape == "sphere":
                     idx_in = np.where(
-                        np.linalg.norm(grid - r0[i][n], axis=1) <= size[i, n, 0]
+                        np.linalg.norm(grid_i - r0[i][n], axis=1) <= size[i, n, 0]
                     )[0]
                     area_n = np.pi * size[i, n, 0] ** 2
                 elif shape == "prism":
                     idx_in = np.where(
-                        (np.abs(grid[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
-                        & (np.abs(grid[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
+                        (np.abs(grid_i[:, 0] - r0[i][n, 0]) <= size[i, n, 0])
+                        & (np.abs(grid_i[:, 1] - r0[i][n, 1]) <= size[i, n, 1])
                     )[0]
                     area_n = 2 * size[i, n, 0] * 2 * size[i, n, 1]
                 else:
                     raise ValueError("Unknown shape")
 
-                d_in = grid[idx_in] - r0[i][n]
+                d_in = grid_i[idx_in] - r0[i][n]
                 d_in_norm = np.linalg.norm(d_in, axis=1)
                 d_in_norm2 = np.where(d_in_norm == 0, np.inf, d_in_norm**2)
                 mdotd = np.dot(m[i][n], d_in.T)
@@ -153,7 +164,10 @@ def potential2D(
                         mt_sim, _ = field_mt(
                             sources[i : i + 1, n : n + 1],
                             np.concatenate(
-                                [grid[idx_in], np.zeros((grid[idx_in].shape[0], 1))],
+                                [
+                                    grid_i[idx_in],
+                                    np.zeros((grid_i[idx_in].shape[0], 1)),
+                                ],
                                 axis=-1,
                             ),
                             "prism",

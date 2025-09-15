@@ -3,10 +3,11 @@ import matplotlib.pyplot as plt
 import optax
 import scienceplots  # noqa
 import yaml
+import jax.numpy as jnp
 
 import hypermagnetics.sources as sources
 import wandb
-from hypermagnetics.measures import accuracy, accuracy_field, loss
+from hypermagnetics.measures import accuracy, accuracy_multi, accuracy_field, loss
 from hypermagnetics.models.hyper_fourier import FourierModel  # noqa
 from hypermagnetics.models.hyper_mlp import HyperLayer, HyperMLP  # noqa
 
@@ -40,21 +41,20 @@ def fit(
             batch["sources"] = train["sources"][i * batch_size : (i + 1) * batch_size]
             batch["msp"] = train["msp"][i * batch_size : (i + 1) * batch_size]
             batch["field"] = train["field"][i * batch_size : (i + 1) * batch_size]
-            # batch["msp_grid"] = train["msp_grid"][
-            #     i * batch_size : (i + 1) * batch_size
-            # ]
-            # batch["field_grid"] = train["field_grid"][
-            #     i * batch_size : (i + 1) * batch_size
-            # ]
-            # batch["grid"] = train["grid"]
-            batch["r"] = train["r"]
+            batch["r"] = jnp.concatenate(
+                [
+                    train["r"][i * batch_size : (i + 1) * batch_size],
+                    jnp.repeat(train["r"][-1:], batch_size, axis=0),
+                ],
+                axis=1,
+            )
 
             model, opt_state, train_loss = step(model, opt_state, batch)
 
             # Logging
             train_err = accuracy(model, batch)
             train_err_field = accuracy_field(model, batch)
-            test_err = accuracy(model, test)
+            test_err = accuracy_multi(model, test)
             steps = epoch * n_steps + i
             log(
                 {

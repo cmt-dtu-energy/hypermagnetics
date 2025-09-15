@@ -118,6 +118,7 @@ class HyperMLP(MLPHyperModel):
         )
 
     def prepare_weights(self, sources):
+        # sources: m (mx, my, mz), r0 (x,y,z), size (a,b,c)
         inputs = jnp.concatenate(
             [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
         )
