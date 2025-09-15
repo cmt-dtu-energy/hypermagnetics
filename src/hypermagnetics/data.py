@@ -18,6 +18,7 @@ def create_data(
     max_size: float = 0.5,
     min_size: float = 0.05,
     batch_size: int = 1000,
+    dp_correction: bool = True,
 ):
     for n in range(n_eval + 1):
         source_config = {
@@ -37,30 +38,31 @@ def create_data(
             "min_size": min_size,
             "max_size": max_size,
             "batch_size": batch_size,
-            "dipole_correction": True,
+            "dipole_correction": dp_correction,
         }
         configure(**source_config)
 
 
 if __name__ == "__main__":
-    # create_data(
-    #     n_eval=0,
-    #     n_ensemble=1020,
-    #     min_sources=1,
-    #     step_sources=0,
-    #     field_eval=True,
-    #     name="val_qt_dipole_res128",
-    #     shape="prism",
-    #     quadtree=False,
-    #     grid_eval=True,
-    #     res=128,
-    #     lim=1.0,
-    #     eps=0.0,
-    #     max_size=0.5,
-    #     min_size=0.005,
-    #     batch_size=10,
-    #     seed=40,
-    # )
+    create_data(
+        n_eval=0,
+        n_ensemble=1020,
+        min_sources=1,
+        step_sources=0,
+        field_eval=True,
+        name="val_qt_res128",
+        shape="prism",
+        quadtree=False,
+        grid_eval=True,
+        res=128,
+        lim=1.0,
+        eps=0.0,
+        max_size=0.5,
+        min_size=0.005,
+        batch_size=10,
+        seed=40,
+        dp_correction=False,
+    )
 
     create_data(
         n_eval=0,
@@ -68,7 +70,7 @@ if __name__ == "__main__":
         min_sources=10,
         step_sources=0,
         field_eval=True,
-        name="val_qt_dipole_res128",
+        name="val_qt_res128",
         shape="prism",
         quadtree=True,
         grid_eval=True,
@@ -79,6 +81,7 @@ if __name__ == "__main__":
         min_size=0.005,
         batch_size=10,
         seed=41,
+        dp_correction=False,
     )
 
     create_data(
@@ -87,7 +90,7 @@ if __name__ == "__main__":
         min_sources=1,
         step_sources=0,
         field_eval=True,
-        name="train_qt_dipole_res128",
+        name="train_qt_res128",
         shape="prism",
         quadtree=False,
         grid_eval=True,
@@ -98,4 +101,5 @@ if __name__ == "__main__":
         min_size=0.005,
         batch_size=10,
         seed=42,
+        dp_correction=False,
     )

@@ -448,17 +448,20 @@ def configure(
     }
 
 
-def read_db(filename: str):
+def read_db(filename: str, max_samples: int = -1):
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     data = {
-        "sources": np.concatenate([db["m"][:], db["r0"][:], db["size"][:]], axis=-1),
+        "sources": np.concatenate(
+            [db["m"][:max_samples], db["r0"][:max_samples], db["size"][:max_samples]],
+            axis=-1,
+        ),
         "r": np.array(db["r"][:]),
-        "msp": np.array(db["msp"][:]),
-        "field": np.array(db["field"][:]),
+        "msp": np.array(db["msp"][:max_samples]),
+        "field": np.array(db["field"][:max_samples]),
         "grid": np.array(db["grid"][:]),
-        "msp_grid": np.array(db["msp_grid"][:]),
-        "field_grid": np.array(db["field_grid"][:]),
+        "msp_grid": np.array(db["msp_grid"][:max_samples]),
+        "field_grid": np.array(db["field_grid"][:max_samples]),
         "field_eval": db.attrs["field_eval"],
         "target_source": db.attrs["target_source"],
         "shape": db.attrs["shape"],

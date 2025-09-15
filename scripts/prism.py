@@ -22,12 +22,12 @@ if __name__ == "__main__":
         "hdepth": 3,
         "seed": 42,
         "lambda_field": 1,
-        "batch_size": 200,
+        "batch_size": 25,
     }
 
-    train = read_db("train_qt_dipole_res128_42_50050_1.h5")
-    val = read_db("val_qt_dipole_res128_41_1020_10.h5")
-    val_single = read_db("val_qt_dipole_res128_40_1020_1.h5")
+    train = read_db("train_qt_res128_42_50050_1.h5", max_samples=30000)
+    val = read_db("val_qt_res128_41_1020_10.h5")
+    val_single = read_db("val_qt_res128_40_1020_1.h5")
 
     # model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
     model = HyperLayer(
@@ -96,4 +96,4 @@ if __name__ == "__main__":
     wandb.finish()
 
     filepath = Path(__file__).parent / ".." / "models"
-    eqx.tree_serialise_leaves(filepath / "fc_ilr_400_200k_dipole_correction_res128.eqx", model)
+    eqx.tree_serialise_leaves(filepath / "fc_ilr_400_200k_res128.eqx", model)
