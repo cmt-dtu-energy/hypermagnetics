@@ -1,6 +1,5 @@
 import matplotlib.pyplot as plt
 import optax
-import scienceplots  # noqa
 import yaml
 import jax.numpy as jnp
 

@@ -220,40 +220,40 @@ def configure(
         db.create_dataset("m", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
-        if dipole_correction:
-            db.create_dataset(
-                "r",
-                shape=(n_samples + 1, res**2, 3),
-                dtype="float32",
-            )
-            db.create_dataset(
-                "msp",
-                shape=(n_samples, 2 * res**2),
-                dtype="float32",
-            )
-            db.create_dataset(
-                "field",
-                (n_samples, 2 * res**2, dim),
-                dtype="float32",
-            )
-        else:
-            db.create_dataset(
-                "r",
-                shape=(n_samples, n_sources, dim) if target_source else (res**2, dim),
-                dtype="float32",
-            )
-            db.create_dataset(
-                "msp",
-                shape=(n_samples, n_sources) if target_source else (n_samples, res**2),
-                dtype="float32",
-            )
-            db.create_dataset(
-                "field",
-                shape=(n_samples, n_sources, dim)
-                if target_source
-                else (n_samples, res**2, dim),
-                dtype="float32",
-            )
+        # if dipole_correction:
+        #     db.create_dataset(
+        #         "r",
+        #         shape=(n_samples + 1, res**2, 3),
+        #         dtype="float32",
+        #     )
+        #     db.create_dataset(
+        #         "msp",
+        #         shape=(n_samples, 2 * res**2),
+        #         dtype="float32",
+        #     )
+        #     db.create_dataset(
+        #         "field",
+        #         (n_samples, 2 * res**2, dim),
+        #         dtype="float32",
+        #     )
+        # else:
+        db.create_dataset(
+            "r",
+            shape=(n_samples, n_sources, dim) if target_source else (res**2, dim),
+            dtype="float32",
+        )
+        db.create_dataset(
+            "msp",
+            shape=(n_samples, n_sources) if target_source else (n_samples, res**2),
+            dtype="float32",
+        )
+        db.create_dataset(
+            "field",
+            shape=(n_samples, n_sources, dim)
+            if target_source
+            else (n_samples, res**2, dim),
+            dtype="float32",
+        )
         db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
         db.create_dataset("msp_grid", shape=(n_samples, res**2), dtype="float32")
         db.create_dataset("field_grid", shape=(n_samples, res**2, dim), dtype="float32")
@@ -316,19 +316,19 @@ def configure(
         if dim == 3:
             r_all = jnp.concatenate([r_all, jnp.zeros((res**2, 1))], axis=-1)
 
-        if dipole_correction:
-            r_dipole = (
-                jr.normal(key=rkey, shape=(n_samples, res**2, 2)) * size[:, 0:1, 0:2]
-                + r0[:, 0:1, 0:2]
-            )
-            if dim == 3:
-                r_dipole = jnp.concatenate(
-                    [r_dipole, jnp.zeros((n_samples, res**2, 1))], axis=-1
-                )
+        # if dipole_correction:
+        #     r_dipole = (
+        #         jr.normal(key=rkey, shape=(n_samples, res**2, 2)) * size[:, 0:1, 0:2]
+        #         + r0[:, 0:1, 0:2]
+        #     )
+        #     if dim == 3:
+        #         r_dipole = jnp.concatenate(
+        #             [r_dipole, jnp.zeros((n_samples, res**2, 1))], axis=-1
+        #         )
 
-            r = jnp.concatenate([r_dipole, r_all[None]], axis=0)
-        else:
-            r = r_all
+        #     r = jnp.concatenate([r_dipole, r_all[None]], axis=0)
+        # else:
+        r = r_all
 
     if save_data:
         db["r"][:] = r
@@ -338,16 +338,16 @@ def configure(
     for k in range(max(1, n_samples // batch_size + 1)):
         batch = min(batch_size, n_samples - k * batch_size)
         b_sources = sources[k * batch : (k + 1) * batch]
-        if dipole_correction:
-            b_r = jnp.concatenate(
-                [
-                    r[k * batch : (k + 1) * batch],
-                    jnp.repeat(r[-1:], batch, axis=0),
-                ],
-                axis=1,
-            )
-        else:
-            b_r = r
+        # if dipole_correction:
+        #     b_r = jnp.concatenate(
+        #         [
+        #             r[k * batch : (k + 1) * batch],
+        #             jnp.repeat(r[-1:], batch, axis=0),
+        #         ],
+        #         axis=1,
+        #     )
+        # else:
+        b_r = r
 
         if save_data:
             db["m"][k * batch : (k + 1) * batch] = m[k * batch : (k + 1) * batch]
@@ -395,13 +395,15 @@ def configure(
 
         else:
             if dipole_correction:
-                msp = np.array(_total_batch(_potential, b_sources, b_r, shape))
+                msp = np.array(_total(_potential, b_sources, b_r, shape))
                 if field_eval:
-                    field = np.array(_total_batch(_field, b_sources, b_r, shape))
+                    field = np.array(_total(_field, b_sources, b_r, shape))
                 else:
                     field = None
 
-                msp_fmm, field_fmm = potential2D(b_sources, shape, b_r, batch_r=True)
+                msp_fmm, field_fmm = potential2D(
+                    b_sources, shape, b_r
+                )  # , batch_r=True)
                 msp -= msp_fmm
 
                 if field_eval:
