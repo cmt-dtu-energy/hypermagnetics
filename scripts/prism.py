@@ -11,23 +11,24 @@ from hypermagnetics.runner import fit
 if __name__ == "__main__":
     config = {
         "shape": "prism",
-        "n_samples": 50050,
+        "n_samples": 25000,
         "lim": 1,
-        "res": 32,
+        "res": 64,
         "dim": 2,
-        "epochs": 50,
+        "epochs": 25,
         "width": 400,
         "depth": 3,
         "hwidth": 2,
         "hdepth": 3,
         "seed": 42,
-        "lambda_field": 1,
-        "batch_size": 25,
+        "lambda_field": 0.25,
+        "batch_size": 100,
     }
 
-    train = read_db("train_qt_res128_42_50050_1.h5", max_samples=30000)
-    val = read_db("val_qt_res128_41_1020_10.h5")
-    val_single = read_db("val_qt_res128_40_1020_1.h5")
+    run_name = "res64_dp"
+    train = read_db(f"train_qt_{run_name}_42_25000_1.h5")
+    val = read_db(f"val_qt_{run_name}_41_1000_10.h5")
+    val_single = read_db(f"val_qt_{run_name}_40_1000_1.h5")
 
     # model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
     model = HyperLayer(
@@ -96,4 +97,4 @@ if __name__ == "__main__":
     wandb.finish()
 
     filepath = Path(__file__).parent / ".." / "models"
-    eqx.tree_serialise_leaves(filepath / "fc_ilr_400_200k_res128.eqx", model)
+    eqx.tree_serialise_leaves(filepath / f"fc_ilr_400_200k_{run_name}.eqx", model)

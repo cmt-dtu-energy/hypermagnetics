@@ -85,7 +85,7 @@ class FourierModel(HyperModel):
         # w = self.hypermodel
         return jnp.sum(w, axis=0), None
 
-    def prepare_model(self, weights, bias):
+    def prepare_model(self, weights, biases):
         return lambda r: self.fourier_expansion(weights, r)
 
 
