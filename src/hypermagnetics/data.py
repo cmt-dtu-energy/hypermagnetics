@@ -19,6 +19,7 @@ def create_data(
     min_size: float = 0.05,
     batch_size: int = 1000,
     dp_correction: bool = True,
+    boundary: bool = False,
 ):
     for n in range(n_eval + 1):
         source_config = {
@@ -39,70 +40,72 @@ def create_data(
             "max_size": max_size,
             "batch_size": batch_size,
             "dipole_correction": dp_correction,
+            "boundary": boundary,
         }
         configure(**source_config)
 
 
 if __name__ == "__main__":
-    dp_correct = True
-    res = 64
-    name = "qt_res64_dp"
-    create_data(
-        n_eval=0,
-        n_ensemble=1000,
-        min_sources=1,
-        step_sources=0,
-        field_eval=True,
-        name=f"val_{name}",
-        shape="prism",
-        quadtree=False,
-        grid_eval=True,
-        res=res,
-        lim=1.0,
-        eps=0.0,
-        max_size=0.5,
-        min_size=0.01,
-        batch_size=10,
-        seed=40,
-        dp_correction=dp_correct,
-    )
+    dp_correct = False
+    res = 32
+    name = f"overlap_prism_res{res}"
+    # create_data(
+    #     n_eval=0,
+    #     n_ensemble=1000,
+    #     min_sources=1,
+    #     step_sources=0,
+    #     field_eval=True,
+    #     name=f"val_{name}",
+    #     shape="prism",
+    #     quadtree=False,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=1.0,
+    #     eps=0.0,
+    #     max_size=0.5,
+    #     min_size=0.01,
+    #     batch_size=10,
+    #     seed=40,
+    #     dp_correction=dp_correct,
+    # )
+
+    # create_data(
+    #     n_eval=0,
+    #     n_ensemble=1000,
+    #     min_sources=10,
+    #     step_sources=0,
+    #     field_eval=True,
+    #     name=f"val_{name}",
+    #     shape="prism",
+    #     quadtree=True,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=1.0,
+    #     eps=0.0,
+    #     max_size=0.5,
+    #     min_size=0.01,
+    #     batch_size=10,
+    #     seed=41,
+    #     dp_correction=dp_correct,
+    # )
 
     create_data(
-        n_eval=0,
-        n_ensemble=1000,
+        n_eval=1,
+        n_ensemble=5,
         min_sources=10,
-        step_sources=0,
+        step_sources=250,
         field_eval=True,
-        name=f"val_{name}",
-        shape="prism",
-        quadtree=True,
-        grid_eval=True,
-        res=res,
-        lim=1.0,
-        eps=0.0,
-        max_size=0.5,
-        min_size=0.01,
-        batch_size=10,
-        seed=41,
-        dp_correction=dp_correct,
-    )
-
-    create_data(
-        n_eval=0,
-        n_ensemble=25000,
-        min_sources=1,
-        step_sources=0,
-        field_eval=True,
-        name=f"train_{name}",
+        name=f"eval_{name}",
         shape="prism",
         quadtree=False,
         grid_eval=True,
         res=res,
-        lim=1.0,
+        lim=3,
         eps=0.0,
-        max_size=0.5,
-        min_size=0.01,
+        max_size=0.48,
+        min_size=0.12,
         batch_size=10,
         seed=42,
         dp_correction=dp_correct,
+        boundary=True,
     )

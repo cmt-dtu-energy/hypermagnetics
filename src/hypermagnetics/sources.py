@@ -11,7 +11,7 @@ from hypermagnetics import plots
 from hypermagnetics.quadtree import random_quadtree
 from hypermagnetics.fmm_sources import potential2D
 
-jax.config.update("jax_enable_x64", True)
+# jax.config.update("jax_enable_x64", True)
 
 
 def replace_inf_nan(x):
@@ -123,6 +123,7 @@ def configure(
     dipole_correction: bool = False,
     field_eval: bool = True,
     grid_eval: bool = True,
+    boundary: bool = False,
     batch_size: int = 1000,
     db_prefix: str = "",
     seed: int = 0,
@@ -168,8 +169,8 @@ def configure(
         r0 = jr.uniform(
             key=r0key,
             shape=(n_samples, n_sources, 2),
-            minval=-lim,
-            maxval=lim,
+            minval=-lim + min_size if boundary else -lim,
+            maxval=lim - min_size if boundary else lim,
         )
         size = jnp.exp(
             jr.uniform(
@@ -448,7 +449,7 @@ def configure(
     }
 
 
-def read_db(filename: str, max_samples: int = -1):
+def read_db(filename: str, max_samples: int = -2):
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     data = {
