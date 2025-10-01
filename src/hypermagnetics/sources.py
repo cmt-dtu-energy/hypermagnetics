@@ -461,7 +461,7 @@ def configure(
     }
 
 
-def read_db(filename: str, max_samples: int = -1):
+def read_db(filename: str, max_samples: int = -2):
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     data = {
