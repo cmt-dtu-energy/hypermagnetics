@@ -123,6 +123,8 @@ def configure(
     dipole_correction: bool = False,
     field_eval: bool = True,
     grid_eval: bool = True,
+    size_log: bool = True,
+    r0_gap: bool = True,
     batch_size: int = 1000,
     db_prefix: str = "",
     seed: int = 0,
@@ -152,7 +154,7 @@ def configure(
 
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey, skey = jr.split(key, 4)
-    m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2))
+    m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2)) * 10
 
     if quadtree:
         r0 = np.zeros((n_samples, n_sources, 2))
@@ -168,17 +170,25 @@ def configure(
         r0 = jr.uniform(
             key=r0key,
             shape=(n_samples, n_sources, 2),
-            minval=-lim,
-            maxval=lim,
+            minval=-lim + min_size if r0_gap else -lim,
+            maxval=lim - min_size if r0_gap else lim,
         )
-        size = jnp.exp(
-            jr.uniform(
+        if size_log:
+            size = jnp.exp(
+                jr.uniform(
+                    key=skey,
+                    shape=(n_samples, n_sources, 1),
+                    minval=jnp.log(min_size),
+                    maxval=jnp.log(max_size),
+                )
+            )
+        else:
+            size = jr.uniform(
                 key=skey,
                 shape=(n_samples, n_sources, 1),
-                minval=jnp.log(min_size),
-                maxval=jnp.log(max_size),
+                minval=min_size,
+                maxval=max_size,
             )
-        )
 
     if shape == "sphere":
         if dim == 2:
@@ -347,7 +357,10 @@ def configure(
         #         axis=1,
         #     )
         # else:
-        b_r = r
+        if target_source:
+            b_r = r[k * batch : (k + 1) * batch]
+        else:
+            b_r = r
 
         if save_data:
             db["m"][k * batch : (k + 1) * batch] = m[k * batch : (k + 1) * batch]
@@ -355,43 +368,43 @@ def configure(
             db["size"][k * batch : (k + 1) * batch] = size[k * batch : (k + 1) * batch]
 
         if target_source:
-            msp = np.zeros((batch, r.shape[1]))
+            msp = np.zeros((batch, b_r.shape[1]))
             if field_eval:
-                field = np.zeros((batch, r.shape[1], dim))
+                field = np.zeros((batch, b_r.shape[1], dim))
             else:
                 field = None
 
-            for i, r_sample in enumerate(r):
+            for o, r_sample in enumerate(b_r):
                 # Memory constraints above 10k sources
                 # N_sources ** 2 has to be below 100M
-                if sources[i].shape[0] > 1e4:
-                    n_sources_per_sim = int(1e8 // sources[i].shape[0])
-                    for j in range(0, sources[i].shape[0], n_sources_per_sim):
-                        msp[i : i + 1] += _total(
+                if sources[o].shape[0] > 1e4:
+                    n_sources_per_sim = int(1e8 // sources[o].shape[0])
+                    for j in range(0, sources[o].shape[0], n_sources_per_sim):
+                        msp[o : o + 1] += _total(
                             _potential,
                             sources[
-                                i : i + 1,
+                                o : o + 1,
                                 j : j + n_sources_per_sim,
                             ],
                             r_sample,
                             shape,
                         )
                         if field_eval:
-                            field[i : i + 1] += _total(
+                            field[o : o + 1] += _total(
                                 _field,
                                 sources[
-                                    i : i + 1,
+                                    o : o + 1,
                                     j : j + n_sources_per_sim,
                                 ],
                                 r_sample,
                                 shape,
                             )
                 else:
-                    msp[i] = _total(_potential, sources[i : i + 1], r_sample, shape)[0]
+                    msp[o] = _total(_potential, b_sources, r_sample, shape)[0]
                     if field_eval:
-                        field[i] = _total(_field, sources[i : i + 1], r_sample, shape)[
-                            0
-                        ][:, :dim]
+                        field[o] = _total(_field, b_sources, r_sample, shape)[0][
+                            :, :dim
+                        ]
 
         else:
             if dipole_correction:
@@ -465,6 +478,32 @@ def read_db(filename: str, max_samples: int = -1):
         "field_eval": db.attrs["field_eval"],
         "target_source": db.attrs["target_source"],
         "shape": db.attrs["shape"],
+    }
+    db.close()
+
+    _, _, size = np.split(data["sources"], 3, axis=-1)
+    data["max_size"] = np.max(size[..., :2])
+    data["min_size"] = np.min(size[..., :2])
+
+    return data
+
+
+def read_db_old(filename: str, max_samples: int = -1):
+    datapath = Path(__file__).parent / ".." / ".." / "data"
+    db = h5py.File(datapath / filename, "r")
+    data = {
+        "sources": np.concatenate(
+            [db["m"][:max_samples], db["r0"][:max_samples], db["size"][:max_samples]],
+            axis=-1,
+        ),
+        "r": np.array(db["r"][:]),
+        "msp": np.array(db["potential"][:max_samples]),
+        "field": np.array(db["field"][:max_samples]),
+        "grid": np.array(db["grid"][:]),
+        "msp_grid": np.array(db["potential_grid"][:max_samples]),
+        "field_grid": np.array(db["field_grid"][:max_samples]),
+        "field_eval": True,
+        "shape": "prism",
     }
     db.close()
 

@@ -11,24 +11,24 @@ from hypermagnetics.runner import fit
 if __name__ == "__main__":
     config = {
         "shape": "prism",
-        "n_samples": 25000,
-        "lim": 1,
-        "res": 64,
+        "n_samples": 200000,
+        "lim": 1.25,
+        "res": 32,
         "dim": 2,
-        "epochs": 25,
+        "epochs": 50,
         "width": 400,
         "depth": 3,
         "hwidth": 2,
         "hdepth": 3,
         "seed": 42,
         "lambda_field": 0.25,
-        "batch_size": 100,
+        "batch_size": 750,
     }
 
-    run_name = "res64_dp"
-    train = read_db(f"train_qt_{run_name}_42_25000_1.h5")
-    val = read_db(f"val_qt_{run_name}_41_1000_10.h5")
-    val_single = read_db(f"val_qt_{run_name}_40_1000_1.h5")
+    run_name = "res32_large_m"
+    train = read_db(f"train_{run_name}_42_{config['n_samples']}_1.h5")
+    val = read_db(f"val_{run_name}_41_1000_10.h5")
+    val_single = read_db(f"val_{run_name}_40_1000_1.h5")
 
     # model = FourierModel(32, hwidth=0.25, hdepth=3, seed=42)
     model = HyperLayer(
@@ -54,17 +54,17 @@ if __name__ == "__main__":
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"],
+            "epochs": 2 * config["epochs"],
             "params": {"learning_rate": 1e-3},
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"],
+            "epochs": config["epochs"] // 2,
             "params": {"learning_rate": 1e-4},
         },
         {
             "optim": optax.adam,
-            "epochs": config["epochs"],
+            "epochs": config["epochs"] // 2,
             "params": {"learning_rate": 1e-5},
         },
     ]

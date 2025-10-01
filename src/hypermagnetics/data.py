@@ -19,15 +19,19 @@ def create_data(
     min_size: float = 0.05,
     batch_size: int = 1000,
     dp_correction: bool = True,
+    size_log: bool = True,
+    r0_gap: bool = False,
+    target_source: bool = False,
+    start_idx: int = 0,
 ):
-    for n in range(n_eval + 1):
+    for n in range(start_idx, n_eval + 1):
         source_config = {
             "shape": shape,
             "n_samples": n_ensemble,
             "n_sources": max(min_sources, step_sources * n),
             "lim": lim,
             "res": res,
-            "target_source": False,
+            "target_source": target_source,
             "eps": eps,
             "grid_eval": grid_eval,
             "field_eval": field_eval,
@@ -37,6 +41,8 @@ def create_data(
             "seed": seed,
             "min_size": min_size,
             "max_size": max_size,
+            "size_log": size_log,
+            "r0_gap": r0_gap,
             "batch_size": batch_size,
             "dipole_correction": dp_correction,
         }
@@ -44,52 +50,77 @@ def create_data(
 
 
 if __name__ == "__main__":
-    dp_correct = True
-    res = 64
-    name = "qt_res64_dp"
-    create_data(
-        n_eval=0,
-        n_ensemble=1000,
-        min_sources=1,
-        step_sources=0,
-        field_eval=True,
-        name=f"val_{name}",
-        shape="prism",
-        quadtree=False,
-        grid_eval=True,
-        res=res,
-        lim=1.0,
-        eps=0.0,
-        max_size=0.5,
-        min_size=0.01,
-        batch_size=10,
-        seed=40,
-        dp_correction=dp_correct,
-    )
+    dp_correct = False
+    res = 32
+    lim = 1.25
+    name = "large_m"
+    # create_data(
+    #     n_eval=3,
+    #     n_ensemble=10,
+    #     min_sources=10,
+    #     step_sources=250,
+    #     field_eval=True,
+    #     name=f"eval_{name}",
+    #     shape="prism",
+    #     quadtree=False,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=lim,
+    #     eps=0.0,
+    #     max_size=0.48,
+    #     min_size=0.12,
+    #     batch_size=1,
+    #     seed=42,
+    #     dp_correction=dp_correct,
+    #     size_log=False,
+    #     r0_gap=True,
+    #     target_source=True,
+    #     start_idx=0,
+    # )
+
+    # create_data(
+    #     n_eval=0,
+    #     n_ensemble=1000,
+    #     min_sources=1,
+    #     step_sources=0,
+    #     field_eval=True,
+    #     name=f"val_{name}",
+    #     shape="prism",
+    #     quadtree=False,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=lim,
+    #     eps=0.0,
+    #     max_size=0.5,
+    #     min_size=0.1,
+    #     batch_size=30,
+    #     seed=40,
+    #     dp_correction=dp_correct,
+    # )
+
+    # create_data(
+    #     n_eval=0,
+    #     n_ensemble=1000,
+    #     min_sources=10,
+    #     step_sources=0,
+    #     field_eval=True,
+    #     name=f"val_{name}",
+    #     shape="prism",
+    #     quadtree=True,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=lim,
+    #     eps=0.0,
+    #     max_size=0.5,
+    #     min_size=0.1,
+    #     batch_size=30,
+    #     seed=41,
+    #     dp_correction=dp_correct,
+    # )
 
     create_data(
         n_eval=0,
-        n_ensemble=1000,
-        min_sources=10,
-        step_sources=0,
-        field_eval=True,
-        name=f"val_{name}",
-        shape="prism",
-        quadtree=True,
-        grid_eval=True,
-        res=res,
-        lim=1.0,
-        eps=0.0,
-        max_size=0.5,
-        min_size=0.01,
-        batch_size=10,
-        seed=41,
-        dp_correction=dp_correct,
-    )
-
-    create_data(
-        n_eval=0,
-        n_ensemble=25000,
+        n_ensemble=200000,
         min_sources=1,
         step_sources=0,
         field_eval=True,
@@ -98,11 +129,13 @@ if __name__ == "__main__":
         quadtree=False,
         grid_eval=True,
         res=res,
-        lim=1.0,
+        lim=lim,
         eps=0.0,
         max_size=0.5,
-        min_size=0.01,
-        batch_size=10,
+        min_size=0.05,
+        batch_size=40,
         seed=42,
         dp_correction=dp_correct,
+        r0_gap=True,
+        size_log=False,
     )

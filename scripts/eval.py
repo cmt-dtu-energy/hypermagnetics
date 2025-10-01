@@ -13,20 +13,20 @@ from hypermagnetics.mt_eval import field_cylinder_exact, field_mt
 from hypermagnetics.sources import read_db
 from hypermagnetics.models.hyper_mlp import HyperLayer
 
-n_eval = 6
-n_ensemble = 5
+n_eval = 2  # 9
+n_ensemble = 10
 min_sources = 10
 step_sources = 250
-db_name = "eval_qt_exact_42"
-plot_t_fmm = True
+db_name = "eval_large_m_42"
+plot_t_fmm = False
 plot_err_mt = False
 plot_pot_fmm = False
-grid_eval = True
-mean_eval = True
-model_eval = False
+grid_eval = False
+mean_eval = False
+model_eval = True
 model_path = Path(__file__).parent / ".." / "models"
 figs_path = Path(__file__).parent / ".." / "figs"
-fig_name = "metrics_test"
+fig_name = "tlmr"
 
 if model_eval:
     model_cfg = HyperLayer(
@@ -36,7 +36,7 @@ if model_eval:
         hdepth=3,
         seed=42,
     )
-    model_name = "fc_ilr_400_200k_field.eqx"
+    model_name = "fc_ilr_400_200k_res32_large_m.eqx"
     model = eqx.tree_deserialise_leaves(model_path / model_name, model_cfg)
     fcilr_t_avg = []
     fcilr_field_acc = []
@@ -62,7 +62,7 @@ for n in range(n_eval + 1):
     fcilr_field_out = []
     fcilr_pot_out = []
 
-    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
+    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5", max_samples=n_ensemble)
 
     if grid_eval:
         pot_out = np.zeros((n_ensemble, data["grid"].shape[0]))
@@ -117,20 +117,20 @@ for n in range(n_eval + 1):
 
         if model_eval:
             # Run model for field
-            t_start = time.time()
             fcilr_field_out.append(
                 jax.vmap(model.field, in_axes=(0, None))(
                     data["sources"][i : i + 1], eval_loc
                 )[0]
             )
-            t_fcilr[i] = time.time() - t_start
 
             # Run model for potential
+            t_start = time.time()
             fcilr_pot_out.append(
                 jax.vmap(model, in_axes=(0, None))(
                     data["sources"][i : i + 1], eval_loc
                 )[0]
             )
+            t_fcilr[i] = time.time() - t_start
 
     pot_t_avg.append(np.mean(t_pot))
     if model_eval:
@@ -139,10 +139,10 @@ for n in range(n_eval + 1):
     # Potential
     if grid_eval:
         diff_model_pot = data["msp_grid"] - np.array(pot_out)
-        rel_err_pot = np.abs(diff_model_pot / data["msp_grid"])
+        rel_err_pot = np.abs(diff_model_pot / (data["msp_grid"]))
     else:
         diff_model_pot = data["msp"] - np.array(pot_out)
-        rel_err_pot = np.abs(diff_model_pot / data["msp"])
+        rel_err_pot = np.abs(diff_model_pot / (data["msp"]))
 
     if mean_eval:
         m_pot = np.nanmean(rel_err_pot, axis=-1)
@@ -166,10 +166,16 @@ for n in range(n_eval + 1):
 
     if data["field_eval"]:
         # Eval MagTense
-        diff_mt = data["field"][..., :2] - np.array(mt_out)[..., :2]
-        rel_err_mt = np.linalg.norm(diff_mt, axis=-1) / np.linalg.norm(
-            data["field"][..., :2], axis=-1
-        )
+        if grid_eval:
+            diff_mt = data["field_grid"][..., :2] - np.array(mt_out)[..., :2]
+            rel_err_mt = np.linalg.norm(diff_mt, axis=-1) / np.linalg.norm(
+                data["field_grid"][..., :2], axis=-1
+            )
+        else:
+            diff_mt = data["field"][..., :2] - np.array(mt_out)[..., :2]
+            rel_err_mt = np.linalg.norm(diff_mt, axis=-1) / np.linalg.norm(
+                data["field"][..., :2], axis=-1
+            )
         if mean_eval:
             m_mt = np.nanmean(rel_err_mt, axis=-1)
         else:
@@ -181,10 +187,10 @@ for n in range(n_eval + 1):
         # Potential
         if grid_eval:
             diff_model_fcilr_pot = data["msp_grid"] - np.array(fcilr_pot_out)
-            rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / data["msp_grid"])
+            rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / (data["msp_grid"]))
         else:
             diff_model_fcilr_pot = data["msp"] - np.array(fcilr_pot_out)
-            rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / data["msp"])
+            rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / (data["msp"]))
 
         if mean_eval:
             m_fcilr_pot = np.nanmean(rel_err_fcilr_pot, axis=-1)
@@ -281,26 +287,27 @@ else:
 ax4.spines["left"].set_visible(True)
 ax4.yaxis.set_label_position("left")
 ax4.yaxis.set_ticks_position("left")
+ax4.set_ylim(0, 12)
 ax4.tick_params(axis="y", labelcolor=color)
 if mean_eval:
     ax4.set_ylabel("Relative mean error (%) - Field", color=color)
 else:
-    ax4.set_ylabel("Relative median error (%) - Field", color=color)
+    ax4.set_ylabel("Relative median error (%) - Potential", color=color)
 
-ax4.errorbar(
-    np.array(range(len(x_axis_ticks))) + 0.05,
-    field_acc,
-    yerr=field_acc_std,
-    fmt="o",
-    color=color,
-    linestyle=":",
-)
+# ax4.errorbar(
+#     np.array(range(len(x_axis_ticks))) + 0.05,
+#     field_acc,
+#     yerr=field_acc_std,
+#     fmt="o",
+#     color=color,
+#     linestyle=":",
+# )
 
 if model_eval:
     ax4.errorbar(
-        np.array(range(len(x_axis_ticks))) + 0.1,
-        fcilr_field_acc,
-        yerr=fcilr_field_acc_std,
+        np.array(range(len(x_axis_ticks))),
+        fcilr_pot_acc,  # fcilr_field_acc,
+        yerr=fcilr_pot_acc_std,  # fcilr_field_acc_std,
         fmt="o",
         color=color,
         linestyle="-",
@@ -312,12 +319,22 @@ ax2 = ax1.twinx()
 color = "tab:blue"
 ax2.set_ylabel("Runtime (s)", color=color)
 if len(mt_t_avg) > 0:
-    ax2.plot(mt_t_avg, color=color, linestyle="--")
+    ax2.plot(mt_t_avg, color=color, linestyle="--", linewidth=2)
 ax2.tick_params(axis="y", labelcolor=color)
 
 if model_eval:
     if len(fcilr_t_avg) > 0:
-        ax2.plot(fcilr_t_avg, color=color, linestyle="-")
+        ax3 = ax1.twinx()
+        ax3.spines["right"].set_position(("axes", 1.12))
+        ax3.spines["right"].set_visible(True)
+        ax3.set_ylabel("Runtime - FCILR (ms)", color=color)
+        ax3.tick_params(axis="y", labelcolor=color)
+        ax3.plot(
+            [val_t * 1e3 for val_t in fcilr_t_avg],
+            color=color,
+            linestyle="-",
+            linewidth=2,
+        )
 
 # Instantiate a third y-axis that shares the same x-axis
 if plot_t_fmm:
@@ -339,14 +356,23 @@ plt.xticks(xtick_indices, [x_axis_ticks[i] for i in xtick_indices])
 legend_elements = [
     Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
     Line2D([0], [0], color="black", lw=2, linestyle="-", label="FCILR"),
-    Line2D([0], [0], color="black", lw=2, linestyle=":", label="FMM"),
+    # Line2D([0], [0], color="black", lw=2, linestyle=":", label="FMM"),
 ]
 if plot_pot_fmm:
     legend_elements.append(
         Line2D([0], [0], color="black", lw=2, linestyle="-.", label="FMM - Potential")
     )
-plt.legend(handles=legend_elements, loc="upper left")
+plt.legend(handles=legend_elements, loc="upper left", fontsize=16)
 fig.tight_layout()  # To ensure there's no overlap
+
+plt.rcParams.update({"font.size": 16})
+for ax in fig.get_axes():
+    for label in ax.get_xticklabels() + ax.get_yticklabels():
+        label.set_fontsize(16)
+    ax.title.set_fontsize(18)
+    ax.xaxis.label.set_fontsize(18)
+    ax.yaxis.label.set_fontsize(18)
+plt.tight_layout()
 
 # Save the plot to the 'figs' directory
 plt.savefig(figs_path / f"{fig_name}_{data['shape']}.svg")
