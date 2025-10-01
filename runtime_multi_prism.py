@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import prettytable
 
-from hypermagnetics.sources import _field_mt, configure_eval
+from hypermagnetics.sources import _field_mt, configure, configure_eval
 from hypermagnetics.models.hyper_mlp import HyperLayer
 
 n_eval = 2500
@@ -22,7 +22,7 @@ model_orig = HyperLayer(
     seed=config["seed"],
 )
 
-filename = "/home/spol/Documents/repos/hypermagnetics/models/ic_inr_400_hwidth_2_50k_fcinr_lim_uniform.eqx"
+filename = "/home/spol/Documents/repos/hypermagnetics/models/ic_inr_400_hwidth_2_200k_fcinr_lim_uniform.eqx"
 model = eqx.tree_deserialise_leaves(filename, model_orig)
 
 mt_acc = []
@@ -36,7 +36,7 @@ pot_acc_std = []
 pot_t_avg = []
 x_axis_ticks = []
 
-for test_sources in range(0, n_eval, max(min_sources, 250)):
+for test_sources in range(1500, n_eval, max(min_sources, 250)):
     n_sources = max(min_sources, test_sources)
     t_mt = []
     mt_out = []
@@ -54,6 +54,8 @@ for test_sources in range(0, n_eval, max(min_sources, 250)):
         "dim": 3,
     }
     test = configure_eval(**source_config, n_sources=n_sources, seed=0)
+    # configure(**source_config, n_sources=n_sources, seed=0, step=5, save_data=True)
+    # continue
 
     for i in range(n_ensemble):
         mr = test["sources"][i : i + 1]
@@ -82,7 +84,7 @@ for test_sources in range(0, n_eval, max(min_sources, 250)):
         test["sources"],
         test["r"],
         test["field"],
-        test["potential"],
+        test["msp"],
     )
     # Eval MagTense
     diff_mt = target[..., :2] - jnp.array(mt_out)[..., :2] * jnp.pi**2
@@ -175,7 +177,7 @@ ax2 = ax1.twinx()
 
 color = "tab:blue"
 ax2.set_ylabel("Runtime (s)", color=color)  # we already handled the x-label with ax1
-ax2.plot(mt_t_avg, color=color, linestyle="--")
+ax2.plot(mt_t_avg, color=color, linestyle="--", linewidth=2)
 # ax2.plot(field_t_avg, color=color, linestyle="dotted")
 ax2.plot(pot_t_avg, color=color)
 ax2.tick_params(axis="y", labelcolor=color)
@@ -192,7 +194,7 @@ fig.tight_layout()  # To ensure there's no overlap
 
 # Save the plot to the 'figs' directory
 plt.savefig(
-    "/home/spol/Documents/repos/hypermagnetics/figs/metrics_potential_mean_paper.svg"
+    "/home/spol/Documents/repos/hypermagnetics/figs/metrics_potential_mean_test_200k.svg"
 )
 
 # Clear the current figure after saving to avoid conflicts with future plots

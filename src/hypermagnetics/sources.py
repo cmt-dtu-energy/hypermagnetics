@@ -190,6 +190,7 @@ def configure(
     min_size=0.12,
     max_size=0.48,
     shape="sphere",
+    step=50,
     save_data=False,
 ):
     """
@@ -231,55 +232,84 @@ def configure(
     else:
         grids = jnp.meshgrid(*[lim_range] * dim)
     grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
-    r = sample_grid(rkey, lim, res, r0, size, dim, masking=False)
+    r = r0  # sample_grid(rkey, lim, res, r0, size, dim, masking=False)
     sources = jnp.concatenate([m, r0, size], axis=-1)
 
     if save_data:
         datapath = Path(__file__).parent / ".." / ".." / "data"
         datapath.mkdir(parents=True, exist_ok=True)
 
-        db = h5py.File(datapath / f"{seed}_{n_samples}.h5", "w")
+        db = h5py.File(datapath / f"{seed}_{n_samples}_{n_sources}.h5", "w")
         db.create_dataset("m", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("r0", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("size", shape=(n_samples, n_sources, dim), dtype="float32")
-        db.create_dataset("r", shape=(res**2, dim), dtype="float32")
-        db.create_dataset("potential", shape=(n_samples, res**2), dtype="float32")
-        db.create_dataset("field", shape=(n_samples, res**2, dim), dtype="float32")
+        db.create_dataset("r", shape=(n_samples, n_sources, dim), dtype="float32")
+        db.create_dataset("msp", shape=(n_samples, n_sources), dtype="float32")
+        db.create_dataset("field", shape=(n_samples, n_sources, dim), dtype="float32")
         db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
-        db.create_dataset("potential_grid", shape=(n_samples, res**2), dtype="float32")
+        db.create_dataset("msp_grid", shape=(n_samples, res**2), dtype="float32")
         db.create_dataset("field_grid", shape=(n_samples, res**2, dim), dtype="float32")
+
+        db.attrs["field_eval"] = True
+        db.attrs["target_source"] = False
+        db.attrs["shape"] = shape
 
         db["r"][:] = r
         db["grid"][:] = grid
 
-        step = 1000
-        for i in range(n_samples // step):
+        for i in range(n_samples // step + 1):
             db["m"][i * step : (i + 1) * step] = m[i * step : (i + 1) * step]
             db["r0"][i * step : (i + 1) * step] = r0[i * step : (i + 1) * step]
             db["size"][i * step : (i + 1) * step] = size[i * step : (i + 1) * step]
-            db["potential"][i * step : (i + 1) * step] = _total(
-                _potential, sources[i * step : (i + 1) * step], r, shape
+            # db["msp"][i * step : (i + 1) * step] = _total(
+            #     _potential, sources[i * step : (i + 1) * step], r, shape
+            # )
+            # db["field"][i * step : (i + 1) * step] = _total(
+            #     _field, sources[i * step : (i + 1) * step], r, shape
+            # )
+            db["msp"][i * step : (i + 1) * step] = (
+                jnp.array(
+                    [
+                        _total(
+                            _potential,
+                            sources[j + i * step : j + 1 + i * step],
+                            r_sample,
+                            shape,
+                        )[0]
+                        for j, r_sample in enumerate(r[i * step : (i + 1) * step])
+                    ]
+                ),
             )
-            db["field"][i * step : (i + 1) * step] = _total(
-                _field, sources[i * step : (i + 1) * step], r, shape
+            db["field"][i * step : (i + 1) * step] = (
+                jnp.array(
+                    [
+                        _total(
+                            _field,
+                            sources[j + i * step : j + 1 + i * step],
+                            r_sample,
+                            shape,
+                        )[0]
+                        for j, r_sample in enumerate(r[i * step : (i + 1) * step])
+                    ]
+                ),
             )
-            db["potential_grid"][i * step : (i + 1) * step] = _total(
+            db["msp_grid"][i * step : (i + 1) * step] = _total(
                 _potential, sources[i * step : (i + 1) * step], grid, shape
             )
             db["field_grid"][i * step : (i + 1) * step] = _total(
                 _field, sources[i * step : (i + 1) * step], grid, shape
             )
 
-        # Remove fields with nan values
-        nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
-        for i, idx in enumerate(nan_idx):
-            db["m"][idx] = db["m"][n_samples - 1000 + i]
-            db["r0"][idx] = db["r0"][n_samples - 1000 + i]
-            db["size"][idx] = db["size"][n_samples - 1000 + i]
-            db["potential"][idx] = db["potential"][n_samples - 1000 + i]
-            db["field"][idx] = db["field"][n_samples - 1000 + i]
-            db["potential_grid"][idx] = db["potential_grid"][n_samples - 1000 + i]
-            db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
+        # # Remove fields with nan values
+        # nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
+        # for i, idx in enumerate(nan_idx):
+        #     db["m"][idx] = db["m"][n_samples - 1000 + i]
+        #     db["r0"][idx] = db["r0"][n_samples - 1000 + i]
+        #     db["size"][idx] = db["size"][n_samples - 1000 + i]
+        #     db["msp"][idx] = db["msp"][n_samples - 1000 + i]
+        #     db["field"][idx] = db["field"][n_samples - 1000 + i]
+        #     db["msp_grid"][idx] = db["msp_grid"][n_samples - 1000 + i]
+        #     db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
 
         db.close()
         return None
@@ -288,11 +318,31 @@ def configure(
         return {
             "sources": sources,
             "r": r,
-            "potential": _total(_potential, sources, r, shape),
-            "field": _total(_field, sources, r, shape),
+            "msp": jnp.array(
+                [
+                    _total(
+                        _potential,
+                        sources[i : i + 1],
+                        r_sample,
+                        shape,
+                    )[0]
+                    for i, r_sample in enumerate(r)
+                ]
+            ),
+            "field": jnp.array(
+                [
+                    _total(
+                        _field,
+                        sources[i : i + 1],
+                        r_sample,
+                        shape,
+                    )[0]
+                    for i, r_sample in enumerate(r)
+                ]
+            ),
             # "field_mt": _field_mt(sources, r, shape),
             "grid": grid,
-            "potential_grid": _total(_potential, sources, grid, shape),
+            "msp_grid": _total(_potential, sources, grid, shape),
             "field_grid": _total(_field, sources, grid, shape),
         }
 
@@ -354,7 +404,7 @@ def configure_eval(
     return {
         "sources": sources,
         "r": r,
-        "potential": jnp.array(
+        "msp": jnp.array(
             [
                 _total(_potential, sources[i : i + 1], r_sample, shape)[0]
                 for i, r_sample in enumerate(r)
@@ -367,7 +417,7 @@ def configure_eval(
             ]
         ),
         "grid": grid,
-        "potential_grid": _total(_potential, sources, grid, shape),
+        "msp_grid": _total(_potential, sources, grid, shape),
         "field_grid": _total(_field, sources, grid, shape),
     }
 
@@ -450,10 +500,10 @@ def read_db(filename: str, read_grid=False):
                 [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
             ),
             "r": jnp.array(db["r"][:]),
-            "potential": jnp.array(db["potential"][:]),
+            "msp": jnp.array(db["msp"][:]),
             "field": jnp.array(db["field"][:]),
             "grid": jnp.array(db["grid"][:]),
-            "potential_grid": jnp.array(db["potential_grid"][:]),
+            "msp_grid": jnp.array(db["msp_grid"][:]),
             "field_grid": jnp.array(db["field_grid"][:]),
         }
     else:
@@ -462,7 +512,7 @@ def read_db(filename: str, read_grid=False):
                 [db["m"][:], db["r0"][:], db["size"][:]], axis=-1
             ),
             "r": jnp.array(db["r"][:]),
-            "potential": jnp.array(db["potential"][:]),
+            "msp": jnp.array(db["msp"][:]),
             "field": jnp.array(db["field"][:]),
         }
     db.close()
@@ -481,7 +531,7 @@ if __name__ == "__main__":
         "res": 128,
     }
     train_data = configure(**config)
-    print(train_data["potential"].shape, train_data["field"].shape)
+    print(train_data["msp"].shape, train_data["field"].shape)
     plots(train_data, model=None, idx=0)
 
     # Three dimensions
@@ -495,7 +545,7 @@ if __name__ == "__main__":
         "dim": 3,
     }
     train_data = configure(**config)
-    print(train_data["potential"].shape, train_data["field"].shape)
+    print(train_data["msp"].shape, train_data["field"].shape)
 
     # Prism
     config = {
@@ -508,4 +558,4 @@ if __name__ == "__main__":
         "dim": 3,
     }
     train_data = configure(**config)
-    print(train_data["potential"].shape, train_data["field"].shape)
+    print(train_data["msp"].shape, train_data["field"].shape)
