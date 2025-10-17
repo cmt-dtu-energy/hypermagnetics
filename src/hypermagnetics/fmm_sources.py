@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import fmm2dpy as fmm
 
@@ -22,6 +23,7 @@ def potential2D(
         grid: Optional grid points to evaluate the potential.
         correction_source: Whether to apply correction to the source.
         idx_single: Index of a single source to evaluate.
+        batch_r: Whether the grid is provided in batches.
 
     Returns:
         msp: The magnetic scalar potential at the grid points.
@@ -81,6 +83,7 @@ def potential2D(
 
     msp = np.zeros((n_samples, n_points))
     field = np.zeros((n_samples, n_points, 2))
+    dur = np.zeros((n_samples,))
 
     for i in range(n_samples):
         if batch_r:
@@ -90,6 +93,7 @@ def potential2D(
             targets_i = targets
             grid_i = grid
 
+        t_start = time.time()
         out = fmm.rfmm2d(
             eps=10 ** (-5),
             sources=r0[i].swapaxes(0, 1),
@@ -101,6 +105,7 @@ def potential2D(
             pg=source_eval,
             pgt=target_eval,
         )
+        dur[i] = time.time() - t_start
 
         if grid is None:
             msp[i] = out.pot / (2 * np.pi)
@@ -178,7 +183,7 @@ def potential2D(
                 else:
                     raise ValueError("Unknown shape")
 
-    return msp, field
+    return msp, field, dur.mean()
 
 
 def potential2D_loop(

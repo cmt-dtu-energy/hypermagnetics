@@ -23,7 +23,7 @@ plot_single_corr = True
 
 for i in range(n_ensemble):
     # Run model for potential
-    msp_fmm, field_fmm = potential2D(
+    msp_fmm, field_fmm, _ = potential2D(
         data["sources"][i : i + 1],
         data["shape"],
         data["r"][i],
@@ -46,7 +46,7 @@ for i in range(n_ensemble):
     field_mt_out[i] = mt_h[..., :2]
 
     for n in range(n_sources):
-        msp_fmm, field_fmm = potential2D(
+        msp_fmm, field_fmm, _ = potential2D(
             data["sources"][i : i + 1, n : n + 1],
             data["shape"],
             data["r"][i],

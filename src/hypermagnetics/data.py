@@ -52,31 +52,31 @@ def create_data(
 if __name__ == "__main__":
     dp_correct = False
     res = 32
-    lim = 1.25
+    lim = 1.2
     name = "large_m"
-    # create_data(
-    #     n_eval=3,
-    #     n_ensemble=10,
-    #     min_sources=10,
-    #     step_sources=250,
-    #     field_eval=True,
-    #     name=f"eval_{name}",
-    #     shape="prism",
-    #     quadtree=False,
-    #     grid_eval=True,
-    #     res=res,
-    #     lim=lim,
-    #     eps=0.0,
-    #     max_size=0.48,
-    #     min_size=0.12,
-    #     batch_size=1,
-    #     seed=42,
-    #     dp_correction=dp_correct,
-    #     size_log=False,
-    #     r0_gap=True,
-    #     target_source=True,
-    #     start_idx=0,
-    # )
+    create_data(
+        n_eval=0,
+        n_ensemble=10,
+        min_sources=1,
+        step_sources=250,
+        field_eval=True,
+        name=f"eval_{name}",
+        shape="prism",
+        quadtree=False,
+        grid_eval=True,
+        res=res,
+        lim=lim,
+        eps=0.0,
+        max_size=0.48,
+        min_size=0.12,
+        batch_size=1,
+        seed=42,
+        dp_correction=dp_correct,
+        size_log=False,
+        r0_gap=True,
+        target_source=True,
+        start_idx=0,
+    )
 
     # create_data(
     #     n_eval=0,
@@ -118,24 +118,24 @@ if __name__ == "__main__":
     #     dp_correction=dp_correct,
     # )
 
-    create_data(
-        n_eval=0,
-        n_ensemble=200000,
-        min_sources=1,
-        step_sources=0,
-        field_eval=True,
-        name=f"train_{name}",
-        shape="prism",
-        quadtree=False,
-        grid_eval=True,
-        res=res,
-        lim=lim,
-        eps=0.0,
-        max_size=0.5,
-        min_size=0.05,
-        batch_size=40,
-        seed=42,
-        dp_correction=dp_correct,
-        r0_gap=True,
-        size_log=False,
-    )
+    # create_data(
+    #     n_eval=0,
+    #     n_ensemble=200000,
+    #     min_sources=1,
+    #     step_sources=0,
+    #     field_eval=True,
+    #     name=f"train_{name}",
+    #     shape="prism",
+    #     quadtree=False,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=lim,
+    #     eps=0.0,
+    #     max_size=0.5,
+    #     min_size=0.05,
+    #     batch_size=40,
+    #     seed=42,
+    #     dp_correction=dp_correct,
+    #     r0_gap=True,
+    #     size_log=False,
+    # )

@@ -304,7 +304,7 @@ def configure(
                 field_grid = None
 
             if dipole_correction:
-                msp_fmm, field_fmm = potential2D(b_sources, "sphere", grid)
+                msp_fmm, field_fmm, _ = potential2D(b_sources, "sphere", grid)
                 msp_grid -= msp_fmm
 
                 if field_eval:
@@ -414,7 +414,7 @@ def configure(
                 else:
                     field = None
 
-                msp_fmm, field_fmm = potential2D(
+                msp_fmm, field_fmm, _ = potential2D(
                     b_sources, shape, b_r
                 )  # , batch_r=True)
                 msp -= msp_fmm
@@ -461,20 +461,20 @@ def configure(
     }
 
 
-def read_db(filename: str, max_samples: int = -2):
+def read_db(filename: str):
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     data = {
         "sources": np.concatenate(
-            [db["m"][:max_samples], db["r0"][:max_samples], db["size"][:max_samples]],
+            [db["m"][:], db["r0"][:], db["size"][:]],
             axis=-1,
         ),
         "r": np.array(db["r"][:]),
-        "msp": np.array(db["msp"][:max_samples]),
-        "field": np.array(db["field"][:max_samples]),
+        "msp": np.array(db["msp"][:]),
+        "field": np.array(db["field"][:]),
         "grid": np.array(db["grid"][:]),
-        "msp_grid": np.array(db["msp_grid"][:max_samples]),
-        "field_grid": np.array(db["field_grid"][:max_samples]),
+        "msp_grid": np.array(db["msp_grid"][:]),
+        "field_grid": np.array(db["field_grid"][:]),
         "field_eval": db.attrs["field_eval"],
         "target_source": db.attrs["target_source"],
         "shape": db.attrs["shape"],

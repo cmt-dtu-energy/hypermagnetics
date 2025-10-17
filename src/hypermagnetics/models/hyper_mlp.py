@@ -71,7 +71,8 @@ class HyperLayer(MLPHyperModel):
         inputs = jnp.concatenate(
             [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
         )
-        wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
+        # wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
+        wb = jnp.sum(jax.lax.map(self.hypermodel, inputs, batch_size=1), axis=0)
         weights, bias = wb[:-1], wb[-1:]
         return weights, bias
 

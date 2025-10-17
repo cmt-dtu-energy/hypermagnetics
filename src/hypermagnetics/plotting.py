@@ -15,8 +15,8 @@ def _plot_shape(ax, r0, m, size, shape, loc, edge):
         ax.quiver(
             r0[0, :, 0],
             r0[0, :, 1],
-            m[0, :, 0],
-            m[0, :, 1],
+            m[0, :, 0] / 10,
+            m[0, :, 1] / 10,
             angles="xy",
             scale_units="xy",
             scale=5,

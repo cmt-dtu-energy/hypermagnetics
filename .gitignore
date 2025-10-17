@@ -9,6 +9,9 @@ __pycache__/
 # Weights and biases
 wandb/
 
+# Profiler data
+tmp/
+
 # Distribution / packaging
 .Python
 build/
