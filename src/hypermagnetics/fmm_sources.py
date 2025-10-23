@@ -3,6 +3,7 @@ import numpy as np
 import fmm2dpy as fmm
 
 from hypermagnetics.mt_eval import field_mt
+from hypermagnetics.sources import _potential, _total
 
 
 def potential2D(
@@ -164,21 +165,27 @@ def potential2D(
 
                 elif shape == "prism":
                     # Correction for physical dipole (elongated prism)
-                    msp[i, idx_in] += mdotd / 2 / area_n
                     if prism_mt:
+                        pts = np.concatenate(
+                            [
+                                grid_i[idx_in],
+                                np.zeros((grid_i[idx_in].shape[0], 1)),
+                            ],
+                            axis=-1,
+                        )
+                        mt_msp = np.array(
+                            _total(
+                                _potential, sources[i : i + 1, n : n + 1], pts, "prism"
+                            )
+                        )
+                        msp[i, idx_in] += mt_msp[0]
+
                         mt_sim, _ = field_mt(
-                            sources[i : i + 1, n : n + 1],
-                            np.concatenate(
-                                [
-                                    grid_i[idx_in],
-                                    np.zeros((grid_i[idx_in].shape[0], 1)),
-                                ],
-                                axis=-1,
-                            ),
-                            "prism",
+                            sources[i : i + 1, n : n + 1], pts, "prism"
                         )
                         field[i, idx_in] += mt_sim[0, ..., :2]
                     else:
+                        msp[i, idx_in] += mdotd / 2 / area_n
                         field[i, idx_in] -= m[i][n] / 2 / area_n
                 else:
                     raise ValueError("Unknown shape")

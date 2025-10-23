@@ -22,6 +22,7 @@ def create_data(
     size_log: bool = True,
     r0_gap: bool = False,
     target_source: bool = False,
+    p_target_source: float = 1.0,
     start_idx: int = 0,
 ):
     for n in range(start_idx, n_eval + 1):
@@ -32,6 +33,7 @@ def create_data(
             "lim": lim,
             "res": res,
             "target_source": target_source,
+            "p_target_source": p_target_source,
             "eps": eps,
             "grid_eval": grid_eval,
             "field_eval": field_eval,
@@ -50,33 +52,34 @@ def create_data(
 
 
 if __name__ == "__main__":
-    dp_correct = False
-    res = 32
+    res = 512
     lim = 1.2
-    name = "large_m"
-    create_data(
-        n_eval=0,
-        n_ensemble=10,
-        min_sources=1,
-        step_sources=250,
-        field_eval=True,
-        name=f"eval_{name}",
-        shape="prism",
-        quadtree=False,
-        grid_eval=True,
-        res=res,
-        lim=lim,
-        eps=0.0,
-        max_size=0.48,
-        min_size=0.12,
-        batch_size=1,
-        seed=42,
-        dp_correction=dp_correct,
-        size_log=False,
-        r0_gap=True,
-        target_source=True,
-        start_idx=0,
-    )
+    for p in [0, 0.1, 0.25, 0.5, 0.75, 0.99]:
+        name = f"large_m_p{int(p * 100)}_100"
+        create_data(
+            n_eval=0,
+            n_ensemble=5,
+            min_sources=5,
+            step_sources=250,
+            field_eval=True,
+            name=f"eval_{name}",
+            shape="prism",
+            quadtree=False,
+            grid_eval=True,
+            res=res,
+            lim=lim,
+            eps=0.0,
+            max_size=0.48,
+            min_size=0.12,
+            batch_size=1,
+            seed=42,
+            dp_correction=False,
+            size_log=False,
+            r0_gap=True,
+            target_source=False,
+            p_target_source=p,
+            start_idx=0,
+        )
 
     # create_data(
     #     n_eval=0,
@@ -95,7 +98,7 @@ if __name__ == "__main__":
     #     min_size=0.1,
     #     batch_size=30,
     #     seed=40,
-    #     dp_correction=dp_correct,
+    #     dp_correction=False,
     # )
 
     # create_data(
@@ -115,7 +118,7 @@ if __name__ == "__main__":
     #     min_size=0.1,
     #     batch_size=30,
     #     seed=41,
-    #     dp_correction=dp_correct,
+    #     dp_correction=False,
     # )
 
     # create_data(
@@ -135,7 +138,7 @@ if __name__ == "__main__":
     #     min_size=0.05,
     #     batch_size=40,
     #     seed=42,
-    #     dp_correction=dp_correct,
+    #     dp_correction=False,
     #     r0_gap=True,
     #     size_log=False,
     # )

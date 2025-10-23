@@ -9,7 +9,7 @@ import numpy as np
 
 from hypermagnetics import plots
 from hypermagnetics.quadtree import random_quadtree
-from hypermagnetics.fmm_sources import potential2D
+# from hypermagnetics.fmm_sources import potential2D
 
 jax.config.update("jax_enable_x64", True)
 
@@ -120,6 +120,7 @@ def configure(
     eps: float = 1e-5,
     quadtree: bool = False,
     target_source: bool = False,
+    p_target_source: float = 1.0,
     dipole_correction: bool = False,
     field_eval: bool = True,
     grid_eval: bool = True,
@@ -220,6 +221,7 @@ def configure(
         db.attrs["field_eval"] = field_eval
         db.attrs["grid_eval"] = grid_eval
         db.attrs["target_source"] = target_source
+        db.attrs["p_target_source"] = p_target_source
         db.attrs["lim"] = lim
         db.attrs["eps"] = eps
         db.attrs["quadtree"] = quadtree
@@ -247,9 +249,16 @@ def configure(
         #         dtype="float32",
         #     )
         # else:
+        if p_target_source < 1.0:
+            shape_r = (n_samples, res**2, dim)
+        else:
+            if target_source:
+                shape_r = (n_samples, n_sources, dim)
+            else:
+                shape_r = (res**2, dim)
         db.create_dataset(
             "r",
-            shape=(n_samples, n_sources, dim) if target_source else (res**2, dim),
+            shape=shape_r,
             dtype="float32",
         )
         db.create_dataset(
@@ -303,12 +312,12 @@ def configure(
             else:
                 field_grid = None
 
-            if dipole_correction:
-                msp_fmm, field_fmm, _ = potential2D(b_sources, "sphere", grid)
-                msp_grid -= msp_fmm
+            # if dipole_correction:
+            #     msp_fmm, field_fmm, _ = potential2D(b_sources, "sphere", grid)
+            #     msp_grid -= msp_fmm
 
-                if field_eval:
-                    field_grid[..., :2] -= field_fmm
+            #     if field_eval:
+            #         field_grid[..., :2] -= field_fmm
             if save_data:
                 db["msp_grid"][i * batch : (i + 1) * batch] = msp_grid
                 db["field_grid"][i * batch : (i + 1) * batch] = field_grid
@@ -322,9 +331,93 @@ def configure(
         # Add a small value to r0 to avoid singularities for gradient evaluation
         r = r0 + eps
     else:
-        r_all = jr.uniform(key=rkey, minval=-lim, maxval=lim, shape=(res**2, 2))
-        if dim == 3:
-            r_all = jnp.concatenate([r_all, jnp.zeros((res**2, 1))], axis=-1)
+        if p_target_source < 1.0:
+            r_all = jnp.zeros((n_samples, res**2, 2))
+            akey, bkey, ckey, dkey, rkey = jr.split(rkey, num=5)
+            r_avail = jr.uniform(
+                key=akey, minval=-lim, maxval=lim, shape=(n_samples, 4 * res**2, 2)
+            )
+            for i in range(n_samples):
+                for n in range(n_sources):
+                    if shape == "sphere":
+                        idx_in = np.where(
+                            np.linalg.norm(r_avail[i] - r0[i][n], axis=1)
+                            <= size[i, n, 0]
+                        )[0]
+                    elif shape == "prism":
+                        idx_in = np.where(
+                            (np.abs(r_avail[i][:, 0] - r0[i][n, 0]) <= size[i, n, 0])
+                            & (np.abs(r_avail[i][:, 1] - r0[i][n, 1]) <= size[i, n, 1])
+                        )[0]
+                    else:
+                        raise ValueError("Unknown shape")
+
+                    # Accumulate indices of candidate points that lie inside any source for this sample
+                    if n == 0:
+                        idx_union = set(idx_in.tolist())
+                    else:
+                        idx_union.update(idx_in.tolist())
+
+                    # After processing all sources for the first sample, build r_all so that
+                    # approximately p_target_source fraction of the res**2 points are inside sources
+                    if n == n_sources - 1:
+                        total_points = res**2
+                        p_in = int(round(p_target_source * total_points))
+
+                        avail_indices = jnp.arange(r_avail.shape[1])
+                        idx_in_arr = jnp.array(sorted(idx_union))
+
+                        outside_indices = jnp.setdiff1d(
+                            avail_indices, idx_in_arr, assume_unique=False
+                        )
+
+                        # Sample points inside sources (up to n_in) and fill the rest from outside
+                        chosen_in = np.array([], dtype=int)
+                        if idx_in_arr.size > 0 and p_in > 0:
+                            chosen_in = np.random.choice(
+                                idx_in_arr,
+                                size=min(p_in, idx_in_arr.size),
+                                replace=False,
+                            )
+
+                        n_remaining = total_points - chosen_in.size
+                        chosen_out = (
+                            jr.choice(
+                                bkey,
+                                outside_indices,
+                                shape=(n_remaining,),
+                                replace=False,
+                            )
+                            if n_remaining > 0
+                            else jnp.array([], dtype=int)
+                        )
+
+                        selected = jnp.concatenate([chosen_in, chosen_out]).astype(int)
+
+                        # In case of any shortfall (very unlikely), pad with random available indices
+                        if selected.size < total_points:
+                            more = jnp.setdiff1d(
+                                avail_indices, selected, assume_unique=False
+                            )
+                            need = total_points - selected.size
+                            extra = jr.choice(ckey, more, shape=(need,), replace=False)
+                            selected = jnp.concatenate([selected, extra])
+
+                        r_all = r_all.at[i].set(
+                            jnp.array(r_avail[i])[jr.permutation(dkey, selected)]
+                        )
+
+            if dim == 3:
+                r_all = jnp.concatenate(
+                    [r_all, jnp.zeros((n_samples, res**2, 1))], axis=-1
+                )
+        else:
+            r_all = jr.uniform(key=rkey, minval=-lim, maxval=lim, shape=(res**2, 2))
+
+            if dim == 3:
+                r_all = jnp.concatenate(
+                    [r_all, jnp.zeros((n_samples, res**2, 1))], axis=-1
+                )
 
         # if dipole_correction:
         #     r_dipole = (
@@ -356,18 +449,20 @@ def configure(
         #         ],
         #         axis=1,
         #     )
-        # else:
-        if target_source:
+        if p_target_source < 1.0:
             b_r = r[k * batch : (k + 1) * batch]
         else:
-            b_r = r
+            if target_source:
+                b_r = r[k * batch : (k + 1) * batch]
+            else:
+                b_r = r
 
         if save_data:
             db["m"][k * batch : (k + 1) * batch] = m[k * batch : (k + 1) * batch]
             db["r0"][k * batch : (k + 1) * batch] = r0[k * batch : (k + 1) * batch]
             db["size"][k * batch : (k + 1) * batch] = size[k * batch : (k + 1) * batch]
 
-        if target_source:
+        if target_source or p_target_source < 1.0:
             msp = np.zeros((batch, b_r.shape[1]))
             if field_eval:
                 field = np.zeros((batch, b_r.shape[1], dim))
@@ -408,19 +503,20 @@ def configure(
 
         else:
             if dipole_correction:
-                msp = np.array(_total(_potential, b_sources, b_r, shape))
-                if field_eval:
-                    field = np.array(_total(_field, b_sources, b_r, shape))
-                else:
-                    field = None
+                pass
+                # msp = np.array(_total(_potential, b_sources, b_r, shape))
+                # if field_eval:
+                #     field = np.array(_total(_field, b_sources, b_r, shape))
+                # else:
+                #     field = None
 
-                msp_fmm, field_fmm, _ = potential2D(
-                    b_sources, shape, b_r
-                )  # , batch_r=True)
-                msp -= msp_fmm
+                # msp_fmm, field_fmm, _ = potential2D(
+                #     b_sources, shape, b_r
+                # )  # , batch_r=True)
+                # msp -= msp_fmm
 
-                if field_eval:
-                    field[..., :2] -= field_fmm
+                # if field_eval:
+                #     field[..., :2] -= field_fmm
 
             else:
                 msp = np.array(_total(_potential, b_sources, b_r, shape))

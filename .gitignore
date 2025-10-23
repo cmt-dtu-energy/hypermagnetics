@@ -11,6 +11,8 @@ wandb/
 
 # Profiler data
 tmp/
+tmp_para/
+tmp_tile/
 
 # Distribution / packaging
 .Python

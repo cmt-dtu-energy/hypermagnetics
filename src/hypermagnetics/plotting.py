@@ -4,6 +4,7 @@ import jax
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Circle
 from matplotlib.axes import Axes
+import matplotlib.colors as mcolors
 import numpy as np
 import wandb
 
@@ -57,6 +58,7 @@ def _plot(
     loc: bool,
     edge: bool,
     number: bool,
+    vmax: float | None = None,
     model=None,
 ):
     mr = data["sources"][idx : idx + 1]
@@ -76,8 +78,20 @@ def _plot(
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
 
+    if vmax is not None:
+        norm = mcolors.TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+    else:
+        norm = mcolors.TwoSlopeNorm(vmin=msp.min(), vcenter=0, vmax=msp.max())
+
     # Subplot 1: Magnetic Scalar Potential
-    axes[0].contourf(x_grid, y_grid, msp.reshape((res, res)))
+    axes[0].contourf(
+        x_grid,
+        y_grid,
+        msp.reshape((res, res)),
+        levels=250,
+        cmap="viridis",
+        norm=norm,
+    )
     _plot_shape(axes[0], r0, m, size, data["shape"], loc, edge)
     if number:
         for i in range(r0.shape[1]):
@@ -128,6 +142,7 @@ def plots(
     prefix: str = "",
     output: str = "show",
     model=None,
+    vmax: float | None = None,
 ):
     """
     Plots the sources and field/potential of a single sample.
@@ -144,11 +159,11 @@ def plots(
     """
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
-        _plot(axes, data, idx, prefix, loc, edge, number)
+        _plot(axes, data, idx, prefix, loc, edge, number, vmax)
     else:
         _, axes = plt.subplots(2, 2, figsize=(8, 8))
-        _plot(axes[0], data, idx, prefix, loc, edge, number)
-        _plot(axes[1], data, idx, prefix, loc, edge, number, model=model)
+        _plot(axes[0], data, idx, prefix, loc, edge, number, vmax)
+        _plot(axes[1], data, idx, prefix, loc, edge, number, vmax, model=model)
 
     plt.tight_layout()
 
@@ -156,7 +171,8 @@ def plots(
         plt.show()
     elif output == "save":
         plt.savefig(
-            Path(__file__).parent / ".." / ".." / "figs" / f"{prefix}_plot_{idx}.svg"
+            Path(__file__).parent / ".." / ".." / "figs" / f"{prefix}_plot_{idx}.png",
+            dpi=300,
         )
     elif output == "wandb":
         wandb.log({"chart": wandb.Image(plt)})

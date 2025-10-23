@@ -102,8 +102,9 @@ class HyperModel(eqx.Module):
         """Evaluate the potential given sources (sources) and evaluation points (r)."""
         weights, biases = self.prepare_weights(sources)
         model = self.prepare_model(weights, biases)
-        # return jax.vmap(model)(r[..., :2])
-        return jax.lax.map(model, r[..., :2], batch_size=1)
+        return jax.vmap(model)(r[..., :2])
+        # Only required when testing sequential runtime
+        # return jax.lax.map(model, r[..., :2], batch_size=1)
 
 
 class MLPHyperModel(HyperModel):

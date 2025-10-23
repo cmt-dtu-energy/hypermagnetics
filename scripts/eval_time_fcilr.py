@@ -17,7 +17,8 @@ Profiling with jax (jax.vmap - hyper_mlp.py:74 44.1 ms)
 
 
 def profile_model(
-    n_ensemble: int = 10,
+    n_ensemble: int = 5,
+    n_eval: int = 10,
     db_name: str = "eval_large_m_42",
     model_path: Path = Path(__file__).parent / ".." / "models",
     tmp_path: Path = Path(__file__).parent / ".." / "tmp",
@@ -32,9 +33,11 @@ def profile_model(
     )
     model = eqx.tree_deserialise_leaves(model_path / model_name, model_cfg)
 
-    for n in [1, 10, 250, 500, 750, 1000, 1250, 1500]:
-        data_n = read_db(f"{db_name}_{n_ensemble}_{n}.h5")
-        for i in range(n_ensemble):
+    for n in [5]:  # [1, 10, 250, 500, 750, 1000, 1250, 1500]:
+        data_n = read_db(
+            f"eval_large_m_p{int(0.1 * 100)}_100_42_5_5.h5"
+        )  # read_db(f"{db_name}_{n_ensemble}_{n}.h5")
+        for i in range(n_eval):
             # Call function once to eliminate any overhead)
             model(data_n["sources"][i], data_n["r"][i])
             options = jax.profiler.ProfileOptions()
@@ -103,12 +106,15 @@ def make_res_df(norm_n: int = 1):
         float(g) + float(f) for g, f in zip(results_df.loc["g"], results_df.loc["f"])
     ]
     results_df.loc["normed"] = [
-        float(sum) / float(results_df.at["sum", norm_n]) for sum in results_df.loc["sum"]
+        float(sum) / float(results_df.at["sum", norm_n])
+        for sum in results_df.loc["sum"]
     ]
 
     return results_df
 
 
 if __name__ == "__main__":
-    df = make_res_df(norm_n=10)
-    print(df)
+    # df = make_res_df(norm_n=10)
+    # print(df)
+    profile_model(n_eval=3, tmp_path=Path(__file__).parent / ".." / "tmp_tile")
+    print("Profiling complete.")

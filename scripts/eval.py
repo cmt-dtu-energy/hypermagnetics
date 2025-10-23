@@ -26,10 +26,11 @@ def run_on_one_cpu(func, cpu_id=0, *args, **kwargs):
     return result
 
 
-n_eval = 2
-n_ensemble = 10
+n_eval = 6
+n_ensemble = 5
 min_sources = 10
 step_sources = 250
+res = 512
 db_name = "eval_large_m_42"
 plot_t_fmm = True
 plot_err_mt = False
@@ -38,13 +39,15 @@ grid_eval = False
 mean_eval = False
 model_eval = True
 ax1_log = False
-normalized_time = True
-plain_fmm_time = True
-norm_n = 1
+normalized_time = False
+fcilr_overhead_time = True  # If true, check jax.vmap in model
+plain_fmm_time = False
+fmm_nooverhead_time = False
+norm_n = 10
 model_path = Path(__file__).parent / ".." / "models"
 figs_path = Path(__file__).parent / ".." / "figs"
 tmp_path = Path(__file__).parent / ".." / "tmp"
-fig_name = "tlmr_time"
+fig_name = "tlmr_time_Ntile"
 
 if model_eval:
     model_cfg = HyperLayer(
@@ -118,14 +121,17 @@ if normalized_time:
             t_n1_fmm_list.append(dur)
         else:
             start_time_pot = time.time()
-            potential2D(
+            _, _, dur = potential2D(
                 data_n1["sources"][i : i + 1],
                 data_n1["shape"],
                 data_n1["r"][i],
                 correction_source=True,
                 prism_mt=True,
             )
-            t_n1_fmm_list.append(time.time() - start_time_pot)
+            if fmm_nooverhead_time:
+                t_n1_fmm_list.append(dur)
+            else:
+                t_n1_fmm_list.append(time.time() - start_time_pot)
         # print(f"t(FMM): {t_n1_fmm_list[-1]:.6f}")
         if model_eval:
             t_start_n1 = time.time()
@@ -152,20 +158,20 @@ pot_acc_std = []
 pot_t_avg = []
 x_axis_ticks = []
 
-for n in range(n_eval + 1):
-    n_sources = max(min_sources, step_sources * n)
-    x_axis_ticks.append(n_sources)
+for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
+    n_sources = 5 # max(min_sources, step_sources * n)
+    x_axis_ticks.append(n) #(n_sources)
     mt_out = []
     field_out = []
     fcilr_field_out = []
     fcilr_pot_out = []
 
-    data = read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
+    data = read_db(f"eval_large_m_p{int(p*100)}_100_42_5_5.h5") # read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
 
     if grid_eval:
         pot_out = np.zeros((n_ensemble, data["grid"].shape[0]))
     else:
-        pot_out = np.zeros((n_ensemble, n_sources))
+        pot_out = np.zeros((n_ensemble, res**2)) # np.zeros((n_ensemble, n_sources))
     t_pot = np.zeros(n_ensemble)
     t_fcilr = np.zeros(n_ensemble)
     t_mt = np.zeros(n_ensemble)
@@ -179,7 +185,16 @@ for n in range(n_eval + 1):
             cor_source = True
 
         # Function once to eliminate any overhead
-        potential2D(data["sources"][i : i + 1], data["shape"], eval_loc)
+        if plain_fmm_time:
+            run_on_one_cpu(
+                potential2D,
+                cpu_id=0,
+                sources=data["sources"][i : i + 1],
+                shape=data["shape"],
+                grid=data["r"][i],
+            )
+        else:
+            potential2D(data["sources"][i : i + 1], data["shape"], eval_loc)
         if model_eval:
             model(data["sources"][i], eval_loc)
 
@@ -197,14 +212,17 @@ for n in range(n_eval + 1):
             t_pot[i] = dur / t_n1_fmm
         else:
             start_time_pot = time.time()
-            msp_fmm, field_fmm, _ = potential2D(
+            msp_fmm, field_fmm, dur = potential2D(
                 data["sources"][i : i + 1],
                 data["shape"],
                 eval_loc,
                 correction_source=cor_source,
                 prism_mt=True,
             )
-            t_pot[i] = (time.time() - start_time_pot) / t_n1_fmm
+            if fmm_nooverhead_time:
+                t_pot[i] = dur / t_n1_fmm
+            else:
+                t_pot[i] = (time.time() - start_time_pot) / t_n1_fmm
         pot_out[i] = msp_fmm
         field_out.append(field_fmm[0])
         # (f"t(FMM): {t_pot[i]:.6f}")
@@ -462,38 +480,59 @@ ax2.tick_params(axis="y", labelcolor=color)
 ax2.set_yscale("log")
 if normalized_time:
     ax2.set_ylabel("Normalized runtime", color=color)
-    ax2.set_ylim(1, 1e5)
+    ax2.set_ylim(1, 1e4)
 else:
     ax2.set_ylabel("Runtime (s)", color=color)
-    ax2.set_ylim(0.5e-3, 10)
+    ax2.set_ylim(0.5e-3, 20)
 
 if model_eval:
     len_t = len(fcilr_t_avg)
-    if normalized_time:
-        if norm_n == 1:
-            fcilr_t_avg = [
-                3.63,
-                34.27,
-                63.48,
-                95.07,
-                127.08,
-                158.52,
-                189.42,
-            ][:len_t]
-        elif norm_n == 10:
-            fcilr_t_avg = [1.0, 9.44, 17.49, 26.19, 35.01, 43.67, 52.18][:len_t]
-        else:
-            raise ValueError("norm_n must be 1 or 10")
+    if fcilr_overhead_time:
+        pass
+        # fcilr_t_avg = [
+        #     36e-3 + 9e-3,
+        #     39e-3 + 9.5e-3,
+        #     39e-3 + 10e-3,
+        #     39.5e-3 + 10e-3,
+        #     42e-3 + 9.5e-3,
+        #     38.5e-3 + 10e-3,
+        #     40e-3 + 9.3e-3,
+        # ][:len_t]
     else:
-        fcilr_t_avg = [
-            1.52e-3,
-            14.31e-3,
-            26.51e-3,
-            39.7e-3,
-            53.07e-3,
-            66.2e-3,
-            79.1e-3,
-        ][:len_t]
+        if normalized_time:
+            if norm_n == 1:
+                fcilr_t_avg = [
+                    3.63,
+                    34.27,
+                    63.48,
+                    95.07,
+                    127.08,
+                    158.52,
+                    189.42,
+                ][:len_t]
+                # fcilr_t_avg = [
+                #     1,
+                #     25**2,
+                #     50**2,
+                #     75**2,
+                #     100**2,
+                #     125**2,
+                #     150**2,
+                # ][:len_t]
+            elif norm_n == 10:
+                fcilr_t_avg = [1.0, 9.44, 17.49, 26.19, 35.01, 43.67, 52.18][:len_t]
+            else:
+                raise ValueError("norm_n must be 1 or 10")
+        else:
+            fcilr_t_avg = [
+                1.52e-3,
+                14.31e-3,
+                26.51e-3,
+                39.7e-3,
+                53.07e-3,
+                66.2e-3,
+                79.1e-3,
+            ][:len_t]
 
     if len(fcilr_t_avg) > 0:
         # ax3 = ax1.twinx()
@@ -521,6 +560,16 @@ if plot_t_fmm:
         # ax3.spines["right"].set_visible(True)
         # ax3.set_ylabel("Runtime - FMM (ms)", color=color)
         # ax3.tick_params(axis="y", labelcolor=color)
+        # pot_t_avg = [
+        #     1,
+        #     25*2,
+        #     50*2,
+        #     75*2,
+        #     100*2,
+        #     125*2,
+        #     150*2,
+        # ][:len_t]
+
         ax2.plot(
             # [val_t * 1e3 for val_t in pot_t_avg],
             pot_t_avg,
