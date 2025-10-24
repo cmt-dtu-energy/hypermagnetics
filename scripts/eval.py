@@ -27,27 +27,30 @@ def run_on_one_cpu(func, cpu_id=0, *args, **kwargs):
 
 
 n_eval = 6
-n_ensemble = 5
+n_ensemble = 10
 min_sources = 10
 step_sources = 250
 res = 512
-db_name = "eval_large_m_42"
+db_name = "eval_large_m_qt_42"
 plot_t_fmm = True
 plot_err_mt = False
-plot_pot_fmm = False
-grid_eval = False
-mean_eval = False
+plot_pot_fmm = True
+grid_eval = True
+mean_eval = True
 model_eval = True
 ax1_log = False
 normalized_time = False
 fcilr_overhead_time = True  # If true, check jax.vmap in model
-plain_fmm_time = False
-fmm_nooverhead_time = False
+plain_fmm_time = True
+fmm_nooverhead_time = True
+percentage_test = False
+nocorrsource = True
+prism_mt = True
 norm_n = 10
 model_path = Path(__file__).parent / ".." / "models"
 figs_path = Path(__file__).parent / ".." / "figs"
 tmp_path = Path(__file__).parent / ".." / "tmp"
-fig_name = "tlmr_time_Ntile"
+fig_name = "tlmr_corr_tile_mt"
 
 if model_eval:
     model_cfg = HyperLayer(
@@ -81,15 +84,15 @@ if normalized_time:
                 shape=data_n1["shape"],
                 grid=data_n1["r"][i],
                 correction_source=True,
-                prism_mt=True,
+                prism_mt=prism_mt,
             )
         else:
             potential2D(
                 data_n1["sources"][i : i + 1],
                 data_n1["shape"],
                 data_n1["r"][i],
-                correction_source=True,
-                prism_mt=True,
+                correction_source=(not nocorrsource),
+                prism_mt=prism_mt,
             )
         if model_eval:
             model(data_n1["sources"][i], data_n1["r"][i])
@@ -115,8 +118,8 @@ if normalized_time:
                 sources=data_n1["sources"][i : i + 1],
                 shape=data_n1["shape"],
                 grid=data_n1["r"][i],
-                correction_source=True,
-                prism_mt=True,
+                correction_source=(not nocorrsource),
+                prism_mt=prism_mt,
             )
             t_n1_fmm_list.append(dur)
         else:
@@ -126,7 +129,7 @@ if normalized_time:
                 data_n1["shape"],
                 data_n1["r"][i],
                 correction_source=True,
-                prism_mt=True,
+                prism_mt=prism_mt,
             )
             if fmm_nooverhead_time:
                 t_n1_fmm_list.append(dur)
@@ -158,30 +161,41 @@ pot_acc_std = []
 pot_t_avg = []
 x_axis_ticks = []
 
-for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
-    n_sources = 5 # max(min_sources, step_sources * n)
-    x_axis_ticks.append(n) #(n_sources)
-    mt_out = []
+if percentage_test:
+    eval_list = [0, 0.1, 0.25, 0.5, 0.75, 0.99]
+else:
+    eval_list = [10, 49, 250, 1000]  # range(n_eval + 1)
+
+for n, p in enumerate(eval_list):
+    if percentage_test:
+        n_sources = 5
+        x_axis_ticks.append(p)
+    else:
+        n_sources = p  # max(min_sources, step_sources * n)
+        x_axis_ticks.append(n_sources)
+
+    pot_out = []
     field_out = []
+    mt_out = []
     fcilr_field_out = []
     fcilr_pot_out = []
 
-    data = read_db(f"eval_large_m_p{int(p*100)}_100_42_5_5.h5") # read_db(f"{db_name}_{n_ensemble}_{n_sources}.h5")
-
-    if grid_eval:
-        pot_out = np.zeros((n_ensemble, data["grid"].shape[0]))
+    if percentage_test:
+        db_filename = f"eval_large_m_p{int(p * 100)}_100_42_5_5.h5"
     else:
-        pot_out = np.zeros((n_ensemble, res**2)) # np.zeros((n_ensemble, n_sources))
+        db_filename = f"{db_name}_{n_ensemble}_{n_sources}.h5"
+    data = read_db(db_filename)
+
     t_pot = np.zeros(n_ensemble)
     t_fcilr = np.zeros(n_ensemble)
     t_mt = np.zeros(n_ensemble)
 
     for i in range(n_ensemble):
-        if grid_eval:
-            eval_loc = data["grid"]
+        sources = data["sources"][i : i + 1]
+        eval_loc = data["grid"] if grid_eval else data["r"][i]
+        if percentage_test or nocorrsource or grid_eval:
             cor_source = False
         else:
-            eval_loc = data["r"][i]
             cor_source = True
 
         # Function once to eliminate any overhead
@@ -189,52 +203,58 @@ for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
             run_on_one_cpu(
                 potential2D,
                 cpu_id=0,
-                sources=data["sources"][i : i + 1],
+                sources=sources,
                 shape=data["shape"],
-                grid=data["r"][i],
+                grid=eval_loc,
+                correction_source=cor_source,
+                prism_mt=prism_mt,
             )
         else:
-            potential2D(data["sources"][i : i + 1], data["shape"], eval_loc)
+            potential2D(
+                sources,
+                data["shape"],
+                eval_loc,
+                correction_source=cor_source,
+                prism_mt=prism_mt,
+            )
         if model_eval:
-            model(data["sources"][i], eval_loc)
+            jax.vmap(model, in_axes=(0, None))(sources, eval_loc)[0]
 
         # Run model for potential
         if plain_fmm_time:
             msp_fmm, field_fmm, dur = run_on_one_cpu(
                 potential2D,
                 cpu_id=0,
-                sources=data["sources"][i : i + 1],
+                sources=sources,
                 shape=data["shape"],
                 grid=eval_loc,
                 correction_source=cor_source,
-                prism_mt=True,
+                prism_mt=prism_mt,
             )
             t_pot[i] = dur / t_n1_fmm
         else:
             start_time_pot = time.time()
             msp_fmm, field_fmm, dur = potential2D(
-                data["sources"][i : i + 1],
+                sources,
                 data["shape"],
                 eval_loc,
                 correction_source=cor_source,
-                prism_mt=True,
+                prism_mt=prism_mt,
             )
             if fmm_nooverhead_time:
                 t_pot[i] = dur / t_n1_fmm
             else:
                 t_pot[i] = (time.time() - start_time_pot) / t_n1_fmm
-        pot_out[i] = msp_fmm
+        pot_out.append(msp_fmm[0])
         field_out.append(field_fmm[0])
         # (f"t(FMM): {t_pot[i]:.6f}")
 
         # Run MagTense
         if data["shape"] == "sphere":
-            mt_h, mt_dur = field_cylinder_exact(
-                data["sources"][i : i + 1], eval_loc, length=25
-            )
+            mt_h, mt_dur = field_cylinder_exact(sources, eval_loc, length=25)
         else:
             mt_h, mt_dur = field_mt(
-                data["sources"][i : i + 1],
+                sources,
                 eval_loc,
                 data["shape"],
             )
@@ -244,20 +264,15 @@ for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
         if model_eval:
             # Run model for field
             fcilr_field_out.append(
-                jax.vmap(model.field, in_axes=(0, None))(
-                    data["sources"][i : i + 1], eval_loc
-                )[0]
+                jax.vmap(model.field, in_axes=(0, None))(sources, eval_loc)[0]
             )
 
             # Run model for potential
             t_start = time.time()
-            # fcilr_pot_out.append(
-            #     jax.vmap(model, in_axes=(0, None))(
-            #         data["sources"][i : i + 1], eval_loc
-            #     )[0]
-            # )
             fcilr_pot_out.append(
-                jax.block_until_ready(model(data["sources"][i], eval_loc))
+                jax.block_until_ready(
+                    jax.vmap(model, in_axes=(0, None))(sources, eval_loc)[0]
+                )
             )
             t_fcilr[i] = (time.time() - t_start) / t_n1_model
             # print(f"FCILR: {t_fcilr[i]:.6f}")
@@ -279,6 +294,7 @@ for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
         m_pot = np.nanmean(rel_err_pot, axis=-1)
     else:
         m_pot = np.nanmedian(rel_err_pot, axis=-1)
+    # print(m_pot)
     pot_acc.append(np.mean(m_pot) * 100)
     pot_acc_std.append(np.std(m_pot) * 100)
 
@@ -326,6 +342,7 @@ for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
             m_fcilr_pot = np.nanmean(rel_err_fcilr_pot, axis=-1)
         else:
             m_fcilr_pot = np.nanmedian(rel_err_fcilr_pot, axis=-1)
+        # print(m_fcilr_pot)
         fcilr_pot_acc.append(np.mean(m_fcilr_pot) * 100)
         fcilr_pot_acc_std.append(np.std(m_fcilr_pot) * 100)
 
@@ -369,13 +386,23 @@ for n, p in enumerate([0, 0.1, 0.25, 0.5, 0.75, 0.99]): # range(n_eval + 1):
     )
     res_table.float_format = "5.4"
     print(res_table)
+    print("FMM:", pot_acc_std[-1])
+    print("FCILR:", fcilr_pot_acc_std[-1])
 
-
+### Plotting ###
 fig, ax1 = plt.subplots()
 fig.set_size_inches(12, 6)
 
 # color = "tab:green"
-ax1.set_xlabel("Number of sources")
+if percentage_test:
+    ax1.set_xlabel("Percentage of points inside sources (%)")
+    x_ticks = np.linspace(0, 1, 11)
+    ax1.set_xticks(x_ticks)
+    ax1.set_xticklabels([f"{int(x * 100)}" for x in x_ticks])
+    ax1.set_xlim(x_ticks[0] - 0.025, x_ticks[-1] + 0.025)
+else:
+    ax1.set_xlabel("Number of sources")
+
 color = "tab:red"
 
 if mean_eval:
@@ -387,14 +414,14 @@ if plot_pot_fmm:
     # Plot mean and standard deviation for errors
     if ax1_log:
         ax1.plot(
-            range(len(x_axis_ticks)),
+            x_axis_ticks,
             pot_acc,
             color=color,
             linestyle=":",
         )
     else:
         ax1.errorbar(
-            range(len(x_axis_ticks)),
+            x_axis_ticks,
             pot_acc,
             yerr=pot_acc_std,
             fmt="o",
@@ -405,7 +432,7 @@ if plot_pot_fmm:
 
 if len(mt_acc_std) > 0 and plot_err_mt:
     ax1.errorbar(
-        range(len(x_axis_ticks)),
+        x_axis_ticks,
         mt_acc,
         yerr=mt_acc_std,
         fmt="o",
@@ -429,7 +456,10 @@ if ax1_log:
     ax1.set_yscale("log")
     ax1.set_ylim(1, 300)
 else:
-    ax1.set_ylim(0, 6.9)
+    if percentage_test:
+        ax1.set_ylim(0, 5.5)
+    else:
+        ax1.set_ylim(0, 10)
 
 ax1.tick_params(axis="y", labelcolor=color)
 # if mean_eval:
@@ -449,16 +479,20 @@ ax1.tick_params(axis="y", labelcolor=color)
 if model_eval:
     if ax1_log:
         ax1.plot(
-            np.array(range(len(x_axis_ticks))),
-            fcilr_pot_acc,  # fcilr_field_acc,
+            x_axis_ticks,
+            fcilr_pot_acc,
             color=color,
             linestyle="-",
         )
     else:
+        if percentage_test:
+            added_offset = 0.02
+        else:
+            added_offset = 5
         ax1.errorbar(
-            np.array(range(len(x_axis_ticks))),
-            fcilr_pot_acc,  # fcilr_field_acc,
-            yerr=fcilr_pot_acc_std,  # fcilr_field_acc_std,
+            [x_ax_t + added_offset for x_ax_t in x_axis_ticks],
+            fcilr_pot_acc,
+            yerr=fcilr_pot_acc_std,
             fmt="o",
             color=color,
             linestyle="-",
@@ -470,6 +504,7 @@ ax2 = ax1.twinx()
 color = "tab:blue"
 if len(mt_t_avg) > 0:
     ax2.plot(
+        x_axis_ticks,
         mt_t_avg,
         color=color,
         linestyle="--",
@@ -541,7 +576,7 @@ if model_eval:
         # ax3.set_ylabel("Runtime - FCILR (ms)", color=color)
         # ax3.tick_params(axis="y", labelcolor=color)
         ax2.plot(
-            # [val_t * 1e3 for val_t in fcilr_t_avg],
+            x_axis_ticks,
             fcilr_t_avg,
             color=color,
             linestyle="-",
@@ -553,7 +588,7 @@ if model_eval:
 if plot_t_fmm:
     if grid_eval:
         ax2.set_ylabel("Runtime (s)", color=color)
-        ax2.plot([val_t for val_t in pot_t_avg], color=color, linestyle=":")
+        ax2.plot(x_axis_ticks, pot_t_avg, color=color, linestyle=":")
     else:
         # ax3 = ax1.twinx()
         # ax3.spines["right"].set_position(("axes", 1.1))
@@ -571,17 +606,13 @@ if plot_t_fmm:
         # ][:len_t]
 
         ax2.plot(
-            # [val_t * 1e3 for val_t in pot_t_avg],
-            pot_t_avg,
-            color=color,
-            linestyle=":",
-            linewidth=2,
-            alpha=0.7,
+            x_axis_ticks, pot_t_avg, color=color, linestyle=":", linewidth=2, alpha=0.7
         )
 
 # Only display every second x tick
-xtick_indices = list(range(0, len(x_axis_ticks), 2))
-plt.xticks(xtick_indices, [x_axis_ticks[i] for i in xtick_indices])
+if not percentage_test:
+    plt.xticks(x_axis_ticks[::2], x_axis_ticks[::2])
+
 # Custom legend
 legend_elements = [
     Line2D([0], [0], color="black", lw=2, linestyle="--", label="MagTense"),
