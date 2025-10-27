@@ -52,54 +52,56 @@ def create_data(
 
 
 if __name__ == "__main__":
-    res = 512
+    res = 32
     lim = 1.2
-    for p in [0, 0.1, 0.25, 0.5, 0.75, 0.99]:
-        name = f"large_m_p{int(p * 100)}_100"
-        create_data(
-            n_eval=0,
-            n_ensemble=5,
-            min_sources=5,
-            step_sources=250,
-            field_eval=True,
-            name=f"eval_{name}",
-            shape="prism",
-            quadtree=False,
-            grid_eval=True,
-            res=res,
-            lim=lim,
-            eps=0.0,
-            max_size=0.48,
-            min_size=0.12,
-            batch_size=1,
-            seed=42,
-            dp_correction=False,
-            size_log=False,
-            r0_gap=True,
-            target_source=False,
-            p_target_source=p,
-            start_idx=0,
-        )
-
+    # for p in [0, 0.1, 0.25, 0.5, 0.75, 0.99]:
+    name = "eval_large_m"
     # create_data(
     #     n_eval=0,
-    #     n_ensemble=1000,
-    #     min_sources=1,
-    #     step_sources=0,
+    #     n_ensemble=10,
+    #     min_sources=49,
+    #     step_sources=250,
     #     field_eval=True,
-    #     name=f"val_{name}",
+    #     name=f"eval_{name}",
     #     shape="prism",
     #     quadtree=False,
     #     grid_eval=True,
     #     res=res,
     #     lim=lim,
     #     eps=0.0,
-    #     max_size=0.5,
-    #     min_size=0.1,
-    #     batch_size=30,
-    #     seed=40,
+    #     max_size=0.48,
+    #     min_size=0.12,
+    #     batch_size=1,
+    #     seed=42,
     #     dp_correction=False,
+    #     size_log=False,
+    #     r0_gap=True,
+    #     target_source=True,
+    #     start_idx=0,
     # )
+
+    create_data(
+        n_eval=0,
+        n_ensemble=1000,
+        min_sources=1,
+        step_sources=0,
+        field_eval=True,
+        name=f"val_{name}",
+        shape="prism",
+        quadtree=False,
+        grid_eval=True,
+        res=res,
+        lim=lim,
+        eps=0.0,
+        max_size=0.48,
+        min_size=0.12,
+        batch_size=30,
+        seed=92,
+        dp_correction=False,
+        size_log=False,
+        r0_gap=True,
+        target_source=True,
+    )
 
     # create_data(
     #     n_eval=0,
