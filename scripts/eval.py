@@ -31,7 +31,7 @@ n_ensemble = 10
 min_sources = 10
 step_sources = 250
 res = 512
-db_name = "eval_large_m_qt_42"
+db_name = "eval_large_m_42"
 plot_t_fmm = True
 plot_err_mt = False
 plot_pot_fmm = True
@@ -164,7 +164,7 @@ x_axis_ticks = []
 if percentage_test:
     eval_list = [0, 0.1, 0.25, 0.5, 0.75, 0.99]
 else:
-    eval_list = [10, 50, 250, 1000]  # range(n_eval + 1)
+    eval_list = [1]  # 10, 50, 250, 1000]  # range(n_eval + 1)
 
 for n, p in enumerate(eval_list):
     if percentage_test:
@@ -183,7 +183,9 @@ for n, p in enumerate(eval_list):
     if percentage_test:
         db_filename = f"eval_large_m_p{int(p * 100)}_100_42_5_5.h5"
     else:
-        db_filename = f"{db_name}_{n_ensemble}_{n_sources}.h5"
+        db_filename = (
+            "val_eval_large_m_92_1000_1.h5"  # f"{db_name}_{n_ensemble}_{n_sources}.h5"
+        )
     data = read_db(db_filename)
 
     t_pot = np.zeros(n_ensemble)
@@ -191,7 +193,7 @@ for n, p in enumerate(eval_list):
     t_mt = np.zeros(n_ensemble)
 
     for i in range(n_ensemble):
-        sources = data["sources"][i : i + 1]
+        sources = data["sources"][:n_ensemble][i : i + 1]
         eval_loc = data["grid"] if grid_eval else data["r"][i]
         if percentage_test or nocorrsource or grid_eval:
             cor_source = False
@@ -284,8 +286,8 @@ for n, p in enumerate(eval_list):
 
     # Potential
     if grid_eval:
-        diff_model_pot = data["msp_grid"] - np.array(pot_out)
-        rel_err_pot = np.abs(diff_model_pot / (data["msp_grid"]))
+        diff_model_pot = data["msp_grid"][:n_ensemble] - np.array(pot_out)
+        rel_err_pot = np.abs(diff_model_pot / (data["msp_grid"][:n_ensemble]))
     else:
         diff_model_pot = data["msp"] - np.array(pot_out)
         rel_err_pot = np.abs(diff_model_pot / (data["msp"]))
@@ -313,9 +315,11 @@ for n, p in enumerate(eval_list):
     if data["field_eval"]:
         # Eval MagTense
         if grid_eval:
-            diff_mt = data["field_grid"][..., :2] - np.array(mt_out)[..., :2]
+            diff_mt = (
+                data["field_grid"][:n_ensemble][..., :2] - np.array(mt_out)[..., :2]
+            )
             rel_err_mt = np.linalg.norm(diff_mt, axis=-1) / np.linalg.norm(
-                data["field_grid"][..., :2], axis=-1
+                data["field_grid"][:n_ensemble][..., :2], axis=-1
             )
         else:
             diff_mt = data["field"][..., :2] - np.array(mt_out)[..., :2]
@@ -332,8 +336,12 @@ for n, p in enumerate(eval_list):
     if model_eval:
         # Potential
         if grid_eval:
-            diff_model_fcilr_pot = data["msp_grid"] - np.array(fcilr_pot_out)
-            rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / (data["msp_grid"]))
+            diff_model_fcilr_pot = data["msp_grid"][:n_ensemble] - np.array(
+                fcilr_pot_out
+            )
+            rel_err_fcilr_pot = np.abs(
+                diff_model_fcilr_pot / (data["msp_grid"][:n_ensemble])
+            )
         else:
             diff_model_fcilr_pot = data["msp"] - np.array(fcilr_pot_out)
             rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / (data["msp"]))
