@@ -96,12 +96,14 @@ def _total(fun, sources, r, shape):
     components = jax.vmap(batch, in_axes=(1, None))(sources, r)
     return jnp.sum(components, axis=0)
 
+
 def _total_nosum(fun, sources, r, shape):
     """Aggregate the field or potential of all sources."""
     fun_with_shape = partial(fun, shape=shape)
     points = jax.vmap(fun_with_shape, in_axes=(None, 0))
     batch = jax.vmap(points, in_axes=(0, None))
     return jax.vmap(batch, in_axes=(1, None))(sources, r)
+
 
 def _total_batch(fun, sources, r, shape):
     """Aggregate the field or potential of all sources."""

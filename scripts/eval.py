@@ -36,7 +36,7 @@ plot_t_fmm = True
 plot_err_mt = False
 plot_pot_fmm = True
 grid_eval = True
-mean_eval = True
+mean_eval = False
 model_eval = True
 ax1_log = False
 normalized_time = False
@@ -164,7 +164,7 @@ x_axis_ticks = []
 if percentage_test:
     eval_list = [0, 0.1, 0.25, 0.5, 0.75, 0.99]
 else:
-    eval_list = [10, 49, 250, 1000]  # range(n_eval + 1)
+    eval_list = [10, 50, 250, 1000]  # range(n_eval + 1)
 
 for n, p in enumerate(eval_list):
     if percentage_test:

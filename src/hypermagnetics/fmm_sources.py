@@ -130,15 +130,21 @@ def potential2D(
 
             field[i, slice_single] -= m[i] / 2 / area_n
         else:
-            pts_all = np.concatenate(
-                [
-                    grid_i,
-                    np.zeros((grid_i.shape[0], 1)),
-                ],
-                axis=-1,
-            )
+            if shape == "sphere":
+                pts_all = grid_i
+            elif shape == "prism":
+                pts_all = np.concatenate(
+                    [
+                        grid_i,
+                        np.zeros((grid_i.shape[0], 1)),
+                    ],
+                    axis=-1,
+                )
+            else:
+                raise ValueError("Unknown shape")
+
             msp_pre = np.array(
-                _total_nosum(_potential, sources[i : i + 1], pts_all, "prism")[:, 0, :]
+                _total_nosum(_potential, sources[i : i + 1], pts_all, shape)[:, 0, :]
             )
             # Correction for physical dipole - Adds an M in the complexity
             t_start = time.time()
@@ -201,15 +207,15 @@ def potential2D(
             dur[i] += time.time() - t_start
 
             # To get correct time, assuming field_mt will take as long as msp_mt
-            dur_mt_arr = np.zeros((n_sources,))
-            for n in range(n_sources):
-                _, dur_mt = field_mt(
-                    sources[i : i + 1, n : n + 1],
-                    pts_all[idxs],
-                    "prism",
-                )
-                dur_mt_arr[n] = dur_mt
-            dur[i] += dur_mt_arr.sum()
+            # dur_mt_arr = np.zeros((n_sources,))
+            # for n in range(n_sources):
+            #     _, dur_mt = field_mt(
+            #         sources[i : i + 1, n : n + 1],
+            #         pts_all[idxs],
+            #         "prism",
+            #     )
+            #     dur_mt_arr[n] = dur_mt
+            # dur[i] += dur_mt_arr.sum()
 
     return msp, field, dur.mean()
 
