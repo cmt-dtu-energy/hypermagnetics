@@ -1,29 +1,111 @@
-import jax
-import jax.numpy as jnp
-import matplotlib.pyplot as plt
-import numpy as np
+from pathlib import Path
 
+import jax
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle, Circle
+from matplotlib.axes import Axes
+import matplotlib.colors as mcolors
+import numpy as np
 import wandb
 
 
-def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
+def _plot_shape(ax, r0, m, size, shape, loc, edge):
+    # Dot at source location
+    if loc:
+        ax.scatter(r0[0, :, 0], r0[0, :, 1], color="red")
+        ax.quiver(
+            r0[0, :, 0],
+            r0[0, :, 1],
+            m[0, :, 0] / 10,
+            m[0, :, 1] / 10,
+            angles="xy",
+            scale_units="xy",
+            scale=5,
+            color="red",
+        )
+    # Edge of magnetized bodies
+    if edge:
+        for i in range(r0.shape[1]):
+            if shape == "sphere":
+                edge = Circle(
+                    (r0[0, i, 0], r0[0, i, 1]),
+                    size[0, i, 0],
+                    fill=False,
+                    edgecolor="red",
+                )
+            elif shape == "prism":
+                edge = Rectangle(
+                    (
+                        r0[0, i, 0] - size[0, i, 0],
+                        r0[0, i, 1] - size[0, i, 1],
+                    ),
+                    size[0, i, 0] * 2,
+                    size[0, i, 1] * 2,
+                    fill=False,
+                    edgecolor="red",
+                )
+            else:
+                raise ValueError(f"Unknown shape: {shape}")
+
+            ax.add_patch(edge)
+
+
+def _plot(
+    axes: Axes,
+    data: dict,
+    idx: int,
+    prefix: str,
+    loc: bool,
+    edge: bool,
+    number: bool,
+    vmax: float | None = None,
+    model=None,
+):
+    mr = data["sources"][idx : idx + 1]
+    m, r0, size = np.split(mr, 3, axis=-1)
+
+    res = int(np.sqrt(len(data["grid"])))
+    x_grid = np.array(data["grid"][:, 0].reshape((res, res)))
+    y_grid = np.array(data["grid"][:, 1].reshape((res, res)))
+
+    if model is None:
+        msp = data["msp_grid"][idx]
+        field = data["field_grid"][idx][..., :2]
+    else:
+        msp = jax.vmap(model, in_axes=(0, None))(mr, data["grid"])[idx]
+        field = jax.vmap(model.field, in_axes=(0, None))(mr, data["grid"])[idx][..., :2]
+
     xlims = (x_grid.min(), x_grid.max())
     ylims = (y_grid.min(), y_grid.max())
 
+    if vmax is not None:
+        norm = mcolors.TwoSlopeNorm(vmin=-vmax, vcenter=0, vmax=vmax)
+    else:
+        norm = mcolors.TwoSlopeNorm(vmin=msp.min(), vcenter=0, vmax=msp.max())
+
     # Subplot 1: Magnetic Scalar Potential
-    _ = axes[0].contourf(x_grid, y_grid, potential[idx])
-    # plt.colorbar(cp, ax=axes[0])
-    axes[0].scatter(r0[idx, :, 0], r0[idx, :, 1], color="red")
-    axes[0].quiver(
-        r0[idx, :, 0],
-        r0[idx, :, 1],
-        m[idx, :, 0],
-        m[idx, :, 1],
-        angles="xy",
-        scale_units="xy",
-        scale=1,
-        color="red",
+    axes[0].contourf(
+        x_grid,
+        y_grid,
+        msp.reshape((res, res)),
+        levels=250,
+        cmap="viridis",
+        norm=norm,
     )
+    _plot_shape(axes[0], r0, m, size, data["shape"], loc, edge)
+    if number:
+        for i in range(r0.shape[1]):
+            axes[0].text(
+                r0[0, i, 0] + 0.05,
+                r0[0, i, 1] + 0.05,
+                str(i),
+                color="black",
+                fontsize=12,
+                ha="center",
+                va="center",
+                bbox=dict(facecolor="white", edgecolor="none", alpha=0.7),
+            )
+
     axes[0].set_title(prefix + " " + "Magnetic Scalar Potential")
     units_str = ", in units of source radius"
     axes[0].set_xlabel("$x$" + units_str)
@@ -35,24 +117,15 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
     axes[1].streamplot(
         x_grid,
         y_grid,
-        field[idx, :, :, 0],
-        field[idx, :, :, 1],
+        field[..., 0].reshape((res, res)),
+        field[..., 1].reshape((res, res)),
         density=1.5,
         linewidth=0.5,
         arrowsize=1.5,
         arrowstyle="->",
     )
-    axes[1].scatter(r0[idx, :, 0], r0[idx, :, 1], color="red")
-    axes[1].quiver(
-        r0[idx, :, 0],
-        r0[idx, :, 1],
-        m[idx, :, 0],
-        m[idx, :, 1],
-        angles="xy",
-        scale_units="xy",
-        scale=1,
-        color="red",
-    )
+    _plot_shape(axes[1], r0, m, size, data["shape"], loc, edge)
+
     axes[1].set_title(prefix + " " + "Magnetic Field")
     axes[1].set_xlabel("x" + units_str)
     axes[1].set_ylabel("y" + units_str)
@@ -60,40 +133,48 @@ def _plot(axes, x_grid, y_grid, potential, field, m, r0, idx, prefix):
     axes[1].set_ylim(ylims)
 
 
-def plots(sources, model, idx=0, prefix="", output="show"):
-    """Plots the sources and field/potential of a single sample."""
-    mr = sources["sources"][idx : idx + 1]
-    m, r0 = jnp.split(mr, 2, axis=-1)
-    grid = sources["grid"]
+def plots(
+    data: dict,
+    loc: bool = True,
+    edge: bool = False,
+    number: bool = False,
+    idx: int = 0,
+    prefix: str = "",
+    output: str = "show",
+    model=None,
+    vmax: float | None = None,
+):
+    """
+    Plots the sources and field/potential of a single sample.
 
-    res = int(jnp.sqrt(len(grid)))
-    N = len(mr)
-
-    x_grid = np.array(grid[:, 0].reshape((res, res)))
-    y_grid = np.array(grid[:, 1].reshape((res, res)))
-
-    target_potential = sources["potential_grid"][idx : idx + 1].reshape((N, res, res))
-    target_field = sources["field_grid"][idx : idx + 1].reshape((N, res, res, 2))
-
+    Parameters:
+        sources (dict): The source data containing positions, magnetizations, and sizes.
+        loc (bool): Whether to plot the source positions.
+        edge (bool): Whether to plot the shapes of the sources.
+        numbers (bool): Whether to plot the source numbers.
+        idx (int): The index of the sample to plot.
+        prefix (str): A prefix for the plot titles.
+        output (str): The output mode for the plot (e.g., "show", "save").
+        model (HyperLayer): The trained model to use for predictions.
+    """
     if model is None:
         _, axes = plt.subplots(1, 2, figsize=(8, 4))
-        _plot(axes, x_grid, y_grid, target_potential, target_field, m, r0, idx, prefix)
+        _plot(axes, data, idx, prefix, loc, edge, number, vmax)
     else:
-        model_potential = jax.vmap(model, in_axes=(0, None))(mr, grid).reshape(
-            (N, res, res)
-        )
-        model_field = jax.vmap(model.field, in_axes=(0, None))(mr, grid).reshape(
-            (N, res, res, 2)
-        )
-
         _, axes = plt.subplots(2, 2, figsize=(8, 8))
-        _plot(
-            axes[0], x_grid, y_grid, target_potential, target_field, m, r0, idx, prefix
-        )
-        _plot(axes[1], x_grid, y_grid, model_potential, model_field, m, r0, idx, prefix)
+        _plot(axes[0], data, idx, prefix, loc, edge, number, vmax)
+        _plot(axes[1], data, idx, prefix, loc, edge, number, vmax, model=model)
 
     plt.tight_layout()
+
     if output == "show":
         plt.show()
+    elif output == "save":
+        plt.savefig(
+            Path(__file__).parent / ".." / ".." / "figs" / f"{prefix}_plot_{idx}.png",
+            dpi=300,
+        )
     elif output == "wandb":
         wandb.log({"chart": wandb.Image(plt)})
+    else:
+        raise ValueError(f"Unknown output mode: {output}")

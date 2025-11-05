@@ -59,7 +59,7 @@ class HyperLayer(MLPHyperModel):
         p = self.width + 1
         q = int(self.hwidth * p)
         self.hypermodel = eqx.nn.MLP(
-            2 * self.in_size, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
+            2 * self.in_size + 1, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
         )
 
     @property
@@ -68,18 +68,23 @@ class HyperLayer(MLPHyperModel):
         return count_params(self.model) + count_params(self.hypermodel)
 
     def prepare_weights(self, sources):
-        wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
+        inputs = jnp.concatenate(
+            [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
+        )
+        wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
+        # Only required when testing sequential runtime
+        # wb = jnp.sum(jax.lax.map(self.hypermodel, inputs, batch_size=1), axis=0)
         weights, bias = wb[:-1], wb[-1:]
         return weights, bias
 
-    def prepare_model(self, weights, bias):
+    def prepare_model(self, weights, biases):
         final_layer = eqx.tree_at(
             get_weights,
             self.final_layer,
             reshape_params(get_weights(self.final_layer), weights),
         )
         final_layer = eqx.tree_at(
-            get_biases, final_layer, reshape_params(get_biases(final_layer), bias)
+            get_biases, final_layer, reshape_params(get_biases(final_layer), biases)
         )
         return lambda r: final_layer(self.model(r))
 
@@ -111,11 +116,15 @@ class HyperMLP(MLPHyperModel):
         p = self.nweights + self.nbiases
         q = int(self.hwidth * p)
         self.hypermodel = eqx.nn.MLP(
-            2 * self.in_size, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
+            2 * self.in_size + 1, p, q, self.hdepth, jax.nn.gelu, key=hyperkey
         )
 
     def prepare_weights(self, sources):
-        wb = jnp.sum(jax.vmap(self.hypermodel)(sources), axis=0)
+        # sources: m (mx, my, mz), r0 (x,y,z), size (a,b,c)
+        inputs = jnp.concatenate(
+            [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
+        )
+        wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
         weights, biases = wb[: self.nweights], wb[self.nweights :]
         return weights, biases
 

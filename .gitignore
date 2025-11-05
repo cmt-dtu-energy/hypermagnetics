@@ -8,7 +8,11 @@ __pycache__/
 
 # Weights and biases
 wandb/
-models/
+
+# Profiler data
+tmp/
+tmp_para/
+tmp_tile/
 
 # Distribution / packaging
 .Python
@@ -74,3 +78,7 @@ venv.bak/
 # VSCode & MacOS
 .vscode/
 .DS_Store
+data/
+figs/
+nohup.out
+*.eqx

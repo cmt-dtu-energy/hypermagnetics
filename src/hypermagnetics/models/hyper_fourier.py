@@ -30,10 +30,14 @@ class FourierHyperModel(eqx.Module):
     w: eqx.nn.MLP
 
     def __init__(self, out: int, width: int, depth: int, key: jax.Array):
-        self.w = eqx.nn.MLP(4, out, width, depth, jax.nn.gelu, key=key)
+        self.w = eqx.nn.MLP(5, out, width, depth, jax.nn.gelu, key=key)
 
     def __call__(self, sources):
-        return self.w(sources)
+        # mx, my, rx, ry, a
+        inputs = jnp.concatenate(
+            [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
+        )
+        return self.w(inputs)
 
 
 class FourierModel(HyperModel):
@@ -46,7 +50,9 @@ class FourierModel(HyperModel):
 
     def __post_init__(self):
         key = jr.PRNGKey(self.seed)
-        self.kl = jnp.array([-2.9, 0.75])
+        self.kl = jnp.array([-2.5, 1.1])
+        # self.kl = jnp.array([-2.9, 0.75])
+
         out = 4 * self.order * self.order
         hwidth = int(self.hwidth * out)
         self.hypermodel = FourierHyperModel(out, hwidth, self.hdepth, key)
@@ -79,7 +85,7 @@ class FourierModel(HyperModel):
         # w = self.hypermodel
         return jnp.sum(w, axis=0), None
 
-    def prepare_model(self, weights, bias):
+    def prepare_model(self, weights, biases):
         return lambda r: self.fourier_expansion(weights, r)
 
 
