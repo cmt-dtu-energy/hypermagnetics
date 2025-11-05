@@ -145,7 +145,7 @@ def configure(
         n_samples (int): Number of samples to generate.
         n_sources (int): Number of sources in each sample.
         dim (int): Dimension of the sources.
-        lim (int): Domain range, in units of source radius.
+        lim (int): Domain range.
         res (int): Resolution of the field grid.
         min_size (float): Minimum side length / radius of the sources.
         max_size (float): Maximum side length / radius of the sources.
