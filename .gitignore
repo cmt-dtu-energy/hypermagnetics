@@ -78,7 +78,21 @@ venv.bak/
 # VSCode & MacOS
 .vscode/
 .DS_Store
-data/
 figs/
 nohup.out
 *.eqx
+*.h5
+
+# Model used for large-scale experiments
+!models/fc_ilr_400_200k_res32_large_m.eqx
+
+# Data used for large-scale experiments
+!data/eval_large_m_42_10_1.h5
+!data/eval_large_m_42_10_10.h5
+!data/eval_large_m_42_10_50.h5
+!data/eval_large_m_42_10_250.h5
+!data/eval_large_m_42_10_1000.h5
+!data/eval_large_m_qt_42_10_10.h5
+!data/eval_large_m_qt_42_10_50.h5
+!data/eval_large_m_qt_42_10_250.h5
+!data/val_eval_large_m_92_1000_1.h5
