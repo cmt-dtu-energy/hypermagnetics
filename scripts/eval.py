@@ -31,7 +31,7 @@ n_ensemble = 10
 min_sources = 10
 step_sources = 250
 res = 512
-db_name = "eval_large_m_42"
+quadtree = True
 plot_t_fmm = True
 plot_err_mt = False
 plot_pot_fmm = True
@@ -52,6 +52,11 @@ figs_path = Path(__file__).parent / ".." / "figs"
 tmp_path = Path(__file__).parent / ".." / "tmp"
 fig_name = "tlmr_corr_tile_mt"
 
+if quadtree:
+    db_name = "eval_large_m_qt_42"
+else:
+    db_name = "eval_large_m_42"
+
 if model_eval:
     model_cfg = HyperLayer(
         width=400,
@@ -67,6 +72,8 @@ if model_eval:
     fcilr_field_acc_std = []
     fcilr_pot_acc = []
     fcilr_pot_acc_std = []
+    fcilr_pot_mae = []
+    fcilr_pot_mae_std = []
 
 if normalized_time:
     data_n1 = read_db(f"{db_name}_{n_ensemble}_{norm_n}.h5")
@@ -158,13 +165,18 @@ field_acc = []
 field_acc_std = []
 pot_acc = []
 pot_acc_std = []
+pot_mae = []
+pot_mae_std = []
 pot_t_avg = []
 x_axis_ticks = []
 
 if percentage_test:
     eval_list = [0, 0.1, 0.25, 0.5, 0.75, 0.99]
 else:
-    eval_list = [1]  # 10, 50, 250, 1000]  # range(n_eval + 1)
+    if quadtree:
+        eval_list = [10, 50, 250]
+    else:
+        eval_list = [1, 10, 50, 250, 1000]  # range(n_eval + 1)
 
 for n, p in enumerate(eval_list):
     if percentage_test:
@@ -183,9 +195,10 @@ for n, p in enumerate(eval_list):
     if percentage_test:
         db_filename = f"eval_large_m_p{int(p * 100)}_100_42_5_5.h5"
     else:
-        db_filename = (
-            "val_eval_large_m_92_1000_1.h5"  # f"{db_name}_{n_ensemble}_{n_sources}.h5"
-        )
+        if n_sources == 1:
+            db_filename = "val_eval_large_m_92_1000_1.h5"
+        else:
+            db_filename = f"{db_name}_{n_ensemble}_{n_sources}.h5"
     data = read_db(db_filename)
 
     t_pot = np.zeros(n_ensemble)
@@ -288,9 +301,11 @@ for n, p in enumerate(eval_list):
     if grid_eval:
         diff_model_pot = data["msp_grid"][:n_ensemble] - np.array(pot_out)
         rel_err_pot = np.abs(diff_model_pot / (data["msp_grid"][:n_ensemble]))
+        pot_strength = np.max(np.abs(data["msp_grid"][:n_ensemble]))
     else:
         diff_model_pot = data["msp"] - np.array(pot_out)
         rel_err_pot = np.abs(diff_model_pot / (data["msp"]))
+        pot_strength = np.max(np.abs(data["msp"]))
 
     if mean_eval:
         m_pot = np.nanmean(rel_err_pot, axis=-1)
@@ -299,6 +314,8 @@ for n, p in enumerate(eval_list):
     # print(m_pot)
     pot_acc.append(np.mean(m_pot) * 100)
     pot_acc_std.append(np.std(m_pot) * 100)
+    pot_mae.append(np.mean(np.abs(diff_model_pot)) / pot_strength)
+    pot_mae_std.append(np.std(np.abs(diff_model_pot)) / pot_strength)
 
     # Field
     diff_model = np.array(mt_out)[..., :2] - np.array(field_out)[..., :2]
@@ -342,9 +359,11 @@ for n, p in enumerate(eval_list):
             rel_err_fcilr_pot = np.abs(
                 diff_model_fcilr_pot / (data["msp_grid"][:n_ensemble])
             )
+            pot_strength = np.max(np.abs(data["msp_grid"][:n_ensemble]))
         else:
             diff_model_fcilr_pot = data["msp"] - np.array(fcilr_pot_out)
             rel_err_fcilr_pot = np.abs(diff_model_fcilr_pot / (data["msp"]))
+            pot_strength = np.max(np.abs(data["msp"]))
 
         if mean_eval:
             m_fcilr_pot = np.nanmean(rel_err_fcilr_pot, axis=-1)
@@ -353,6 +372,8 @@ for n, p in enumerate(eval_list):
         # print(m_fcilr_pot)
         fcilr_pot_acc.append(np.mean(m_fcilr_pot) * 100)
         fcilr_pot_acc_std.append(np.std(m_fcilr_pot) * 100)
+        fcilr_pot_mae.append(np.mean(np.abs(diff_model_fcilr_pot)) / pot_strength)
+        fcilr_pot_mae_std.append(np.std(np.abs(diff_model_fcilr_pot)) / pot_strength)
 
         # Field
         diff_fcilr = np.array(mt_out)[..., :2] - np.array(fcilr_field_out)
@@ -396,6 +417,12 @@ for n, p in enumerate(eval_list):
     print(res_table)
     print("FMM:", pot_acc_std[-1])
     print("FCILR:", fcilr_pot_acc_std[-1])
+
+    print("FMM - MAE:", pot_mae[-1])
+    print("FMM - MAE std:", pot_mae_std[-1])
+    print("FCILR - MAE:", fcilr_pot_mae[-1])
+    print("FCILR - MAE std:", fcilr_pot_mae_std[-1])
+
 
 ### Plotting ###
 fig, ax1 = plt.subplots()
