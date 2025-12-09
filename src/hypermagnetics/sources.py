@@ -582,6 +582,7 @@ def read_db(filename: str):
         "field_eval": db.attrs["field_eval"],
         "target_source": db.attrs["target_source"],
         "shape": db.attrs["shape"],
+        "lim": db.attrs["lim"],
     }
     db.close()
 
