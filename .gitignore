@@ -85,6 +85,7 @@ nohup.out
 
 # Model used for large-scale experiments
 !models/fc_ilr_400_200k_res32_large_m.eqx
+models/fno
 
 # Data used for large-scale experiments
 !data/eval_large_m_42_10_1.h5
