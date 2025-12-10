@@ -20,9 +20,9 @@ class PotentialDataset(torch.utils.data.Dataset):
         self.datapath = Path(__file__).parent / ".." / ".." / "data"
         self.cfg = cfg
         if val:
-            self.db_name = f"val_{run_name}_{seed}_{n_samples}_{n_sources}_fno_64.h5"
+            self.db_name = f"val_{run_name}_{seed}_{n_samples}_{n_sources}_fno_128.h5"
         else:
-            self.db_name = f"train_{run_name}_{seed}_{n_samples}_{n_sources}_fno_64.h5"
+            self.db_name = f"train_{run_name}_{seed}_{n_samples}_{n_sources}_fno_128.h5"
         self.size = n_samples
 
     def open_hdf5(self):
@@ -34,7 +34,7 @@ class PotentialDataset(torch.utils.data.Dataset):
         # Shape: CxHxW
         input = (
             np.array(self.db["input"][idx])
-            .reshape(self.cfg["res"] * 2, self.cfg["res"] * 2, -1)
+            .reshape(self.cfg["res"] * 4, self.cfg["res"] * 4, -1)
             .transpose(2, 0, 1)
         )
         output = np.array(self.db["output"][idx]).reshape(
@@ -56,12 +56,12 @@ if __name__ == "__main__":
         "lim": 1.2,
         "res": 32,
         "dim": 2,
-        "epochs": 100,
+        "epochs": 125,
         "seed": 42,
         "lambda_field": 0.25,
-        "batch_size": 1000,
+        "batch_size": 500,
         "hidden_channels": 64,
-        "n_modes": 12,
+        "n_modes": 16,
     }
 
     # Set up WandB logging
@@ -100,11 +100,11 @@ if __name__ == "__main__":
     )
 
     operator = FNO(
-        n_modes=(12, 12),
+        n_modes=(16, 16),
         hidden_channels=64,
         in_channels=2,
         out_channels=1,
-        resolution_scaling_factor=[0.5, 1, 1, 1],
+        resolution_scaling_factor=[0.5, 0.5, 1, 1],
     )
     operator = operator.to(device)
     n_params = count_model_params(operator)

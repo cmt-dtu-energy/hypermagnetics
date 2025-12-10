@@ -192,12 +192,13 @@ if __name__ == "__main__":
     from pathlib import Path
 
     # db_name = "train_res32_large_m_42_200000_1"
-    db_name = "val_res32_large_m_40_1000_1"
-    # db_name = "val_res32_large_m_41_1000_10"
+    # db_name = "val_res32_large_m_40_1000_1"
+    db_name = "val_res32_large_m_41_1000_10"
     datapath = Path(__file__).parent / ".." / ".." / "data"
+    res_in = 128
 
     db_orig = h5py.File(datapath / f"{db_name}.h5", "r")
-    db = h5py.File(datapath / f"{db_name}_fno.h5", "w")
+    db = h5py.File(datapath / f"{db_name}_fno_{res_in}.h5", "w")
     data = {
         "sources": np.concatenate(
             [db_orig["m"][:], db_orig["r0"][:], db_orig["size"][:]],
@@ -205,7 +206,7 @@ if __name__ == "__main__":
         ),
         "msp_grid": np.array(db_orig["msp_grid"][:]),
     }
-    input = fno_input_converter(data["sources"], shape="prism", res=32, lim=1.2)
+    input = fno_input_converter(data["sources"], shape="prism", res=res_in, lim=1.2)
     db.create_dataset("input", shape=input.shape, dtype="float32")
     db.create_dataset("output", shape=data["msp_grid"].shape, dtype="float32")
     print(input.shape, data["msp_grid"].shape)
