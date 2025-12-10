@@ -98,30 +98,30 @@ if __name__ == "__main__":
     res = 32
     lim = 1.2
     # for p in [0, 0.1, 0.25, 0.5, 0.75, 0.99]:
-    name = "eval_large_m_qt"
-    create_data(
-        n_eval=0,
-        n_ensemble=10,
-        min_sources=50,
-        step_sources=250,
-        field_eval=True,
-        name=f"{name}",
-        shape="prism",
-        quadtree=True,
-        grid_eval=True,
-        res=res,
-        lim=lim,
-        eps=0.0,
-        max_size=0.48,
-        min_size=0.12,
-        batch_size=1,
-        seed=42,
-        dp_correction=False,
-        size_log=False,
-        r0_gap=True,
-        target_source=True,
-        start_idx=0,
-    )
+    # name = "eval_large_m_qt"
+    # create_data(
+    #     n_eval=0,
+    #     n_ensemble=10,
+    #     min_sources=50,
+    #     step_sources=250,
+    #     field_eval=True,
+    #     name=f"{name}",
+    #     shape="prism",
+    #     quadtree=True,
+    #     grid_eval=True,
+    #     res=res,
+    #     lim=lim,
+    #     eps=0.0,
+    #     max_size=0.48,
+    #     min_size=0.12,
+    #     batch_size=1,
+    #     seed=42,
+    #     dp_correction=False,
+    #     size_log=False,
+    #     r0_gap=True,
+    #     target_source=True,
+    #     start_idx=0,
+    # )
 
     # create_data(
     #     n_eval=0,
@@ -188,26 +188,28 @@ if __name__ == "__main__":
     #     size_log=False,
     # )
 
-    # import h5py
-    # from pathlib import Path
+    import h5py
+    from pathlib import Path
 
     # db_name = "train_res32_large_m_42_200000_1"
-    # datapath = Path(__file__).parent / ".." / ".." / "data"
+    db_name = "val_res32_large_m_40_1000_1"
+    # db_name = "val_res32_large_m_41_1000_10"
+    datapath = Path(__file__).parent / ".." / ".." / "data"
 
-    # db_orig = h5py.File(datapath / f"{db_name}.h5", "r")
-    # db = h5py.File(datapath / f"{db_name}_fno.h5", "w")
-    # data = {
-    #     "sources": np.concatenate(
-    #         [db_orig["m"][:], db_orig["r0"][:], db_orig["size"][:]],
-    #         axis=-1,
-    #     ),
-    #     "msp_grid": np.array(db_orig["msp_grid"][:]),
-    # }
-    # input = fno_input_converter(data["sources"], shape="prism", res=32, lim=1.2)
-    # db.create_dataset("input", shape=input.shape, dtype="float32")
-    # db.create_dataset("output", shape=data["msp_grid"].shape, dtype="float32")
-    # print(input.shape, data["msp_grid"].shape)
-    # db["input"][:] = input.astype("float32")
-    # db["output"][:] = data["msp_grid"].astype("float32")
-    # db.close()
-    # print("FNO data created.")
+    db_orig = h5py.File(datapath / f"{db_name}.h5", "r")
+    db = h5py.File(datapath / f"{db_name}_fno.h5", "w")
+    data = {
+        "sources": np.concatenate(
+            [db_orig["m"][:], db_orig["r0"][:], db_orig["size"][:]],
+            axis=-1,
+        ),
+        "msp_grid": np.array(db_orig["msp_grid"][:]),
+    }
+    input = fno_input_converter(data["sources"], shape="prism", res=32, lim=1.2)
+    db.create_dataset("input", shape=input.shape, dtype="float32")
+    db.create_dataset("output", shape=data["msp_grid"].shape, dtype="float32")
+    print(input.shape, data["msp_grid"].shape)
+    db["input"][:] = input.astype("float32")
+    db["output"][:] = data["msp_grid"].astype("float32")
+    db.close()
+    print("FNO data created.")
