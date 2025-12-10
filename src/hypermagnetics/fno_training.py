@@ -20,9 +20,9 @@ class PotentialDataset(torch.utils.data.Dataset):
         self.datapath = Path(__file__).parent / ".." / ".." / "data"
         self.cfg = cfg
         if val:
-            self.db_name = f"val_{run_name}_{seed}_{n_samples}_{n_sources}_fno.h5"
+            self.db_name = f"val_{run_name}_{seed}_{n_samples}_{n_sources}_fno_64.h5"
         else:
-            self.db_name = f"train_{run_name}_{seed}_{n_samples}_{n_sources}_fno.h5"
+            self.db_name = f"train_{run_name}_{seed}_{n_samples}_{n_sources}_fno_64.h5"
         self.size = n_samples
 
     def open_hdf5(self):
@@ -34,7 +34,7 @@ class PotentialDataset(torch.utils.data.Dataset):
         # Shape: CxHxW
         input = (
             np.array(self.db["input"][idx])
-            .reshape(self.cfg["res"], self.cfg["res"], -1)
+            .reshape(self.cfg["res"] * 2, self.cfg["res"] * 2, -1)
             .transpose(2, 0, 1)
         )
         output = np.array(self.db["output"][idx]).reshape(
@@ -59,9 +59,9 @@ if __name__ == "__main__":
         "epochs": 100,
         "seed": 42,
         "lambda_field": 0.25,
-        "batch_size": 2500,
+        "batch_size": 1000,
         "hidden_channels": 64,
-        "n_modes": 10,
+        "n_modes": 12,
     }
 
     # Set up WandB logging
@@ -99,7 +99,13 @@ if __name__ == "__main__":
         val=True,
     )
 
-    operator = FNO(n_modes=(10, 10), hidden_channels=64, in_channels=2, out_channels=1)
+    operator = FNO(
+        n_modes=(12, 12),
+        hidden_channels=64,
+        in_channels=2,
+        out_channels=1,
+        resolution_scaling_factor=[0.5, 1, 1, 1],
+    )
     operator = operator.to(device)
     n_params = count_model_params(operator)
     print(f"\nOur model has {n_params} parameters.")
@@ -134,13 +140,13 @@ if __name__ == "__main__":
     test_loaders = {"val": val_loader, "val_single": val_single_loader}
 
     optimizer = AdamW(operator.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=25)
 
-    l1loss = LpLoss(d=1, p=1)  # L2 loss for function values
+    l2loss = LpLoss(d=1, p=2)  # L2 loss for function values
     h1loss = H1Loss(d=1)  # H1 loss includes gradient information
 
     train_loss = h1loss
-    eval_losses = {"h1": h1loss, "l2": l1loss}
+    eval_losses = {"h1": h1loss, "l2": l2loss}
 
     # Create the trainer
     trainer = Trainer(
@@ -165,5 +171,5 @@ if __name__ == "__main__":
         eval_losses=eval_losses,
     )
 
-    model_folder = Path(__file__).resolve() / ".." / ".." / "models" / "fno"
-    operator.save_checkpoint(save_folder=model_folder, save_name="fno_large_m")
+    model_folder = Path(__file__).parent / ".." / ".." / "models" / "fno"
+    operator.save_checkpoint(save_folder=model_folder, save_name="fno_large_m_64")
