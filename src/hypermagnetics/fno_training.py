@@ -56,14 +56,14 @@ if __name__ == "__main__":
         "res": 32,
         "res_in": 128,
         "dim": 2,
-        "epochs": 150,
+        "epochs": 120,
         "seed": 42,
         "lambda_field": 0.25,
         "batch_size": 500,
-        "hidden_channels": 64,
+        "hidden_channels": 32,
         "n_modes": 16,
-        "learning_rate": 1e-2,
-        "weight_decay": 1e-4,
+        "learning_rate": 5e-3,
+        "weight_decay": 1e-5,
         "scheduler_step": 30,
         "scheduler_gamma": 0.1,
     }
@@ -104,8 +104,8 @@ if __name__ == "__main__":
     )
 
     operator = FNO(
-        n_modes=(16, 16),
-        hidden_channels=64,
+        n_modes=(config["n_modes"], config["n_modes"]),
+        hidden_channels=config["hidden_channels"],
         in_channels=2,
         out_channels=1,
         resolution_scaling_factor=[0.5, 0.5, 1, 1],
@@ -164,7 +164,7 @@ if __name__ == "__main__":
         n_epochs=config["epochs"],
         device=device,
         wandb_log=True,  # Disable Weights & Biases logging for this tutorial
-        eval_interval=10,  # Evaluate every 10 epochs
+        eval_interval=5,  # Evaluate every 10 epochs
         verbose=True,
     )
 
@@ -181,5 +181,5 @@ if __name__ == "__main__":
 
     model_folder = Path(__file__).parent / ".." / ".." / "models" / "fno"
     operator.save_checkpoint(
-        save_folder=model_folder, save_name=f"fno_large_m_{config['res_in']}_verbose"
+        save_folder=model_folder, save_name=f"fno_large_m_{config['res_in']}_1M"
     )
