@@ -5,8 +5,7 @@ from torch.utils.data import DataLoader
 from neuralop.models import FNO
 from neuralop.training import Trainer, AdamW
 from neuralop.utils import count_model_params
-from neuralop import LpLoss, H1Loss
-from neuralop.data.transforms.data_processors import DefaultDataProcessor
+from neuralop import LpLoss
 from pathlib import Path
 import warnings
 import wandb
@@ -20,9 +19,9 @@ class PotentialDataset(torch.utils.data.Dataset):
         self.datapath = Path(__file__).parent / ".." / ".." / "data"
         self.cfg = cfg
         if val:
-            self.db_name = f"val_{run_name}_{seed}_{n_samples}_{n_sources}_fno_128.h5"
+            self.db_name = f"val_{run_name}_{seed}_{n_samples}_{n_sources}_fno_{self.cfg['res_in']}.h5"
         else:
-            self.db_name = f"train_{run_name}_{seed}_{n_samples}_{n_sources}_fno_128.h5"
+            self.db_name = f"train_{run_name}_{seed}_{n_samples}_{n_sources}_fno_{self.cfg['res_in']}.h5"
         self.size = n_samples
 
     def open_hdf5(self):
@@ -34,7 +33,7 @@ class PotentialDataset(torch.utils.data.Dataset):
         # Shape: CxHxW
         input = (
             np.array(self.db["input"][idx])
-            .reshape(self.cfg["res"] * 4, self.cfg["res"] * 4, -1)
+            .reshape(self.cfg["res_in"], self.cfg["res_in"], -1)
             .transpose(2, 0, 1)
         )
         output = np.array(self.db["output"][idx]).reshape(
@@ -55,13 +54,18 @@ if __name__ == "__main__":
         "n_samples": 200000,
         "lim": 1.2,
         "res": 32,
+        "res_in": 128,
         "dim": 2,
-        "epochs": 125,
+        "epochs": 150,
         "seed": 42,
         "lambda_field": 0.25,
         "batch_size": 500,
         "hidden_channels": 64,
         "n_modes": 16,
+        "learning_rate": 1e-2,
+        "weight_decay": 1e-4,
+        "scheduler_step": 30,
+        "scheduler_gamma": 0.1,
     }
 
     # Set up WandB logging
@@ -74,7 +78,7 @@ if __name__ == "__main__":
     wandb.init(**wandb_args)
 
     train_dataset = PotentialDataset(
-        run_name="res32_large_m",
+        run_name=f"res{config['res']}_large_m",
         cfg=config,
         n_samples=config["n_samples"],
         n_sources=1,
@@ -82,7 +86,7 @@ if __name__ == "__main__":
     )
 
     val_dataset = PotentialDataset(
-        run_name="res32_large_m",
+        run_name=f"res{config['res']}_large_m",
         cfg=config,
         n_samples=1000,
         n_sources=10,
@@ -91,7 +95,7 @@ if __name__ == "__main__":
     )
 
     val_single_dataset = PotentialDataset(
-        run_name="res32_large_m",
+        run_name=f"res{config['res']}_large_m",
         cfg=config,
         n_samples=1000,
         n_sources=1,
@@ -139,24 +143,28 @@ if __name__ == "__main__":
 
     test_loaders = {"val": val_loader, "val_single": val_single_loader}
 
-    optimizer = AdamW(operator.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=25)
+    optimizer = AdamW(
+        operator.parameters(),
+        lr=config["learning_rate"],
+        weight_decay=config["weight_decay"],
+    )
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer, step_size=config["scheduler_step"], gamma=config["scheduler_gamma"]
+    )
 
-    l2loss = LpLoss(d=1, p=2)  # L2 loss for function values
-    h1loss = H1Loss(d=1)  # H1 loss includes gradient information
+    l2loss = LpLoss(d=1, p=2, reduction="mean")  # L2 loss for function values
+    # h1loss = H1Loss(d=1)  # H1 loss includes gradient information
 
-    train_loss = h1loss
-    eval_losses = {"h1": h1loss, "l2": l2loss}
+    train_loss = l2loss
+    eval_losses = {"l2": l2loss}
 
     # Create the trainer
     trainer = Trainer(
         model=operator,
         n_epochs=config["epochs"],
         device=device,
-        data_processor=DefaultDataProcessor().to(device),
         wandb_log=True,  # Disable Weights & Biases logging for this tutorial
-        eval_interval=1,  # Evaluate every 5 epochs
-        use_distributed=False,  # Single GPU/CPU training
+        eval_interval=10,  # Evaluate every 10 epochs
         verbose=True,
     )
 
@@ -172,4 +180,6 @@ if __name__ == "__main__":
     )
 
     model_folder = Path(__file__).parent / ".." / ".." / "models" / "fno"
-    operator.save_checkpoint(save_folder=model_folder, save_name="fno_large_m_64")
+    operator.save_checkpoint(
+        save_folder=model_folder, save_name=f"fno_large_m_{config['res_in']}_verbose"
+    )
