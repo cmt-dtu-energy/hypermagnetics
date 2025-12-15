@@ -1,4 +1,6 @@
 import numpy as np
+import h5py
+from pathlib import Path
 
 from hypermagnetics.sources import configure
 
@@ -188,12 +190,10 @@ if __name__ == "__main__":
     #     size_log=False,
     # )
 
-    import h5py
-    from pathlib import Path
-
     # db_name = "train_res32_large_m_42_200000_1"
     # db_name = "val_res32_large_m_40_1000_1"
-    db_name = "val_res32_large_m_41_1000_10"
+    # db_name = "val_res32_large_m_41_1000_10"
+    db_name = "val_eval_large_m_92_1000_1"
     datapath = Path(__file__).parent / ".." / ".." / "data"
     res_in = 128
 
