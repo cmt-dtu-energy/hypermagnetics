@@ -17,12 +17,13 @@ def fit(
     trainer_config,
     optim,
     model,
-    train,
+    train_name,
     test,
     log=print,
     every=1,
     batch_size=500,
     lambda_field=0.25,
+    n_samples=200000,
 ):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
 
@@ -34,21 +35,9 @@ def fit(
         return model, opt_state, loss_value
 
     for epoch in range(trainer_config["epochs"]):
-        n_steps = max(1, train["sources"].shape[0] // batch_size)
+        n_steps = max(1, n_samples // batch_size)
         for i in range(n_steps):
-            batch = {}
-            batch["sources"] = train["sources"][i * batch_size : (i + 1) * batch_size]
-            batch["msp"] = train["msp"][i * batch_size : (i + 1) * batch_size]
-            batch["field"] = train["field"][i * batch_size : (i + 1) * batch_size]
-            # batch["r"] = jnp.concatenate(
-            #     [
-            #         train["r"][i * batch_size : (i + 1) * batch_size],
-            #         jnp.repeat(train["r"][-1:], batch_size, axis=0),
-            #     ],
-            #     axis=1,
-            # )
-            batch["r"] = train["r"]
-
+            batch = sources.read_db_batch(train_name, batch_size, i)
             model, opt_state, train_loss = step(model, opt_state, batch)
 
             # Logging
