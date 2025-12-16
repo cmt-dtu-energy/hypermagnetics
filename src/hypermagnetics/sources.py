@@ -7,6 +7,8 @@ import jax.numpy as jnp
 import jax.random as jr
 import numpy as np
 
+from jaxtyping import Array
+
 from hypermagnetics import plots
 from hypermagnetics.quadtree import random_quadtree, random_quadtree3D
 # from hypermagnetics.fmm_sources import potential2D
@@ -626,7 +628,9 @@ def read_db(filename: str):
     return data
 
 
-def read_db_batch(filename: str, batch_size: int, idx: int):
+def read_db_batch(key: Array, filename: str, idx: int, batch_size: int, res: int = 32):
+    key, query_key = jr.split(key, 2)
+    query_idx = jnp.sort(jr.choice(query_key, res**3, shape=(res**2,), replace=False))
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     data = {
@@ -638,17 +642,21 @@ def read_db_batch(filename: str, batch_size: int, idx: int):
             ],
             axis=-1,
         ),
-        "r": np.array(db["r"]),
-        "msp": np.array(db["msp"][idx * batch_size : (idx + 1) * batch_size]),
-        "field": np.array(db["field"][idx * batch_size : (idx + 1) * batch_size]),
+        "r": np.array(db["r"][query_idx]),
+        "msp": np.array(
+            db["msp"][idx * batch_size : (idx + 1) * batch_size, query_idx]
+        ),
+        "field": np.array(
+            db["field"][idx * batch_size : (idx + 1) * batch_size, query_idx]
+        ),
     }
     db.close()
 
     _, _, size = np.split(data["sources"], 3, axis=-1)
-    data["max_size"] = np.max(size[..., :2])
-    data["min_size"] = np.min(size[..., :2])
+    data["max_size"] = np.max(size)
+    data["min_size"] = np.min(size)
 
-    return data
+    return data, key
 
 
 def read_db_old(filename: str, max_samples: int = -1):

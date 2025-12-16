@@ -1,4 +1,5 @@
 import equinox as eqx
+import jax.random as jr
 import matplotlib.pyplot as plt
 import optax
 import scienceplots  # noqa
@@ -17,15 +18,18 @@ def fit(
     trainer_config,
     optim,
     model,
-    train_name,
+    train_db_name,
     test,
     log=print,
     every=1,
     batch_size=500,
     lambda_field=0.25,
     n_samples=200000,
+    res=32,
+    seed=0,
 ):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
+    query_key = jr.PRNGKey(seed)
 
     @eqx.filter_jit
     def step(model, opt_state, data):
@@ -37,7 +41,9 @@ def fit(
     for epoch in range(trainer_config["epochs"]):
         n_steps = max(1, n_samples // batch_size)
         for i in range(n_steps):
-            batch = sources.read_db_batch(train_name, batch_size, i)
+            batch, query_key = sources.read_db_batch(
+                query_key, train_db_name, i, batch_size, res
+            )
             model, opt_state, train_loss = step(model, opt_state, batch)
 
             # Logging
