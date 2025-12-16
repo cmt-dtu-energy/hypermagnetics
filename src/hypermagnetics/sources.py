@@ -8,7 +8,7 @@ import jax.random as jr
 import numpy as np
 
 from hypermagnetics import plots
-from hypermagnetics.quadtree import random_quadtree
+from hypermagnetics.quadtree import random_quadtree, random_quadtree3D
 # from hypermagnetics.fmm_sources import potential2D
 
 jax.config.update("jax_enable_x64", True)
@@ -163,22 +163,31 @@ def configure(
 
     key = jr.PRNGKey(seed)
     r0key, mkey, rkey, skey = jr.split(key, 4)
-    m = jr.normal(key=mkey, shape=(n_samples, n_sources, 2)) * 10
+    m = jr.normal(key=mkey, shape=(n_samples, n_sources, dim)) * 10
 
     if quadtree:
-        r0 = np.zeros((n_samples, n_sources, 2))
+        r0 = np.zeros((n_samples, n_sources, dim))
         size = np.zeros((n_samples, n_sources, 1))
 
         for i in range(n_samples):
             # Generate random quadtree
-            cells, r0key = random_quadtree(*(-lim, -lim, lim, lim), n_sources, r0key)
+            if dim == 2:
+                cells, r0key = random_quadtree(
+                    *(-lim, -lim, lim, lim), n_sources, r0key
+                )
+            elif dim == 3:
+                cells, r0key = random_quadtree3D(
+                    *(-lim, -lim, -lim, lim, lim, lim), n_sources, r0key
+                )
+            else:
+                raise ValueError("Quadtree only supports 2D or 3D.")
             # Collect centers
             r0[i] = jnp.array([c.center() for c in cells][:n_sources])
             size[i, :, 0] = jnp.array([c.width / 2 for c in cells][:n_sources])
     else:
         r0 = jr.uniform(
             key=r0key,
-            shape=(n_samples, n_sources, 2),
+            shape=(n_samples, n_sources, dim),
             minval=-lim + min_size if r0_gap else -lim,
             maxval=lim - min_size if r0_gap else lim,
         )
@@ -200,6 +209,7 @@ def configure(
             )
 
     if shape == "sphere":
+        res_exp = dim
         if dim == 2:
             size = jnp.concatenate([size, size], axis=-1)
         elif dim == 3:
@@ -215,8 +225,15 @@ def configure(
             r0 = jnp.concatenate([r0, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
             m = jnp.concatenate([m, jnp.zeros((n_samples, n_sources, 1))], axis=-1)
             dim = 3
+            res_exp = 2
         elif dim == 3:
             size = jnp.concatenate([size, size, size], axis=-1)
+            res_exp = 3
+        else:
+            raise ValueError("Prism shape only supports 2D or 3D.")
+
+    else:
+        raise ValueError(f"Unknown shape: {shape}")
 
     sources = jnp.concatenate([m, r0, size], axis=-1)
 
@@ -243,27 +260,27 @@ def configure(
         # if dipole_correction:
         #     db.create_dataset(
         #         "r",
-        #         shape=(n_samples + 1, res**2, 3),
+        #         shape=(n_samples + 1, res**res_exp, 3),
         #         dtype="float32",
         #     )
         #     db.create_dataset(
         #         "msp",
-        #         shape=(n_samples, 2 * res**2),
+        #         shape=(n_samples, 2 * res**res_exp),
         #         dtype="float32",
         #     )
         #     db.create_dataset(
         #         "field",
-        #         (n_samples, 2 * res**2, dim),
+        #         (n_samples, 2 * res**res_exp, dim),
         #         dtype="float32",
         #     )
         # else:
         if p_target_source < 1.0:
-            shape_r = (n_samples, res**2, dim)
+            shape_r = (n_samples, res**res_exp, dim)
         else:
             if target_source:
                 shape_r = (n_samples, n_sources, dim)
             else:
-                shape_r = (res**2, dim)
+                shape_r = (res**res_exp, dim)
         db.create_dataset(
             "r",
             shape=shape_r,
@@ -271,19 +288,23 @@ def configure(
         )
         db.create_dataset(
             "msp",
-            shape=(n_samples, n_sources) if target_source else (n_samples, res**2),
+            shape=(n_samples, n_sources)
+            if target_source
+            else (n_samples, res**res_exp),
             dtype="float32",
         )
         db.create_dataset(
             "field",
             shape=(n_samples, n_sources, dim)
             if target_source
-            else (n_samples, res**2, dim),
+            else (n_samples, res**res_exp, dim),
             dtype="float32",
         )
-        db.create_dataset("grid", shape=(res**2, dim), dtype="float32")
-        db.create_dataset("msp_grid", shape=(n_samples, res**2), dtype="float32")
-        db.create_dataset("field_grid", shape=(n_samples, res**2, dim), dtype="float32")
+        db.create_dataset("grid", shape=(res**res_exp, dim), dtype="float32")
+        db.create_dataset("msp_grid", shape=(n_samples, res**res_exp), dtype="float32")
+        db.create_dataset(
+            "field_grid", shape=(n_samples, res**res_exp, dim), dtype="float32"
+        )
 
     if grid_eval:
         if dim == 2 and shape == "sphere":
@@ -302,11 +323,14 @@ def configure(
                     jnp.linspace(r0[0, 0, 2], r0[0, 0, 2], 1),
                 )
             else:
-                grids = jnp.meshgrid(
-                    jnp.linspace(-lim, lim, res),
-                    jnp.linspace(-lim, lim, res),
-                    jnp.linspace(0, 0, 1),
-                )
+                if dim == 3 and res_exp == 2:
+                    grids = jnp.meshgrid(
+                        jnp.linspace(-lim, lim, res),
+                        jnp.linspace(-lim, lim, res),
+                        jnp.linspace(0, 0, 1),
+                    )
+                else:
+                    grids = jnp.meshgrid(*[jnp.linspace(-lim, lim, res)] * dim)
         grid = jnp.concatenate([g.ravel()[:, None] for g in grids], axis=-1)
 
         ### Calculation for grid
@@ -340,10 +364,13 @@ def configure(
         r = r0 + eps
     else:
         if p_target_source < 1.0:
-            r_all = jnp.zeros((n_samples, res**2, 2))
+            r_all = jnp.zeros((n_samples, res**res_exp, res_exp))
             akey, bkey, ckey, dkey, rkey = jr.split(rkey, num=5)
             r_avail = jr.uniform(
-                key=akey, minval=-lim, maxval=lim, shape=(n_samples, 4 * res**2, 2)
+                key=akey,
+                minval=-lim,
+                maxval=lim,
+                shape=(n_samples, 4 * res**res_exp, res_exp),
             )
             for i in range(n_samples):
                 for n in range(n_sources):
@@ -367,9 +394,9 @@ def configure(
                         idx_union.update(idx_in.tolist())
 
                     # After processing all sources for the first sample, build r_all so that
-                    # approximately p_target_source fraction of the res**2 points are inside sources
+                    # approximately p_target_source fraction of the res**res_exp points are inside sources
                     if n == n_sources - 1:
-                        total_points = res**2
+                        total_points = res**res_exp
                         p_in = int(round(p_target_source * total_points))
 
                         avail_indices = jnp.arange(r_avail.shape[1])
@@ -415,26 +442,28 @@ def configure(
                             jnp.array(r_avail[i])[jr.permutation(dkey, selected)]
                         )
 
-            if dim == 3:
+            if dim == 3 and res_exp == 2:
                 r_all = jnp.concatenate(
-                    [r_all, jnp.zeros((n_samples, res**2, 1))], axis=-1
+                    [r_all, jnp.zeros((n_samples, res**res_exp, 1))], axis=-1
                 )
         else:
-            r_all = jr.uniform(key=rkey, minval=-lim, maxval=lim, shape=(res**2, 2))
+            r_all = jr.uniform(
+                key=rkey, minval=-lim, maxval=lim, shape=(res**res_exp, dim)
+            )
 
-            if dim == 3:
+            if dim == 3 and res_exp == 2:
                 r_all = jnp.concatenate(
-                    [r_all, jnp.zeros((n_samples, res**2, 1))], axis=-1
+                    [r_all, jnp.zeros((n_samples, res**res_exp, 1))], axis=-1
                 )
 
         # if dipole_correction:
         #     r_dipole = (
-        #         jr.normal(key=rkey, shape=(n_samples, res**2, 2)) * size[:, 0:1, 0:2]
+        #         jr.normal(key=rkey, shape=(n_samples, res**res_exp, 2)) * size[:, 0:1, 0:2]
         #         + r0[:, 0:1, 0:2]
         #     )
-        #     if dim == 3:
+        #     if dim == 3 and res_exp == 2:
         #         r_dipole = jnp.concatenate(
-        #             [r_dipole, jnp.zeros((n_samples, res**2, 1))], axis=-1
+        #             [r_dipole, jnp.zeros((n_samples, res**res_exp, 1))], axis=-1
         #         )
 
         #     r = jnp.concatenate([r_dipole, r_all[None]], axis=0)
@@ -540,16 +569,16 @@ def configure(
     # Postprocessing - Remove fields with nan values
     if save_data:
         print(f"Database '{db_prefix}_{seed}_{n_samples}_{n_sources}.h5' created!")
-        if n_samples > 1000:
-            nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
-            for i, idx in enumerate(nan_idx):
-                db["m"][idx] = db["m"][n_samples - 1000 + i]
-                db["r0"][idx] = db["r0"][n_samples - 1000 + i]
-                db["size"][idx] = db["size"][n_samples - 1000 + i]
-                db["msp"][idx] = db["msp"][n_samples - 1000 + i]
-                db["field"][idx] = db["field"][n_samples - 1000 + i]
-                db["msp_grid"][idx] = db["msp_grid"][n_samples - 1000 + i]
-                db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
+        # if n_samples > 1000:
+        #     nan_idx = jnp.where(jnp.isnan(db["field"][:, :, 0]))[0]
+        #     for i, idx in enumerate(nan_idx):
+        #         db["m"][idx] = db["m"][n_samples - 1000 + i]
+        #         db["r0"][idx] = db["r0"][n_samples - 1000 + i]
+        #         db["size"][idx] = db["size"][n_samples - 1000 + i]
+        #         db["msp"][idx] = db["msp"][n_samples - 1000 + i]
+        #         db["field"][idx] = db["field"][n_samples - 1000 + i]
+        #         db["msp_grid"][idx] = db["msp_grid"][n_samples - 1000 + i]
+        #         db["field_grid"][idx] = db["field_grid"][n_samples - 1000 + i]
 
         db.close()
 
@@ -570,7 +599,11 @@ def read_db(filename: str):
     db = h5py.File(datapath / filename, "r")
     data = {
         "sources": np.concatenate(
-            [db["m"][:], db["r0"][:], db["size"][:]],
+            [
+                db["m"][:],
+                db["r0"][:],
+                db["size"][:],
+            ],
             axis=-1,
         ),
         "r": np.array(db["r"][:]),
@@ -583,6 +616,31 @@ def read_db(filename: str):
         "target_source": db.attrs["target_source"],
         "shape": db.attrs["shape"],
         "lim": db.attrs["lim"],
+    }
+    db.close()
+
+    _, _, size = np.split(data["sources"], 3, axis=-1)
+    data["max_size"] = np.max(size[..., :2])
+    data["min_size"] = np.min(size[..., :2])
+
+    return data
+
+
+def read_db_batch(filename: str, batch_size: int, idx: int):
+    datapath = Path(__file__).parent / ".." / ".." / "data"
+    db = h5py.File(datapath / filename, "r")
+    data = {
+        "sources": np.concatenate(
+            [
+                db["m"][idx * batch_size : (idx + 1) * batch_size],
+                db["r0"][idx * batch_size : (idx + 1) * batch_size],
+                db["size"][idx * batch_size : (idx + 1) * batch_size],
+            ],
+            axis=-1,
+        ),
+        "r": np.array(db["r"]),
+        "msp": np.array(db["msp"][idx * batch_size : (idx + 1) * batch_size]),
+        "field": np.array(db["field"][idx * batch_size : (idx + 1) * batch_size]),
     }
     db.close()
 

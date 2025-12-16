@@ -1,6 +1,4 @@
 import numpy as np
-import h5py
-from pathlib import Path
 
 from hypermagnetics.sources import configure
 
@@ -57,6 +55,7 @@ def create_data(
     shape: str = "prism",
     quadtree: bool = True,
     name: str = "eval",
+    dim: int = 2,
     res: int = 32,
     lim: float = 1.0,
     eps: float = 0.0,
@@ -75,6 +74,7 @@ def create_data(
             "shape": shape,
             "n_samples": n_ensemble,
             "n_sources": max(min_sources, step_sources * n),
+            "dim": dim,
             "lim": lim,
             "res": res,
             "target_source": target_source,
@@ -98,7 +98,8 @@ def create_data(
 
 if __name__ == "__main__":
     res = 32
-    lim = 1.2
+    lim = 1.25
+    name = f"res{res}_3D"
     # for p in [0, 0.1, 0.25, 0.5, 0.75, 0.99]:
     # name = "eval_large_m_qt"
     # create_data(
@@ -125,92 +126,96 @@ if __name__ == "__main__":
     #     start_idx=0,
     # )
 
-    # create_data(
-    #     n_eval=0,
-    #     n_ensemble=1000,
-    #     min_sources=1,
-    #     step_sources=0,
-    #     field_eval=True,
-    #     name=f"val_{name}",
-    #     shape="sphere",
-    #     quadtree=False,
-    #     grid_eval=True,
-    #     res=res,
-    #     lim=lim,
-    #     eps=0.0,
-    #     max_size=0.48,
-    #     min_size=0.12,
-    #     batch_size=30,
-    #     seed=92,
-    #     dp_correction=False,
-    #     size_log=False,
-    #     r0_gap=True,
-    #     target_source=True,
-    # )
+    create_data(
+        n_eval=0,
+        n_ensemble=1000,
+        min_sources=1,
+        step_sources=0,
+        field_eval=True,
+        name=f"val_{name}",
+        shape="prism",
+        quadtree=False,
+        grid_eval=True,
+        dim=3,
+        res=res,
+        lim=lim,
+        eps=0.0,
+        max_size=0.5,
+        min_size=0.05,
+        batch_size=10,
+        seed=40,
+        dp_correction=False,
+        size_log=False,
+        r0_gap=True,
+        # target_source=True,
+    )
 
-    # create_data(
-    #     n_eval=0,
-    #     n_ensemble=1000,
-    #     min_sources=10,
-    #     step_sources=0,
-    #     field_eval=True,
-    #     name=f"val_{name}",
-    #     shape="prism",
-    #     quadtree=True,
-    #     grid_eval=True,
-    #     res=res,
-    #     lim=lim,
-    #     eps=0.0,
-    #     max_size=0.5,
-    #     min_size=0.1,
-    #     batch_size=30,
-    #     seed=41,
-    #     dp_correction=False,
-    # )
+    create_data(
+        n_eval=0,
+        n_ensemble=1000,
+        min_sources=10,
+        step_sources=0,
+        field_eval=True,
+        name=f"val_{name}",
+        shape="prism",
+        quadtree=True,
+        grid_eval=True,
+        dim=3,
+        res=res,
+        lim=lim,
+        eps=0.0,
+        max_size=0.5,
+        min_size=0.05,
+        batch_size=10,
+        seed=41,
+        dp_correction=False,
+    )
 
-    # create_data(
-    #     n_eval=0,
-    #     n_ensemble=200000,
-    #     min_sources=1,
-    #     step_sources=0,
-    #     field_eval=True,
-    #     name=f"train_{name}",
-    #     shape="prism",
-    #     quadtree=False,
-    #     grid_eval=True,
-    #     res=res,
-    #     lim=lim,
-    #     eps=0.0,
-    #     max_size=0.5,
-    #     min_size=0.05,
-    #     batch_size=40,
-    #     seed=42,
-    #     dp_correction=False,
-    #     r0_gap=True,
-    #     size_log=False,
-    # )
+    create_data(
+        n_eval=0,
+        n_ensemble=200000,
+        min_sources=1,
+        step_sources=0,
+        field_eval=True,
+        name=f"train_{name}",
+        shape="prism",
+        quadtree=False,
+        grid_eval=True,
+        dim=3,
+        res=res,
+        lim=lim,
+        eps=0.0,
+        max_size=0.5,
+        min_size=0.05,
+        batch_size=10,
+        seed=42,
+        dp_correction=False,
+        r0_gap=True,
+        size_log=False,
+    )
 
-    # db_name = "train_res32_large_m_42_200000_1"
-    # db_name = "val_res32_large_m_40_1000_1"
-    # db_name = "val_res32_large_m_41_1000_10"
-    db_name = "val_eval_large_m_92_1000_1"
-    datapath = Path(__file__).parent / ".." / ".." / "data"
-    res_in = 128
+    ### FOURIER NEURAL OPERATOR PREPROCESSING ###
+    # # db_name = "train_res32_large_m_42_200000_1"
+    # # db_name = "val_res32_large_m_40_1000_1"
+    # # db_name = "val_res32_large_m_41_1000_10"
+    # db_name = "val_eval_large_m_92_1000_1"
+    # datapath = Path(__file__).parent / ".." / ".." / "data"
+    # res_in = 128
 
-    db_orig = h5py.File(datapath / f"{db_name}.h5", "r")
-    db = h5py.File(datapath / f"{db_name}_fno_{res_in}.h5", "w")
-    data = {
-        "sources": np.concatenate(
-            [db_orig["m"][:], db_orig["r0"][:], db_orig["size"][:]],
-            axis=-1,
-        ),
-        "msp_grid": np.array(db_orig["msp_grid"][:]),
-    }
-    input = fno_input_converter(data["sources"], shape="prism", res=res_in, lim=1.2)
-    db.create_dataset("input", shape=input.shape, dtype="float32")
-    db.create_dataset("output", shape=data["msp_grid"].shape, dtype="float32")
-    print(input.shape, data["msp_grid"].shape)
-    db["input"][:] = input.astype("float32")
-    db["output"][:] = data["msp_grid"].astype("float32")
-    db.close()
-    print("FNO data created.")
+    # db_orig = h5py.File(datapath / f"{db_name}.h5", "r")
+    # db = h5py.File(datapath / f"{db_name}_fno_{res_in}.h5", "w")
+    # data = {
+    #     "sources": np.concatenate(
+    #         [db_orig["m"][:], db_orig["r0"][:], db_orig["size"][:]],
+    #         axis=-1,
+    #     ),
+    #     "msp_grid": np.array(db_orig["msp_grid"][:]),
+    # }
+    # input = fno_input_converter(data["sources"], shape="prism", res=res_in, lim=1.2)
+    # db.create_dataset("input", shape=input.shape, dtype="float32")
+    # db.create_dataset("output", shape=data["msp_grid"].shape, dtype="float32")
+    # print(input.shape, data["msp_grid"].shape)
+    # db["input"][:] = input.astype("float32")
+    # db["output"][:] = data["msp_grid"].astype("float32")
+    # db.close()
+    # print("FNO data created.")

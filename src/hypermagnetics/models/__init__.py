@@ -96,13 +96,13 @@ class HyperModel(eqx.Module):
         """Evaluate the field given sources (sources) and evaluation points (r)."""
         weights, biases = self.prepare_weights(sources)
         model = self.prepare_model(weights, biases)
-        return -jax.vmap(jax.grad(model))(r[..., :2])
+        return -jax.vmap(jax.grad(model))(r)
 
     def __call__(self, sources, r):
         """Evaluate the potential given sources (sources) and evaluation points (r)."""
         weights, biases = self.prepare_weights(sources)
         model = self.prepare_model(weights, biases)
-        return jax.vmap(model)(r[..., :2])
+        return jax.vmap(model)(r)
         # Only required when testing sequential runtime
         # return jax.lax.map(model, r[..., :2], batch_size=1)
 
@@ -115,6 +115,7 @@ class MLPHyperModel(HyperModel):
     hwidth: int
     hdepth: int
     seed: int
+    dim: int = 2
     in_size: int = 2
 
     @property
@@ -127,4 +128,5 @@ class MLPHyperModel(HyperModel):
             "hwidth": self.hwidth,
             "hdepth": self.hdepth,
             "seed": self.seed,
+            "dim": self.dim,
         }

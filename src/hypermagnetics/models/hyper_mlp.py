@@ -69,7 +69,12 @@ class HyperLayer(MLPHyperModel):
 
     def prepare_weights(self, sources):
         inputs = jnp.concatenate(
-            [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
+            [
+                sources[..., : self.dim],
+                sources[..., 3 : self.dim + 3],
+                sources[..., 6:7],
+            ],
+            axis=-1,
         )
         wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
         # Only required when testing sequential runtime
@@ -122,7 +127,12 @@ class HyperMLP(MLPHyperModel):
     def prepare_weights(self, sources):
         # sources: m (mx, my, mz), r0 (x,y,z), size (a,b,c)
         inputs = jnp.concatenate(
-            [sources[..., :2], sources[..., 3:5], sources[..., 6:7]], axis=-1
+            [
+                sources[..., : self.dim],
+                sources[..., 3 : self.dim + 3],
+                sources[..., 6:7],
+            ],
+            axis=-1,
         )
         wb = jnp.sum(jax.vmap(self.hypermodel)(inputs), axis=0)
         weights, biases = wb[: self.nweights], wb[self.nweights :]
@@ -143,6 +153,7 @@ if __name__ == "__main__":
         "n_samples": 10,
         "n_sources": 2,
         "seed": 40,
+        "dim": 3,
         "lim": 3,
         "res": 32,
         "shape": "sphere",
@@ -152,12 +163,12 @@ if __name__ == "__main__":
 
     # Show output from evaluating HyperMLP model on source configuration
     seed = 39
-    model = HyperMLP(width=4, depth=3, hwidth=2, hdepth=2, seed=seed)
+    model = HyperMLP(width=4, depth=3, hwidth=2, hdepth=2, dim=config["dim"], seed=seed)
     print(model.hparams)
     print(jax.vmap(model, in_axes=(0, None))(sources, r))
-    plots(train_data, model, idx=0)
+    # plots(train_data, model, idx=0)
 
-    additive_model = HyperLayer(width=4, depth=3, hwidth=1, hdepth=2, seed=seed)
+    additive_model = HyperLayer(width=4, depth=3, hwidth=1, hdepth=2, dim=config["dim"], seed=seed)
     print(additive_model.hparams)
     print(jax.vmap(additive_model, in_axes=(0, None))(sources, r))
-    plots(train_data, additive_model, idx=0)
+    # plots(train_data, additive_model, idx=0)
