@@ -89,8 +89,11 @@ nohup.out
 models/fno
 
 # Data used for large-scale experiments
+data/Meshes_complete_2D
 !data/eval_large_m_42_10_1.h5
 !data/eval_large_m_42_10_10.h5
+!data/eval_large_m_42_10_10_fno_64.h5
+!data/eval_large_m_qt_42_10_50_fno_128.h5
 !data/eval_large_m_42_10_50.h5
 !data/eval_large_m_42_10_250.h5
 !data/eval_large_m_42_10_1000.h5
