@@ -197,10 +197,11 @@ if __name__ == "__main__":
 
     ### FOURIER NEURAL OPERATOR PREPROCESSING ###
     # db_name = "train_res32_large_m_42_200000_1"
-    db_name = "val_res32_large_m_40_1000_1"
+    # db_name = "val_res32_large_m_40_1000_1"
     # db_name = "val_res32_large_m_41_1000_10"
+    db_name = "eval_large_m_42_10_10"
     datapath = Path(__file__).parent / ".." / ".." / "data"
-    res_in = 32
+    res_in = 16
     lim = 1.2
 
     db_orig = h5py.File(datapath / f"{db_name}.h5", "r")
