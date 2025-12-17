@@ -54,11 +54,10 @@ if __name__ == "__main__":
         "n_samples": 200000,
         "lim": 1.2,
         "res": 32,
-        "res_in": 128,
+        "res_in": 32,
         "dim": 2,
         "epochs": 120,
         "seed": 42,
-        "lambda_field": 0.25,
         "batch_size": 500,
         "hidden_channels": 32,
         "n_modes": 16,
@@ -108,7 +107,7 @@ if __name__ == "__main__":
         hidden_channels=config["hidden_channels"],
         in_channels=2,
         out_channels=1,
-        resolution_scaling_factor=[0.5, 0.5, 1, 1],
+        resolution_scaling_factor=[1, 1, 1, 1],
     )
     operator = operator.to(device)
     n_params = count_model_params(operator)
@@ -118,7 +117,7 @@ if __name__ == "__main__":
     train_loader = DataLoader(
         train_dataset,
         batch_size=config["batch_size"],
-        num_workers=48,
+        num_workers=12,
         pin_memory=True,
         persistent_workers=False,
     )
@@ -127,7 +126,7 @@ if __name__ == "__main__":
         val_dataset,
         batch_size=min(1000, config["batch_size"]),
         shuffle=False,
-        num_workers=48,
+        num_workers=12,
         pin_memory=True,
         persistent_workers=False,
     )
@@ -136,7 +135,7 @@ if __name__ == "__main__":
         val_single_dataset,
         batch_size=min(1000, config["batch_size"]),
         shuffle=False,
-        num_workers=48,
+        num_workers=12,
         pin_memory=True,
         persistent_workers=False,
     )
