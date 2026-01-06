@@ -29,7 +29,7 @@ def fit(
     seed=0,
 ):
     opt_state = optim.init(eqx.filter(model, eqx.is_array))
-    query_key = jr.PRNGKey(seed)
+    init_query_key = jr.PRNGKey(seed)
 
     @eqx.filter_jit
     def step(model, opt_state, data):
@@ -40,6 +40,7 @@ def fit(
 
     for epoch in range(trainer_config["epochs"]):
         n_steps = max(1, n_samples // batch_size)
+        query_key = init_query_key.copy()
         for i in range(n_steps):
             batch, query_key = sources.read_db_batch(
                 query_key, train_db_name, i, batch_size, res

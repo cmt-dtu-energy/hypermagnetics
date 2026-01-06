@@ -630,7 +630,7 @@ def read_db(filename: str):
 
 def read_db_batch(key: Array, filename: str, idx: int, batch_size: int, res: int = 32):
     key, query_key = jr.split(key, 2)
-    query_idx = jnp.sort(jr.choice(query_key, res**3, shape=(res**2,), replace=False))
+    query_idx = jnp.sort(jr.choice(query_key, res**3, shape=(32**2,), replace=False))
     datapath = Path(__file__).parent / ".." / ".." / "data"
     db = h5py.File(datapath / filename, "r")
     data = {

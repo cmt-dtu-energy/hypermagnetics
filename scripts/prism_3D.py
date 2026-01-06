@@ -12,21 +12,21 @@ from hypermagnetics.runner import fit
 if __name__ == "__main__":
     config = {
         "shape": "prism",
-        "n_samples": 200000,
+        "n_samples": 120000,
         "lim": 1.25,
         "res": 32,
         "dim": 3,
         "epochs": 50,
-        "width": 400,
+        "width": 800,
         "depth": 3,
-        "hwidth": 2,
+        "hwidth": 3,
         "hdepth": 3,
         "seed": 42,
         "lambda_field": 0.25,
-        "batch_size": 750,
+        "batch_size": 400,
     }
 
-    run_name = "res32_3D"
+    run_name = f"res{config['res']}_{config['dim']}D"
     train_name = f"train_{run_name}_42_{config['n_samples']}_1.h5"
     val, _ = read_db_batch(
         jr.PRNGKey(41),
@@ -101,7 +101,23 @@ if __name__ == "__main__":
             seed=config["seed"],
         )
 
-    train_err = accuracy(model, read_db_batch(train_name, config["batch_size"], 0))
+    filepath = Path(__file__).parent / ".." / "models"
+    eqx.tree_serialise_leaves(
+        filepath
+        / f"fc_ilr_{config['width']}_{config['n_samples'] // 1000}k_{run_name}.eqx",
+        model,
+    )
+
+    train_err = accuracy(
+        model,
+        read_db_batch(
+            jr.PRNGKey(0),
+            train_name,
+            0,
+            config["batch_size"],
+            config["res"],
+        )[0],
+    )
     val_single_err = accuracy(model, val_single)
     val_multi_err = accuracy(model, val)
     wandb.log(
@@ -113,6 +129,3 @@ if __name__ == "__main__":
     )
 
     wandb.finish()
-
-    filepath = Path(__file__).parent / ".." / "models"
-    eqx.tree_serialise_leaves(filepath / f"fc_ilr_400_200k_{run_name}.eqx", model)
