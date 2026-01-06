@@ -17,6 +17,17 @@ python -m pip install -e "."
 conda install -c conda-forge pyvista jupyterlab trame ipywidgets
 ```
 
+## Dependencies and set-up for benchmark with fno
+
+```zsh
+conda create -n hm python=3.14 && conda activate hm-fno
+pip install neuraloperator
+pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+# pip3 install torch torchvision [MacOs]
+pip install notebook
+```
+
+
 ## Functionality
 
 The jax modelling intentionally eschews classes in favour of functions grouped into modules.
